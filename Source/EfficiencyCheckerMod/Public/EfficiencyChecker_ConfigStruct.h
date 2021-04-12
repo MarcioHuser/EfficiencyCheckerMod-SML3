@@ -1,0 +1,36 @@
+#pragma once
+#include "CoreMinimal.h"
+#include "Configuration/ConfigManager.h"
+#include "Engine/Engine.h"
+#include "EfficiencyChecker_ConfigStruct.generated.h"
+
+/* Struct generated from Mod Configuration Asset '/EfficiencyCheckerMod/Configuration/EfficiencyChecker_Config' */
+USTRUCT(BlueprintType)
+struct FEfficiencyChecker_ConfigStruct {
+    GENERATED_BODY()
+public:
+    UPROPERTY(BlueprintReadWrite)
+    bool autoUpdate;
+
+    UPROPERTY(BlueprintReadWrite)
+    float autoUpdateTimeout;
+
+    UPROPERTY(BlueprintReadWrite)
+    float autoUpdateDistance;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool dumpConnections;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool ignoreStorageTeleporter;
+
+    /* Retrieves active configuration value and returns object of this struct containing it */
+    static FEfficiencyChecker_ConfigStruct GetActiveConfig() {
+        FEfficiencyChecker_ConfigStruct ConfigStruct{};
+        FConfigId ConfigId{"EfficiencyCheckerMod", ""};
+        UConfigManager* ConfigManager = GEngine->GetEngineSubsystem<UConfigManager>();
+        ConfigManager->FillConfigurationStruct(ConfigId, FDynamicStructInfo{FEfficiencyChecker_ConfigStruct::StaticStruct(), &ConfigStruct});
+        return ConfigStruct;
+    }
+};
+

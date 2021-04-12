@@ -1,0 +1,37 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "2.0.0",
+  "SemVersion": "2.0.0",
+  "FriendlyName": "Efficiency Checker Mod",
+  "Description": "See if your production is underflowing! Now with a hand tool, too!",
+  "Category": "Modding",
+  "CreatedBy": "Marcio Neves",
+  "CreatedByURL": "https://ficsit.app/user/27uDm1v7WoUoDX",
+  "DocsURL": "https://ficsit.app/mod/ZNFaaRV4ow5M4",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "EfficiencyCheckerMod",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "SML",
+      "SemVersion": "^3.0.0",
+      "Enabled": false
+    },
+    {
+      "Name": "MarcioCommonLibs",
+      "SemVersion": "^1.0.0",
+      "Enabled": false
+    }
+  ]
+}
