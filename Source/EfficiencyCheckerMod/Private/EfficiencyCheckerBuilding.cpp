@@ -867,6 +867,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 	float limitedThroughputIn = customInjectedInput ? injectedInput : initialThroughtputLimit;
 
+	float timeout = GetWorld()->GetTimeSeconds() + AEfficiencyCheckerLogic::configuration.updateTimeout;
+
 	if (inputConnector)
 	{
 		TSet<AActor*> seenActors;
@@ -884,7 +886,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			buildableSubsystem,
 			0,
 			in_overflow,
-			indent
+			indent,
+			timeout
 			);
 	}
 
@@ -905,7 +908,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			buildableSubsystem,
 			0,
 			in_overflow,
-			indent
+			indent,
+			timeout
 			);
 	}
 	else

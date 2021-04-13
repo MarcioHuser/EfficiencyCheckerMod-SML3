@@ -49,7 +49,8 @@ public:
         class AFGBuildableSubsystem* buildableSubsystem,
         int level,
         bool& overflow,
-        const FString& indent
+        const FString& indent,
+        const float& timeout
     );
 
     static void collectOutput
@@ -64,7 +65,8 @@ public:
         class AFGBuildableSubsystem* buildableSubsystem,
         int level,
         bool& overflow,
-        const FString& indent
+        const FString& indent,
+        const float& timeout
     );
 
     static bool containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);

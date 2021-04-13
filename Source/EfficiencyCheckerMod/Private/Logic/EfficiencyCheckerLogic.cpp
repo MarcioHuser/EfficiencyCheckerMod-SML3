@@ -185,7 +185,8 @@ void AEfficiencyCheckerLogic::collectInput
 	class AFGBuildableSubsystem* buildableSubsystem,
 	int level,
 	bool& overflow,
-	const FString& indent
+	const FString& indent,
+	const float& timeout
 )
 {
 	TSet<TSubclassOf<UFGItemDescriptor>> restrictItems = in_restrictItems;
@@ -204,13 +205,21 @@ void AEfficiencyCheckerLogic::collectInput
 			return;
 		}
 
+		if (timeout < connector->GetWorld()->GetTimeSeconds())
+		{
+			EC_LOG_Error(
+				TEXT("collectInput: timeout!")
+				);
+
+			overflow = true;
+			return;
+		}
+
 		const auto fullClassName = GetPathNameSafe(owner->GetClass());
 
 		if (level > 100)
 		{
 			EC_LOG_Error(
-				/**getTimeStamp(),*/
-				*indent,
 				TEXT("collectInput: level is too deep: "),
 				level,
 				TEXT("; "),
@@ -995,8 +1004,14 @@ void AEfficiencyCheckerLogic::collectInput
 							buildableSubsystem,
 							level + 1,
 							overflow,
-							indent + TEXT("    ")
+							indent + TEXT("    "),
+							timeout
 							);
+
+						if (overflow)
+						{
+							return;
+						}
 
 						if (firstConnection)
 						{
@@ -1059,8 +1074,14 @@ void AEfficiencyCheckerLogic::collectInput
 							buildableSubsystem,
 							level + 1,
 							overflow,
-							indent + TEXT("    ")
+							indent + TEXT("    "),
+							timeout
 							);
+
+						if (overflow)
+						{
+							return;
+						}
 
 						if (discountedInput > 0)
 						{
@@ -1252,8 +1273,14 @@ void AEfficiencyCheckerLogic::collectInput
 							buildableSubsystem,
 							level + 1,
 							overflow,
-							indent + TEXT("    ")
+							indent + TEXT("    "),
+							timeout
 							);
+
+						if (overflow)
+						{
+							return;
+						}
 
 						if (pipeline)
 						{
@@ -1312,8 +1339,14 @@ void AEfficiencyCheckerLogic::collectInput
 								buildableSubsystem,
 								level + 1,
 								overflow,
-								indent + TEXT("    ")
+								indent + TEXT("    "),
+								timeout
 								);
+
+							if (overflow)
+							{
+								return;
+							}
 
 							if (discountedInput > 0)
 							{
@@ -1589,8 +1622,14 @@ void AEfficiencyCheckerLogic::collectInput
 						buildableSubsystem,
 						level + 1,
 						overflow,
-						indent + TEXT("    ")
+						indent + TEXT("    "),
+						timeout
 						);
+
+					if (overflow)
+					{
+						return;
+					}
 
 					if (firstConnection)
 					{
@@ -1635,8 +1674,14 @@ void AEfficiencyCheckerLogic::collectInput
 						buildableSubsystem,
 						level + 1,
 						overflow,
-						indent + TEXT("    ")
+						indent + TEXT("    "),
+						timeout
 						);
+
+					if (overflow)
+					{
+						return;
+					}
 
 					if (discountedInput > 0)
 					{
@@ -1720,7 +1765,8 @@ void AEfficiencyCheckerLogic::collectOutput
 	class AFGBuildableSubsystem* buildableSubsystem,
 	int level,
 	bool& overflow,
-	const FString& indent
+	const FString& indent,
+	const float& timeout
 )
 {
 	TSet<TSubclassOf<UFGItemDescriptor>> injectedItems = in_injectedItems;
@@ -1739,13 +1785,21 @@ void AEfficiencyCheckerLogic::collectOutput
 			return;
 		}
 
+		if (timeout < connector->GetWorld()->GetTimeSeconds())
+		{
+			EC_LOG_Error(
+				TEXT("collectOutput: timeout!")
+				);
+
+			overflow = true;
+			return;
+		}
+
 		auto fullClassName = GetPathNameSafe(owner->GetClass());
 
 		if (level > 100)
 		{
 			EC_LOG_Error(
-				/**getTimeStamp(),*/
-				*indent,
 				TEXT("collectOutput: level is too deep: "),
 				level,
 				TEXT("; "),
@@ -2369,8 +2423,14 @@ void AEfficiencyCheckerLogic::collectOutput
 								buildableSubsystem,
 								level + 1,
 								overflow,
-								indent + TEXT("    ")
+								indent + TEXT("    "),
+								timeout
 								);
+
+							if (overflow)
+							{
+								return;
+							}
 
 							if (firstConnection)
 							{
@@ -2430,8 +2490,14 @@ void AEfficiencyCheckerLogic::collectOutput
 								buildableSubsystem,
 								level + 1,
 								overflow,
-								indent + TEXT("    ")
+								indent + TEXT("    "),
+								timeout
 								);
+
+							if (overflow)
+							{
+								return;
+							}
 
 							if (discountedOutput > 0)
 							{
@@ -2560,8 +2626,14 @@ void AEfficiencyCheckerLogic::collectOutput
 							buildableSubsystem,
 							level + 1,
 							overflow,
-							indent + TEXT("    ")
+							indent + TEXT("    "),
+							timeout
 							);
+
+						if (overflow)
+						{
+							return;
+						}
 
 						if (pipeline)
 						{
@@ -2624,8 +2696,14 @@ void AEfficiencyCheckerLogic::collectOutput
 								buildableSubsystem,
 								level + 1,
 								overflow,
-								indent + TEXT("    ")
+								indent + TEXT("    "),
+								timeout
 								);
+
+							if (overflow)
+							{
+								return;
+							}
 
 							if (discountedOutput > 0)
 							{
@@ -2897,8 +2975,14 @@ void AEfficiencyCheckerLogic::collectOutput
 						buildableSubsystem,
 						level + 1,
 						overflow,
-						indent + TEXT("    ")
+						indent + TEXT("    "),
+						timeout
 						);
+
+					if (overflow)
+					{
+						return;
+					}
 
 					if (firstConnection)
 					{
@@ -3346,11 +3430,17 @@ void AEfficiencyCheckerLogic::setConfiguration(const FEfficiencyChecker_ConfigSt
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 	EC_LOG_Display(TEXT("StartupModule"));
 
+	if (configuration.updateTimeout <= 0)
+	{
+		configuration.updateTimeout = 15;
+	}
+
 	EC_LOG_Display(TEXT("autoUpdate = "), configuration.autoUpdate ? TEXT("true") : TEXT("false"));
 	EC_LOG_Display(TEXT("autoUpdateTimeout = "), configuration.autoUpdateTimeout);
 	EC_LOG_Display(TEXT("autoUpdateDistance = "), configuration.autoUpdateDistance);
 	EC_LOG_Display(TEXT("dumpConnections = "), configuration.dumpConnections ? TEXT("true") : TEXT("false"));
 	EC_LOG_Display(TEXT("ignoreStorageTeleporter = "), configuration.ignoreStorageTeleporter ? TEXT("true") : TEXT("false"));
+	EC_LOG_Display(TEXT("updateTimeout = "), configuration.updateTimeout);
 
 	if (configuration.autoUpdate)
 	{

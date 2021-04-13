@@ -1,6 +1,6 @@
 {
   "FileVersion": 3,
-  "Version": 1,
+  "Version": 2,
   "VersionName": "2.0.0",
   "SemVersion": "2.0.0",
   "FriendlyName": "Efficiency Checker Mod",
@@ -26,12 +26,12 @@
     {
       "Name": "SML",
       "SemVersion": "^3.0.0",
-      "Enabled": false
+      "Enabled": true
     },
     {
       "Name": "MarcioCommonLibs",
       "SemVersion": "^1.0.0",
-      "Enabled": false
+      "Enabled": true
     }
   ]
 }

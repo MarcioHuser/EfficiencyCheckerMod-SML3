@@ -1,0 +1,46 @@
+﻿=== Efficiency Checker
+
+=== Developer ===
+Marcio Neves
+
+=== UI ===
+Multiplayer banner, Icon and panel designed by Deantendo#4265 (find him at Satisfactory Modding Discord server)
+
+=== Special thanks ===
+TwoTwoEleven (Micro Manage) for the orientations on how to get the multiplayer working
+
+
+
+=== SML
+
+=== SML Developers ===
+Anttirt
+Archengius
+Brabb3l
+Crystalin
+Kronos
+Mircea
+Nomnom
+Panakotta00
+Stinosko
+SuperCoder79
+Trxnce
+Vilsol
+VirtusModz
+
+=== SML Collaborators ===
+Csstform
+TiaqoY0
+Turupawn
+gallexme
+
+=== Special Thanks ===
+Markus Rännare and the rest of the Satisfactory team :D
+
+=== Technologies used ===
+kubo/funchook
+ttvfs/ttvfs
+nlohmann/json
+Archengius/SatisfactoryModBootstrapper
+Unreal Engine 4
+

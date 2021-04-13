@@ -1,0 +1,364 @@
+<h1>UPDATE 4 COMPATIBLE!</h1>
+
+<h2>See if your production is underflowing!</h2>
+
+<hr/>
+<b>ATENTION:</b> this mod is not compatible with Refined Power and other mods with custom machines that does not implement Attachments (like Splitters/Mergers), "Factories"
+(the ones that use recipes to consume and produce something), standard "Generators" or standard "Extractors". Any checker placed on belts
+or pipes connecting to those buildings will ignore their existance. A solution may come to some of those, but each case must be appropached one by one, and that takes time
+<hr/>
+<br/>
+<br/>
+
+This mod allows you to verify if your production can work at <b>100%</b> efficiency or if it is on risk of underflowing, either because:
+<ul>
+    <li>You don't have the correct set of conveyors capable to deliver the minimum amount of required items;</li>
+    <li>You are not producing enought items to deliver.</li>
+</ul>
+
+(Pending verification for Update 4) It is Multiplayer compatible. Many thanks to <a href="https://ficsit.app/user/81X6ThXd2MA3ro">TwoTwoEleven</a> (<a href="https://ficsit.app/mod/B9ZnQrrWf5rdPp">Micro Manage</a>) for the orientations on how to get it working 😀
+
+<img alt="Multiplayer compatible" src="https://raw.githubusercontent.com/deantendo/community/master/com_mp_yes.png"/>
+
+<br/>
+<br/>
+
+Find me at <a href="https://discord.gg/A9bFvkbav4">Satisfactory Modding</a> Discord server (MarcioHuser#2377)
+
+<br/>
+<br/>
+
+<h3>What it includes:</h3>
+<ul>
+    <li>Two building for SOLIDS wich you can snap on existing belts (or have a belt passing through it). One with panels on each side; the other with panel on top of it. They can be 
+        stacked on top of each other. Both will show you:
+        <ol>
+            <li>The maximum amount of items/minute the <i>producers</i> can inject into the belts
+                (miners, constructors, foundries, etc. Modded producers should work as well). You can manually change this number, if you find it necessary;</li>
+            <li>The maximum amount of items/minute your belts can transport. This takes into account not only the belt it is connected to, but also connected belst/lifts
+                preceding or following the current one;</li>
+            <li>The required amount of items/minute your <i>consumers</i> need to receive to be able to work at 100%. You can manually change this number, if you find it necessary</li>
+        </ol>
+    </li>
+    <li>A wall variant for solids wich you can snap to Foundation Wall Poles. It works the same as the stackable buildings, showing the information for wichever belt/lift is connected or passing
+        through the Wall Conveyor Pole</li>
+    <li>A building for LIQUIDS wich can snap on existing pipes. Different from the solid ones, the pipe MUST connect to it, if you don't place it directly on a pipe. It can be stacked with
+        other Liquids Checker or any of the Solid Checkers</li>
+    <li>A wall variant for liquids wich you can snap to Walls, just like a pipe wall adapter. It also includes its own adapter and snaps the same as a reguler pipe wall adapter would. It works
+        the same as the previous buildings, showing the information for wichever pipe connected with it</li>
+    <li>A hand tool that can give you the same stats, realtime. Just point to a pipe, belt or lift, and click: the tool display will showing the computed stats for the given belt/pipe.
+        And yes, it IS expensive. You didn't though having an easy life would be cheap, right?</li>
+    <li>Color coding:
+        <ul>
+            <li>Blue: the field has a custom set, defined manually;</li>
+            <li>Green: the inject input and/or the throughput limit is the same value of the required output (if the required output is greater than zero).
+                All three fields will be presented with green color if the required output equals the injected output and they era less or equal than the throughput limit</li>
+            <li>Yellow: The inject input is greater then the belt throughput limit;</li>
+            <li>Red: the inject input and/or the throughput limit is less than the required output</li>
+            <li>Black: injected input and/or throughput limit is greater than the required output. Indicates you still have room to increase the consumption of items</li>
+        </ul>
+    </li>
+</ul>
+
+<br/>
+<br/>
+
+<h3>How do I get it:</h3>
+It will become available to be unlocked at the hub once you have unlocked the <b>Logistics Mk.3</b> milestone.
+
+<br/>
+<br/>
+
+<h3>How can I build it:</h3>
+<h4>Ground/floor checkers, for solid items</h4>
+<h5>Method 1:</h5>
+Just snap it into an existing belt. It snaps along any belt, much like how you can do with a splitter or a merger.
+
+<h5>Method 2:</h5>
+Place the building down and snap the belts to it. It acts like a conveyor pole, so you can snap from either direction, with any orientation.
+You can snap above other EfficiencyChecker Buildings, too, but only if they are not inclined
+
+<h5>Method 3:</h5>
+You don't even need to snap any belt to it. It will dected the one that is already passing through it. So,place it down, and just run the belt through it
+
+<h4>Wall checkers, for solid items</h4>
+Snap it to a Wall Conveyr Pole, no mather if it alrady has belts/lifts connected or not
+
+<h4>Ground/floor checkers, for liquid items</h4>
+<h5>Method 1:</h5>
+Snap it to an existing pipe. It will split the pipe in two parts, as a junction would do. If you remove it with the pipes intact, they will also be rejoined
+
+<h5>Method 2:</h5>
+Place it on the ground os on top of another checker, and connect pipes to it. It will not detect the liquids if you just pass the pipe through it, it must be connected
+
+<h4>Wall checkers, for liquids items</h4>
+Snap it to any valid Wall. It will place a pipe wall attachment where you must connect the pipes
+<br/>
+<br/>
+
+<h3>How can I use it:</h3>
+<ul>
+    <li>No matter the method you chose to place it down, it will automatically detect if any belt, lift, factory, pipe, junction or pump has been placed or dismantled, and will auto update after
+        a given timeout without any new building/conveyor being placed/removed;</li>
+    <li>By default it timeouts after 10s. You can also disable the auto-update, by editing the EfficiencyChecker.cfg, at the configs folder, if you need or want to save some processing cycles.
+        If auto-update is disabled, all checkers can only be refreshed when you interact with it</li>
+    <li>You can manually type values for input and/or output, if you want to manually define your limits for the system. Useful for complex, load balanced belt systems</li>
+</ul>
+
+<h3>FicsIt-Networks integration</h3>
+The following methods are available for all the Efficience Checker variants
+
+<ul>
+<li>updateBuilding(): mark the checker to recalculate at the next "tick" (right now it will only happen if you are near enough to the Checker)</li>
+
+<li>injectItems(): return a list of known items that can possible pass through the conveyors</li>
+
+<li>injectedInput: the amount of inject items the checker knows about</li>
+<li>setCustomInjectedInput(float): defines the custom amount of injected items. If zero, it will be reseted to the computed one</li>
+<li>isCustomInjectedInput(): true if a custom input is defined; false otherwhise</li>
+<li>resetCustomInjectedInput(): resets the custom input to the computed one</li>
+
+<li>limitedThroughput: the maximum amount of items per minute the conveyors system can handle</li>
+
+<li>requiredOutput: the amount of required items the checker knows about</li>
+<li>setCustomRequiredOutput(float): defines the custom amount of required items. If zero, it will be reseted to the computed one</li>
+<li>isCustomRequiredOutput(): true if a custom output is defined; false otherwhise</li>
+<li>resetCustomRequiredOutput(): resets the custom output to the computed one</li>
+</ul>
+
+A sample script can be downloaded <a href="https://github.com/MarcioHuser/EfficiencyCheckerMod/raw/master/Source/EfficiencyCheckerMod/EfficiencyCheckersScreen%20V2.lua" target="blank">here</a>
+
+Get <a href="https://ficsit.app/mod/8d8gk4imvFanRs">FicsIt-Networks</a>
+
+<br/>
+<br/>
+
+<h3>Videos:</h3>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=HQ8niXgUMVw" target="_blank">🚧 Efficiency Checker - Satisfactory Mod Spotlight</a>, by <a href="https://www.youtube.com/channel/UChDUXNzMh1fwTxwDhd47pOg" target="_blank">Random Gamer</a></li>
+<li><a href="https://www.youtube.com/watch?v=-iT-FQ3XaTs" target="_blank">Efficiency Checker Mod Monday Satisfactory Mod Spotlight</a>, by <a href="https://www.youtube.com/channel/UC2SNK_S7tvROHS_KJdIiEFg" target="_blank">TotalXclipse</a></li>
+</ul>
+
+<br/>
+<br/>
+
+<h3>Note:</h3>
+I am aware that, sometimes, the display panel "freezes" and will not update with the values. I haven't find a solution for that, yet.
+To solve it you can either rebuilt the Checker; OR just walk way and return later, as most of the time it will resume working by itself
+
+<br/>
+<br/>
+
+<br/>
+<br/>
+
+### Changelog
+- Version 2.0.0
+    - Features
+        - Reworked to be compatible with SML 3.0.0 and Update 4
+        - Included a timeout to prevent the checker to run "forever" when it find a really complex setup 
+		
+- Version 1.1.7
+    - Fix
+        - Fixed Multiplayer crash when a client uses the Hand Tool
+
+- Version 1.1.6
+    - Fix
+        - Fixed T-Pose while the Hand Tool is equiped, in multiplayer
+        - Proper flow rate are taken into account when there's a valve at a pipe sequence 
+
+- Version 1.1.5
+    - Fix
+        - Fixed crash when a fluid checker does not have pipes connected on both ends 
+
+- Version 1.1.4
+    - QoL
+        - Added support for FICSMAS Gift Tree
+
+- Version 1.1.3
+    - Fix
+        - Fixed compatibility with Build 138299
+
+- Version 1.1.2
+    - Optimization
+        - Code refactoring to optimize connected pipes/belts crawling to prevent Stack Overflow erros for very long/heavy splitted setups. Regardless, if it can't find a
+            tight enought crawling path, the game will no longer crash (hopefully), but the checkers will not report any number, showing instead an "Error" status
+    - Fix
+        - Fixed the correct throughput limit for pipe networks that include MK2 pipes
+        - Fixed stack overflow errors that would crash the game (hoperfully)
+        - Fixed crash that happens when used with current EXP version (but the mod will not show computed numbers, displaying a warning instead)
+
+- Version 1.1.1
+    - Fix
+        - Fixed some invalid meshes that could crash the game for some users
+
+- Version 1.1.0
+    - Recompiled to be compatible with Experimental Branch. This version will crash if used with Early Access. Revert to 1.0.5 if that is your case
+
+- Version 1.0.5
+    - QoL
+        - Mergers placed AFTER the checker (or after the belt you point at with the hand tool) will now be considered for accounting.
+            The amount of items that become injected from the other inputs will be discounted from the total Required Output
+        - Hold "Left Ctrl" while using the Hand Toll to fixate the number it reads. The read on the screen will remain the same until you do another read, wich
+            will be reseted to its default behaviour if you don't hold "Left Ctrl" while using it. It can be combined with "Left Shift" to read and fixate
+            the net value
+
+- Version 1.0.4
+    - QoL
+        - Hold "Left Shift" while using the Hand Tool to get the net value of inject items (how many items per minute you have to spare to consume at your factory)
+
+- Version 1.0.3
+    - Fix
+        - More refactoring regarding the random crash at game startup. It should be fine, now
+
+- Version 1.0.2
+    - Fix
+        - Code refactorying to prevent random crashes at game startup, depending of the combination of other mods you had installed
+
+- Version 1.0.1
+    - Fix
+        - New refactorying to prevent random crashes if you have Storage Teleporter and/or FicsIt-Networks
+
+- Version 1.0.0
+    - New content
+        - Efficiency Checker Hand Tool!!!!!
+        - Added drop-down selection box to define if a specific Checker can auto update or not
+    - Fix
+        - Refactored part of the code to try to prevent crashing when using Storage Teleporter mod. If crashes still occur, you can disable Storage Teleporter support (it will
+            be ignore by the checkers, as if they don't exist and the belt system will stop at it). Edit [game folder]\Configs\EfficiencyChecker.cfg and change the
+            "ignoreStorageTeleporter" to true
+
+- Version 0.5.0
+    - New content
+        - Added compatibility for <a href="https://ficsit.app/mod/BZPHaCmFVYcNv3">Storage Teleporter</a>
+
+- Version 0.4.1
+    - Optimization
+        - Reduction in triangles count and changed some LOD details, to try improve overall rendering performance
+    - Fix
+        - Fixed the algorithm for Train Freighter Platforms 
+
+- Version 0.4.0
+    - New Content
+        - Added support for Train Freighter Platforms (liquid and solid). The Checkers will check all the items that can be transported to/from the station it is connected,
+            interlinking all of then as a single, huge, merger/splitter. No consideration will be done regarding the distance the trains have to travel from station to station:
+            it is up to you to keep the flow steady. Attention: it will not work with double-ended trains that go back-and-forth between stations
+    - Fix
+        - Fixed crash that could happen when removing a Pipe Checker that didn't have both connections being used
+
+- Version 0.3.5
+    - Fix
+        - Fixed a bug that would make the pipe network fluids to turn into "unknown type", if a checker is placed inline to a pipe and all the fluids come only from containers
+            (could also happen if a pipe checker is removed and the pipes were merged together) 
+
+- Version 0.3.4
+    - Fix
+        - Fixed a bug that would make wall pipe checkers to only consider one side of the system for input computing. If it choose the wrong side, it will not 
+            collect any producing machine, only consumers, and will give "zero" for the Inject Input and Limited Throughput stats
+
+- Version 0.3.3
+    - Fix
+        - Fixed Truck Stations handling, where the belt system comming in for the fuel input was considered as part of the belt system used for the input/output ones
+        - Fixed a bug caused by Micro Manage when moving the pipe checker, wich caused the pipe attachment points to not move with it 
+
+- Version 0.3.2
+    - Fix
+        - Fixed a bug where the checkers would not display a value for "Injected Input" nor "Throughput Limit", if the source of items
+            are only the Truck Station and/or the Train Cargo Platform; or if the all the origin/terminal builds are not machines or conveyors
+            (storage bins, splitters, mergers, docking stationg and freighter platforms)
+
+- Version 0.3.1
+    - New Content
+        - Added a new panel BELOW the Efficiency Checker (Top), for those who need to read the values from below
+    - Fix
+        - Fixed a bug where the calculations would not give the discounted inject input when there's a splitter placed before the checker
+            (it was no longer discounting the values diverted through the other exits) 
+
+- Version 0.3.0
+    - New Content
+        - Multiplayer support
+
+- Version 0.2.0
+    - New Content
+        - You can now rotate Checkers that stacks on top of each other
+        - You can also rotate Pipe Checkers when placing alongside a pipe (increments of 22.5°). Press Left Control or "R" to reset the rotation (the arrow indicates wich side is "up")
+        - Added FicsIt-Networks integration
+    - Fix
+        - Fixed a bug that kept the Injected Input fields on the panels with the last color they had, not changing to black when no special condition is met
+
+- Version 0.1.3
+    - Fixes
+        - Fixed crashes that happen when you have a belt loop in the system the checker is placed
+
+- Version 0.1.2
+    - Fixes
+        - Fixed crashes that happen when a fluid checker is placed and will update
+
+- Version 0.1.1
+    - Fixes
+        - Fixed the calculations for when there are mixed items serving the same machine (Assemblers, Manufacturers and other modded ones with multiple inputs),
+            sorted by using smart/programmable splitters for each input
+
+- Version 0.1.0
+    - New Content
+        - Checker variants for LIQUIDS
+        - Refactored to be Multiplayer compatible (still testing. Your feedback will be welcome)
+        - Now you can manualy set how many items are/will be injected and/or consumed. Usefull if you have complex systems and already now how they would split,
+            and only wants to check if the consumers will not be underflowed (and if the belts can handle it, too)
+        - Added compatibility for MK4 Miners (from <a href="https://ficsit.app/mod/9NsNwDAa3dRXRA">Miner Mk4 mod</a>)
+        - Now the popup window will show all the items that can pass by the checker, for mixed belts that relly on smart/programmable splitters
+
+- Version 0.0.10
+    - Re-upload
+
+- Version 0.0.9
+    - Fixes
+        - Fixed the calculation of the effective production for overclocked/underclocked machines
+
+- Version 0.0.8
+    - New content
+        - New mesh for ground building, more in-inline with the overall FicsIt look
+    - Fixes
+        - Fixed the correct production speed for the MK4 buildings from MK++ Mod
+
+- Version 0.0.7
+    - New content
+        - Added compatibility for <a href="https://ficsit.app/mod/4HFJNS71Ua5TrR">MK++ buildings</a> (the effective consumption/production is multiplied accordingly to the building type)
+        - Added compatibility for <a href="https://ficsit.app/mod/oapk7n37fGskj">Farming Mod greenhouses</a> (the effective consumption/production is multiplied accordingly to the Greenhouse type)
+        - New texture for the wall variant
+    - Optimization
+        - Changings on the overclock value of a connected building are detected in real-time, now
+
+- Version 0.0.6
+    - New content
+        - Wall mounted variant. Just snap it to a conveyor wall hole, and it works the same as the regular ones
+        - The "fat" variant is gone. It was replaced by the narrow one, but keeping the display on the side
+        - Mew meshes, to reduce triangles and improve render performance
+
+- Version 0.0.5
+    - Optimization
+        - More adjustments on the auto-updating algorithm, to improve detection of wich buildings need to be updated
+
+- Version 0.0.4
+    - New content
+        - If the Checker is placed AFTER splitters, it will discount the amount delivered elsewere for the "Inject Items" information
+    - Optimization
+        - Some memory management adjustments
+        - Changed the auto-updating to trigger only when the player is near the Checker (around 40 m or closer). This will lower the ocasional stutters that occur after some trackeable buildings are placed in the world
+
+- Version 0.0.3
+    - Refactored the startup initialization code to no longer HANG the loading process
+
+- Version 0.0.2
+    - Fixed auto-updating not working as promised
+
+<img alt="" src="https://cdn.discordapp.com/attachments/623891487683510323/765085675237933116/unknown.png" width="800"/><br/>
+<img alt="" src="https://cdn.discordapp.com/attachments/623891487683510323/765800491656675328/unknown.png" width="800"/><br/>
+<img alt="" src="https://1.bp.blogspot.com/-Oqm8RuhZC9k/X1A9JnnOK2I/AAAAAAAAf5c/xKgXnvVeHAo_IWXEVE3EhU5SUspUMvk-gCLcBGAsYHQ/s800/Screenshot20200902-02290700000.png"/><br/>
+<img alt="" src="https://1.bp.blogspot.com/-Efpi2uN6XNI/X1A9Jj4rZtI/AAAAAAAAf5k/dUz73ZkRaBoZy6-HANt0A_fXP36Di_sVgCLcBGAsYHQ/s800/Screenshot20200902-01430700000.png"/><br/>
+<img alt="" src="https://1.bp.blogspot.com/-5zFok7CAN00/X1A9JQBo5CI/AAAAAAAAf5g/G-PWBucd99AN_GjCLR7npSMR0eUZXclXQCLcBGAsYHQ/s800/Screenshot20200902-01070600000.png"/><br/>
+<img alt="" src="https://1.bp.blogspot.com/-lBBiKnE26f0/X1CdSCW7FQI/AAAAAAAAf58/9DStox6b7g4-Pbvamc8FI-cHXrp9VQIyACLcBGAsYHQ/s800/Screenshot20200903-04361600000.png"/><br/>
+<img alt="" src="https://1.bp.blogspot.com/-eFs93kiemYo/X1xAgHhyapI/AAAAAAAAf8Q/xzKziQGFQBY9MW1n1YmhkNHZxzXykjOswCLcBGAsYHQ/s800/Screenshot20200911-23222300000.png"/><br/>
+
+<h3>Credits:</h3>
+<div>Multiplayer banner, Icon and panel designed by Deantendo#4265 (find him at <a href="https://discord.gg/Q8nM4G">Satisfactory Modding</a> Discord server)</div>

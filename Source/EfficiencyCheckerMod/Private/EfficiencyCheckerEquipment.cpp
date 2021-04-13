@@ -165,6 +165,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 	float limitedThroughputIn = initialThroughtputLimit;
 
+	float timeout = GetWorld()->GetTimeSeconds() + AEfficiencyCheckerLogic::configuration.updateTimeout;
+
 	if (inputConnector)
 	{
 		TSet<AActor*> seenActors;
@@ -182,7 +184,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			buildableSubsystem,
 			0,
 			overflow,
-			indent
+			indent,
+			timeout
 			);
 	}
 
@@ -203,7 +206,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			buildableSubsystem,
 			0,
 			overflow,
-			indent
+			indent,
+			timeout
 			);
 	}
 

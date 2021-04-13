@@ -6,7 +6,7 @@
 
 /* Struct generated from Mod Configuration Asset '/EfficiencyCheckerMod/Configuration/EfficiencyChecker_Config' */
 USTRUCT(BlueprintType)
-struct FEfficiencyChecker_ConfigStruct {
+struct EFFICIENCYCHECKERMOD_API FEfficiencyChecker_ConfigStruct {
     GENERATED_BODY()
 public:
     UPROPERTY(BlueprintReadWrite)
@@ -23,6 +23,9 @@ public:
 
     UPROPERTY(BlueprintReadWrite)
     bool ignoreStorageTeleporter;
+
+    UPROPERTY(BlueprintReadWrite)
+    float updateTimeout;
 
     /* Retrieves active configuration value and returns object of this struct containing it */
     static FEfficiencyChecker_ConfigStruct GetActiveConfig() {
