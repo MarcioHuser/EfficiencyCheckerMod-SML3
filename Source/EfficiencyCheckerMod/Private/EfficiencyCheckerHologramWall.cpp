@@ -4,6 +4,7 @@
 #include "EfficiencyCheckerHologramWall.h"
 #include "EfficiencyCheckerBuilding.h"
 #include "Util/Logging.h"
+#include "Util/Optimize.h"
 
 #include "FGConstructDisqualifier.h"
 #include "FGFactoryConnectionComponent.h"

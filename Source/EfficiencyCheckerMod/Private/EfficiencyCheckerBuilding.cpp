@@ -6,6 +6,7 @@
 #include "EfficiencyChecker_ConfigStruct.h"
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Util/Logging.h"
+#include "Util/Optimize.h"
 
 #include "FGFactoryConnectionComponent.h"
 #include "FGPipeConnectionComponent.h"
@@ -14,6 +15,10 @@
 #include "Components/WidgetComponent.h"
 
 #include <map>
+
+#ifndef OPTIMIZE
+#pragma optimize( "", off)
+#endif
 
 // Sets default values
 AEfficiencyCheckerBuilding::AEfficiencyCheckerBuilding()
@@ -188,19 +193,25 @@ void AEfficiencyCheckerBuilding::EndPlay(const EEndPlayReason::Type endPlayReaso
 				connection->ClearConnection();
 			}
 
-			if (pipeConnection1 && pipeConnection2 &&
-				FVector::Dist(pipeConnection1->GetConnectorLocation(), pipeConnection2->GetConnectorLocation()) <= 1)
+			if (pipeConnection1 && pipeConnection2)
 			{
-				// Merge together
+				auto dist = FVector::Dist(pipeConnection1->GetConnectorLocation(), pipeConnection2->GetConnectorLocation());
 
-				TArray<AFGBuildablePipeline*> pipelines;
-				pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection1->GetOwner()));
-				pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection2->GetOwner()));
+				if (dist <= 1)
+				{
+					// Connect the pipes
+					pipeConnection1->SetConnection(pipeConnection2);
 
-				// Merge the pipes
-				AFGBuildablePipeline::Merge(pipelines);
+					// Merge the pipes
+					TArray<AFGBuildablePipeline*> pipelines;
+					pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection1->GetOwner()));
+					pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection2->GetOwner()));
 
-				AFGPipeSubsystem::Get(GetWorld())->TrySetNetworkFluidDescriptor(innerPipelineAttachment->GetPipeConnections()[0]->GetPipeNetworkID(), fluidType);
+					auto newPipe = AFGBuildablePipeline::Merge(pipelines);
+					
+					auto pipeSubsystem = AFGPipeSubsystem::Get(GetWorld());
+					pipeSubsystem->TrySetNetworkFluidDescriptor(pipeConnection1->GetPipeNetworkID(), fluidType);
+				}
 			}
 
 			innerPipelineAttachment->Destroy();
@@ -1306,3 +1317,7 @@ void AEfficiencyCheckerBuilding::UpdateItem_Implementation
 {
 	OnUpdateItem.Broadcast(in_injectedInput, in_limitedThroughput, in_requiredOutput, in_injectedItems, in_overflow);
 }
+
+#ifndef OPTIMIZE
+#pragma optimize( "", on)
+#endif

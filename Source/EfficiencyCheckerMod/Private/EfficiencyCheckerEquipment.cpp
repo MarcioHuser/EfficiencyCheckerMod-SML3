@@ -5,6 +5,7 @@
 #include "FGFactoryConnectionComponent.h"
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Util/Logging.h"
+#include "Util/Optimize.h"
 
 #include "FGPipeConnectionComponent.h"
 #include "FGPlayerController.h"

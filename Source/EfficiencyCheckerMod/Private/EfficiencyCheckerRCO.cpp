@@ -1,6 +1,7 @@
 ﻿#include "EfficiencyCheckerRCO.h"
 #include "EfficiencyCheckerBuilding.h"
 #include "EFficiencyCheckerEquipment.h"
+#include "Util/Optimize.h"
 
 #include "FGPlayerController.h"
 

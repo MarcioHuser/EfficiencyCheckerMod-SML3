@@ -7,6 +7,7 @@
 #include "EfficiencyCheckerRCO.h"
 #include "EfficiencyChecker_ConfigStruct.h"
 #include "Util/Logging.h"
+#include "Util/Optimize.h"
 
 #include "AkAudioEvent.h"
 #include "Animation/AnimSequence.h"
