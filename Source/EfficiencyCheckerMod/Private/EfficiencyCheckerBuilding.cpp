@@ -6,7 +6,7 @@
 #include "EfficiencyChecker_ConfigStruct.h"
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Util/Logging.h"
-#include "Util/Optimize.h"
+#include "Util/EfficiencyCheckerOptimize.h"
 
 #include "FGFactoryConnectionComponent.h"
 #include "FGPipeConnectionComponent.h"

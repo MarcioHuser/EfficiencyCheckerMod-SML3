@@ -7,7 +7,7 @@
 #include "EfficiencyCheckerRCO.h"
 #include "EfficiencyChecker_ConfigStruct.h"
 #include "Util/Logging.h"
-#include "Util/Optimize.h"
+#include "Util/EfficiencyCheckerOptimize.h"
 
 #include "AkAudioEvent.h"
 #include "Animation/AnimSequence.h"
@@ -288,7 +288,8 @@ void AEfficiencyCheckerLogic::collectInput
 							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 						}
 
-						float itemAmountPerMinute = item.Amount * (60.0 / manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential()));
+						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60 /
+							manufacturer->GetDefaultProductionCycleTime();
 
 						if (resourceForm == EResourceForm::RF_LIQUID || resourceForm == EResourceForm::RF_GAS)
 						{
@@ -423,7 +424,7 @@ void AEfficiencyCheckerLogic::collectInput
 				}
 				else
 				{
-					itemAmountPerMinute = extractor->GetNumExtractedItemsPerCycle() * extractor->GetPendingPotential() * 60.0 /
+					itemAmountPerMinute = extractor->GetNumExtractedItemsPerCycle() * extractor->GetPendingPotential() * 60 /
 						(speedMultiplier * extractor->GetDefaultExtractCycleTime());
 
 					if (resourceForm == EResourceForm::RF_LIQUID || resourceForm == EResourceForm::RF_GAS)
@@ -1894,7 +1895,8 @@ void AEfficiencyCheckerLogic::collectOutput
 							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 						}
 
-						float itemAmountPerMinute = item.Amount * (60.0 / manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential()));
+						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60
+							/ manufacturer->GetDefaultProductionCycleTime();
 
 						if (resourceForm == EResourceForm::RF_LIQUID || resourceForm == EResourceForm::RF_GAS)
 						{
