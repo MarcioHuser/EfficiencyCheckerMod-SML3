@@ -116,11 +116,11 @@ void AEfficiencyCheckerLogic::Initialize
 			IsValidBuildable(Cast<AFGBuildable>(buildableActor));
 		}
 
-		auto gameMode = Cast<AFGGameMode>(UGameplayStatics::GetGameMode(subsystem->GetWorld()));
-		if (gameMode)
-		{
-			gameMode->RegisterRemoteCallObjectClass(UEfficiencyCheckerRCO::StaticClass());
-		}
+		// auto gameMode = Cast<AFGGameMode>(UGameplayStatics::GetGameMode(subsystem->GetWorld()));
+		// if (gameMode)
+		// {
+		// 	gameMode->RegisterRemoteCallObjectClass(UEfficiencyCheckerRCO::StaticClass());
+		// }
 	}
 }
 
@@ -788,7 +788,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (storageTeleporter)
 				{
 					// Find all others of the same type
-					auto currentStorageID = FReflectionHelper::GetPropertyValue<UStrProperty>(storageTeleporter, TEXT("StorageID"));
+					auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
 					// TArray<AActor*> allTeleporters;
 					// if (IsInGameThread())
@@ -805,7 +805,7 @@ void AEfficiencyCheckerLogic::collectInput
 							continue;
 						}
 
-						auto storageID = FReflectionHelper::GetPropertyValue<UStrProperty>(testTeleporter, TEXT("StorageID"));
+						auto storageID = FReflectionHelper::GetPropertyValue<FStrProperty>(testTeleporter, TEXT("StorageID"));
 						if (storageID == currentStorageID)
 						{
 							seenActors.Add(testTeleporter);
@@ -1730,7 +1730,7 @@ void AEfficiencyCheckerLogic::collectInput
 		if (inheritsFrom(owner, TEXT("/Script/FactoryGame.FGBuildableFactorySimpleProducer")))
 		{
 			TSubclassOf<UFGItemDescriptor> itemType = FReflectionHelper::GetObjectPropertyValue<UClass>(owner, TEXT("mItemType"));
-			auto timeToProduceItem = FReflectionHelper::GetPropertyValue<UFloatProperty>(owner, TEXT("mTimeToProduceItem"));
+			auto timeToProduceItem = FReflectionHelper::GetPropertyValue<FFloatProperty>(owner, TEXT("mTimeToProduceItem"));
 
 			if (timeToProduceItem && itemType)
 			{
@@ -2236,7 +2236,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				if (storageTeleporter)
 				{
-					auto currentStorageID = FReflectionHelper::GetPropertyValue<UStrProperty>(storageTeleporter, TEXT("StorageID"));
+					auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
 					// TArray<AActor*> allTeleporters;
 					// if (IsInGameThread())
@@ -2253,7 +2253,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							continue;
 						}
 
-						auto storageID = FReflectionHelper::GetPropertyValue<UStrProperty>(testTeleporter, TEXT("StorageID"));
+						auto storageID = FReflectionHelper::GetPropertyValue<FStrProperty>(testTeleporter, TEXT("StorageID"));
 						if (storageID == currentStorageID)
 						{
 							addAllItemsToActor(seenActors, testTeleporter, injectedItems);
@@ -3153,7 +3153,7 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 
 		EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Properties "), *GetPathNameSafe(owner->GetClass()));
 
-		for (TFieldIterator<UProperty> property(owner->GetClass()); property; ++property)
+		for (TFieldIterator<FProperty> property(owner->GetClass()); property; ++property)
 		{
 			EC_LOG_Display(
 				/**getTimeStamp(),*/
@@ -3170,25 +3170,25 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 				TEXT(")")
 				);
 
-			auto floatProperty = Cast<UFloatProperty>(*property);
+			auto floatProperty = CastField<FFloatProperty>(*property);
 			if (floatProperty)
 			{
 				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), floatProperty->GetPropertyValue_InContainer(owner));
 			}
 
-			auto intProperty = Cast<UIntProperty>(*property);
+			auto intProperty = CastField<FIntProperty>(*property);
 			if (intProperty)
 			{
 				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), intProperty->GetPropertyValue_InContainer(owner));
 			}
 
-			auto boolProperty = Cast<UBoolProperty>(*property);
+			auto boolProperty = CastField<FBoolProperty>(*property);
 			if (boolProperty)
 			{
 				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), boolProperty->GetPropertyValue_InContainer(owner) ? TEXT("true") : TEXT("false"));
 			}
 
-			auto structProperty = Cast<UStructProperty>(*property);
+			auto structProperty = CastField<FStructProperty>(*property);
 			if (structProperty && property->GetName() == TEXT("mFactoryTickFunction"))
 			{
 				auto factoryTick = structProperty->ContainerPtrToValuePtr<FFactoryTickFunction>(owner);
@@ -3198,13 +3198,13 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 				}
 			}
 
-			auto strProperty = Cast<UStrProperty>(*property);
+			auto strProperty = CastField<FStrProperty>(*property);
 			if (strProperty)
 			{
 				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), *strProperty->GetPropertyValue_InContainer(owner));
 			}
 
-			auto classProperty = Cast<UClassProperty>(*property);
+			auto classProperty = CastField<FClassProperty>(*property);
 			if (classProperty)
 			{
 				auto ClassObject = Cast<UClass>(classProperty->GetPropertyValue_InContainer(owner));

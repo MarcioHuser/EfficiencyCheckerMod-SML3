@@ -18,9 +18,11 @@ void UEfficiencyCheckerRCO::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 UEfficiencyCheckerRCO* UEfficiencyCheckerRCO::getRCO(UWorld* world)
 {
-    return Cast<UEfficiencyCheckerRCO>(
+    auto rco = Cast<UEfficiencyCheckerRCO>(
         Cast<AFGPlayerController>(world->GetFirstPlayerController())->GetRemoteCallObjectOfClass(UEfficiencyCheckerRCO::StaticClass())
         );
+
+    return rco;
 }
 
 void UEfficiencyCheckerRCO::UpdateBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* newBuildable)
