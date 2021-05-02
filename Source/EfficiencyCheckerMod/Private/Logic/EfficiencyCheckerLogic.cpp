@@ -296,34 +296,6 @@ void AEfficiencyCheckerLogic::collectInput
 							itemAmountPerMinute /= 1000;
 						}
 
-						// if (fullClassName.StartsWith(TEXT("/Game/MK22k20/Buildable")))
-						// {
-						//     if (fullClassName.EndsWith(TEXT("Mk2_C")))
-						//     {
-						//         itemAmountPerMinute *= 1.5;
-						//     }
-						//     else if (fullClassName.EndsWith(TEXT("Mk3_C")))
-						//     {
-						//         itemAmountPerMinute *= 2;
-						//     }
-						//     else if (fullClassName.EndsWith(TEXT("Mk4_C")))
-						//     {
-						//         itemAmountPerMinute *= 2.5;
-						//     }
-						// }
-						// else if (fullClassName.StartsWith(TEXT("/Game/FarmingMod/Buildable")))
-						// {
-						//     if (fullClassName.EndsWith(TEXT("Mk2_C")))
-						//     {
-						//         itemAmountPerMinute *= 2;
-						//     }
-						//     else if (fullClassName.EndsWith(TEXT("Mk3_C")))
-						//     {
-						//         itemAmountPerMinute *= 3;
-						//     }
-						// }
-
-
 						if (configuration.dumpConnections)
 						{
 							EC_LOG_Display(
@@ -418,7 +390,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 				float itemAmountPerMinute;
 
-				if (fullClassName == TEXT("/Game/Miner_Mk4/Build_MinerMk4.Build_MinerMk4_C"))
+				if (fullClassName.EndsWith(TEXT("/Miner_Mk4/Build_MinerMk4.Build_MinerMk4_C")))
 				{
 					itemAmountPerMinute = 2000;
 				}
@@ -432,22 +404,6 @@ void AEfficiencyCheckerLogic::collectInput
 						itemAmountPerMinute /= 1000;
 					}
 				}
-
-				// if (fullClassName.StartsWith(TEXT("/Game/MK22k20/Buildable")))
-				// {
-				//     if (fullClassName.EndsWith(TEXT("MK2_C")))
-				//     {
-				//         itemAmountPerMinute *= 1.5;
-				//     }
-				//     else if (fullClassName.EndsWith(TEXT("MK3_C")))
-				//     {
-				//         itemAmountPerMinute *= 2;
-				//     }
-				//     else if (fullClassName.EndsWith(TEXT("MK4_C")))
-				//     {
-				//         itemAmountPerMinute *= 2.5;
-				//     }
-				// }
 
 				if (configuration.dumpConnections)
 				{
@@ -577,7 +533,7 @@ void AEfficiencyCheckerLogic::collectInput
 			}
 
 			if (!configuration.ignoreStorageTeleporter &&
-				!buildable && fullClassName == TEXT("/Game/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"))
+				!buildable && fullClassName.EndsWith(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C")))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
@@ -1903,33 +1859,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							itemAmountPerMinute /= 1000;
 						}
 
-						// if (fullClassName.StartsWith(TEXT("/Game/MK22k20/Buildable")))
-						// {
-						//     if (fullClassName.EndsWith(TEXT("MK2_C")))
-						//     {
-						//         itemAmountPerMinute *= 1.5;
-						//     }
-						//     else if (fullClassName.EndsWith(TEXT("MK3_C")))
-						//     {
-						//         itemAmountPerMinute *= 2;
-						//     }
-						//     else if (fullClassName.EndsWith(TEXT("MK4_C")))
-						//     {
-						//         itemAmountPerMinute *= 2.5;
-						//     }
-						// }
-						// else if (fullClassName.StartsWith(TEXT("/Game/FarmingMod/Buildable")))
-						// {
-						//     if (fullClassName.EndsWith(TEXT("Mk2_C")))
-						//     {
-						//         itemAmountPerMinute *= 2;
-						//     }
-						//     else if (fullClassName.EndsWith(TEXT("Mk3_C")))
-						//     {
-						//         itemAmountPerMinute *= 3;
-						//     }
-						// }
-
 						if (configuration.dumpConnections)
 						{
 							EC_LOG_Display(
@@ -2023,7 +1952,7 @@ void AEfficiencyCheckerLogic::collectOutput
 			}
 
 			if (!configuration.ignoreStorageTeleporter &&
-				!buildable && fullClassName == TEXT("/Game/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"))
+				!buildable && fullClassName.EndsWith(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C")))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
@@ -3070,22 +2999,6 @@ void AEfficiencyCheckerLogic::collectOutput
 								itemAmountPerMinute /= 1000;
 							}
 
-							// if (fullClassName.StartsWith(TEXT("/Game/MK22k20/Buildable")))
-							// {
-							//     if (fullClassName.EndsWith(TEXT("MK2_C")))
-							//     {
-							//         itemAmountPerMinute *= 1.5;
-							//     }
-							//     else if (fullClassName.EndsWith(TEXT("MK3_C")))
-							//     {
-							//         itemAmountPerMinute *= 2;
-							//     }
-							//     else if (fullClassName.EndsWith(TEXT("MK4_C")))
-							//     {
-							//         itemAmountPerMinute *= 2.5;
-							//     }
-							// }
-
 							if (configuration.dumpConnections)
 							{
 								EC_LOG_Display(
@@ -3342,7 +3255,7 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 		return true;
 	}
 	if (!configuration.ignoreStorageTeleporter &&
-		GetPathNameSafe(newBuildable->GetClass()) == TEXT("/Game/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"))
+		GetPathNameSafe(newBuildable->GetClass()).EndsWith(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C")))
 	{
 		addTeleporter(newBuildable);
 

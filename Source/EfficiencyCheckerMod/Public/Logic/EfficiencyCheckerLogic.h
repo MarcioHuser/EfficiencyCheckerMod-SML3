@@ -6,7 +6,7 @@
 #include "EfficiencyCheckerLogic.generated.h"
 
 UCLASS()
-class AEfficiencyCheckerLogic : public AActor
+class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerLogic : public AActor
 {
     GENERATED_BODY()
 

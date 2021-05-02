@@ -17,9 +17,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	overflow
 	);
 
-
 UCLASS(BlueprintType)
-class AEfficiencyCheckerEquipment : public AFGEquipment
+class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerEquipment : public AFGEquipment
 {
 	GENERATED_BODY()
 public:
