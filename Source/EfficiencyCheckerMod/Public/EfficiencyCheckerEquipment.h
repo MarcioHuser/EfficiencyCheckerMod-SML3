@@ -1,5 +1,7 @@
 ﻿#pragma once
+
 #include "Equipment/FGEquipment.h"
+#include "Logic/MachineStatusIncludeType.h"
 
 #include "EfficiencyCheckerEquipment.generated.h"
 
@@ -45,6 +47,9 @@ public:
 
 	static FString getAuthorityAndPlayer(const AActor* actor);
 	
+	UPROPERTY(BlueprintReadWrite, meta = (Bitmask,BitmaskEnum = EMachineStatusIncludeType))
+	int32 machineStatusIncludeType = TO_EMachineStatusIncludeType(EMachineStatusIncludeType::MSIT_All);
+
 	FString _TAG_NAME = TEXT("EfficiencyCheckerEquipment: ");
 
 	// inline static FString

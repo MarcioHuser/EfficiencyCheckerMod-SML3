@@ -5,29 +5,12 @@
 #include "CoreMinimal.h"
 
 #include "Buildables/FGBuildable.h"
-#include "Buildables/FGBuildableManufacturer.h"
-#include "Buildables/FGBuildablePipeline.h"
-#include "Buildables/FGBuildablePipelineAttachment.h"
-#include "Buildables/FGBuildableSplitterSmart.h"
+
+#include "Logic/AutoUpdateType.h"
+#include "Logic/MachineStatusIncludeType.h"
+#include "Logic/PlacementType.h"
 
 #include "EfficiencyCheckerBuilding.generated.h"
-
-UENUM(BlueprintType)
-enum class EPlacementType: uint8
-{
-	PT_INVALID UMETA(DisplayName = "Invalid"),
-	PT_GROUND UMETA(DisplayName = "Ground"),
-	PT_WALL UMETA(DisplayName = "Wall"),
-};
-
-UENUM(BlueprintType)
-enum class EAutoUpdateType: uint8
-{
-	AUT_INVALID UMETA(DisplayName = "Invalid"),
-	AUT_USE_DEFAULT UMETA(DisplayName = "Use Default"),
-	AUT_ENABLED UMETA(DisplayName = "Enabled"),
-	AUT_DISABLED UMETA(DisplayName = "Disabled"),
-};
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	FUpdateItemEvent,
@@ -76,7 +59,7 @@ public:
 	bool mustUpdate_ = true;
 
 	UPROPERTY()
-	AFGBuildablePipeline* pipelineToSplit = nullptr;
+	class AFGBuildablePipeline* pipelineToSplit = nullptr;
 	float pipelineSplitOffset = 0;
 
 	// ReSharper disable once CommentTypo
@@ -94,6 +77,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
 	virtual void SetAutoUpdateMode(EAutoUpdateType in_autoUpdateMode);
 	virtual void Server_SetAutoUpdateMode(EAutoUpdateType in_autoUpdateMode);
+
+	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
+	virtual void SetMachineStatusIncludeType
+	(
+		UPARAM(meta = (Bitmask,BitmaskEnum = EMachineStatusIncludeType)) int32 machineStatusIncludeType
+	);
+	virtual void Server_SetMachineStatusIncludeType
+	(
+		int32 machineStatusIncludeType
+	);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "EfficiencyChecker")
 	virtual void UpdateBuilding(AFGBuildable* newBuildable);
@@ -153,16 +146,16 @@ public:
 	void RemoveOnDestroyBinding(AFGBuildable* buildable);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "EfficiencyChecker")
-	void AddOnRecipeChangedBinding(AFGBuildableManufacturer* buildable);
+	void AddOnRecipeChangedBinding(class AFGBuildableManufacturer* buildable);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "EfficiencyChecker")
-	void RemoveOnRecipeChangedBinding(AFGBuildableManufacturer* buildable);
+	void RemoveOnRecipeChangedBinding(class AFGBuildableManufacturer* buildable);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "EfficiencyChecker")
-	void AddOnSortRulesChangedDelegateBinding(AFGBuildableSplitterSmart* buildable);
+	void AddOnSortRulesChangedDelegateBinding(class AFGBuildableSplitterSmart* buildable);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "EfficiencyChecker")
-	void RemoveOnSortRulesChangedDelegateBinding(AFGBuildableSplitterSmart* buildable);
+	void RemoveOnSortRulesChangedDelegateBinding(class AFGBuildableSplitterSmart* buildable);
 
 	UFUNCTION(BlueprintCallable, Category = "EfficiencyChecker")
 	virtual void RemoveBuilding(AFGBuildable* buildable);
@@ -202,13 +195,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	static float GetAutoUpdateDistance();
-	
+
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	TArray<TSubclassOf<UFGItemDescriptor>> injectedItems;
 
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	float injectedInput = -1;
-
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	bool customInjectedInput = false;
 
@@ -226,6 +218,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	EAutoUpdateType autoUpdateMode = EAutoUpdateType::AUT_USE_DEFAULT;
 
+	UPROPERTY(BlueprintReadWrite, SaveGame, Replicated, meta = (Bitmask,BitmaskEnum = EMachineStatusIncludeType))
+	int32 machineStatusIncludeType = TO_EMachineStatusIncludeType(EMachineStatusIncludeType::MSIT_All);
+
 	UPROPERTY(BlueprintReadOnly, SaveGame)
 	// ReSharper disable once IdentifierTypo
 	TSet<AFGBuildable*> connectedBuildables;
@@ -234,14 +229,14 @@ public:
 	// ReSharper disable once IdentifierTypo
 	TSet<AFGBuildable*> pendingBuildables;
 
+	UPROPERTY(BlueprintReadWrite, SaveGame, Replicated)
+	class AFGBuildablePipelineAttachment* innerPipelineAttachment = nullptr;
+
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	EResourceForm resourceForm = EResourceForm::RF_SOLID;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	EPlacementType placementType = EPlacementType::PT_GROUND;
-
-	UPROPERTY(BlueprintReadWrite, SaveGame, Replicated)
-	AFGBuildablePipelineAttachment* innerPipelineAttachment = nullptr;
 
 	FString _TAG_NAME = TEXT("EfficiencyCheckerBuilding: ");
 
@@ -260,7 +255,6 @@ public:
 	}
 
 protected:
-
 	static void setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential);
 
 	void addOnDestroyBindings(const TSet<AFGBuildable*>& buildings);

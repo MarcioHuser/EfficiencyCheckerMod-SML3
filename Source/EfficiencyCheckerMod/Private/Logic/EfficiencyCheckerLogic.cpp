@@ -3,14 +3,10 @@
 // ReSharper disable IdentifierTypo
 
 #include "Logic/EfficiencyCheckerLogic.h"
-#include "EfficiencyCheckerModModule.h"
-#include "EfficiencyCheckerRCO.h"
-#include "EfficiencyChecker_ConfigStruct.h"
-#include "Util/Logging.h"
-#include "Util/EfficiencyCheckerOptimize.h"
 
 #include "AkAudioEvent.h"
 #include "Animation/AnimSequence.h"
+#include "Buildables/FGBuildableConveyorAttachment.h"
 #include "Buildables/FGBuildableConveyorBase.h"
 #include "Buildables/FGBuildableConveyorBelt.h"
 #include "Buildables/FGBuildableDockingStation.h"
@@ -19,13 +15,15 @@
 #include "Buildables/FGBuildablePipelinePump.h"
 #include "Buildables/FGBuildableRailroadStation.h"
 #include "Buildables/FGBuildableResourceExtractor.h"
+#include "Buildables/FGBuildableSplitterSmart.h"
 #include "Buildables/FGBuildableStorage.h"
 #include "Buildables/FGBuildableTrainPlatformCargo.h"
+#include "EfficiencyCheckerRCO.h"
+#include "EfficiencyChecker_ConfigStruct.h"
 #include "Equipment/FGEquipment.h"
 #include "Equipment/FGEquipmentAttachment.h"
 #include "FGConnectionComponent.h"
 #include "FGFactoryConnectionComponent.h"
-#include "FGGameMode.h"
 #include "FGItemCategory.h"
 #include "FGPipeConnectionComponent.h"
 #include "FGRailroadSubsystem.h"
@@ -35,9 +33,15 @@
 #include "Patching/NativeHookManager.h"
 #include "Reflection/ReflectionHelper.h"
 #include "Resources/FGEquipmentDescriptor.h"
+#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/Logging.h"
 
 #include <map>
 #include <set>
+
+#include "EfficiencyCheckerBuilding.h"
+#include "Buildables/FGBuildableManufacturer.h"
+#include "Buildables/FGBuildablePipeline.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
@@ -187,7 +191,8 @@ void AEfficiencyCheckerLogic::collectInput
 	int level,
 	bool& overflow,
 	const FString& indent,
-	const float& timeout
+	const float& timeout,
+	int machineStatusIncludeType
 )
 {
 	TSet<TSubclassOf<UFGItemDescriptor>> restrictItems = in_restrictItems;
@@ -252,7 +257,9 @@ void AEfficiencyCheckerLogic::collectInput
 
 		{
 			const auto manufacturer = Cast<AFGBuildableManufacturer>(owner);
-			if (manufacturer)
+			if (manufacturer &&
+				(manufacturer->HasPower() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Unpowered)) &&
+				(!manufacturer->IsProductionPaused() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Paused)))
 			{
 				const auto recipeClass = manufacturer->GetCurrentRecipe();
 
@@ -327,7 +334,9 @@ void AEfficiencyCheckerLogic::collectInput
 
 		{
 			const auto extractor = Cast<AFGBuildableResourceExtractor>(owner);
-			if (extractor)
+			if (extractor &&
+				(extractor->HasPower() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Unpowered)) &&
+				(!extractor->IsProductionPaused() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Paused)))
 			{
 				TSubclassOf<UFGItemDescriptor> item;
 
@@ -963,7 +972,8 @@ void AEfficiencyCheckerLogic::collectInput
 							level + 1,
 							overflow,
 							indent + TEXT("    "),
-							timeout
+							timeout,
+							machineStatusIncludeType
 							);
 
 						if (overflow)
@@ -1033,7 +1043,8 @@ void AEfficiencyCheckerLogic::collectInput
 							level + 1,
 							overflow,
 							indent + TEXT("    "),
-							timeout
+							timeout,
+							machineStatusIncludeType
 							);
 
 						if (overflow)
@@ -1232,7 +1243,8 @@ void AEfficiencyCheckerLogic::collectInput
 							level + 1,
 							overflow,
 							indent + TEXT("    "),
-							timeout
+							timeout,
+							machineStatusIncludeType
 							);
 
 						if (overflow)
@@ -1298,7 +1310,8 @@ void AEfficiencyCheckerLogic::collectInput
 								level + 1,
 								overflow,
 								indent + TEXT("    "),
-								timeout
+								timeout,
+								machineStatusIncludeType
 								);
 
 							if (overflow)
@@ -1581,7 +1594,8 @@ void AEfficiencyCheckerLogic::collectInput
 						level + 1,
 						overflow,
 						indent + TEXT("    "),
-						timeout
+						timeout,
+						machineStatusIncludeType
 						);
 
 					if (overflow)
@@ -1633,7 +1647,8 @@ void AEfficiencyCheckerLogic::collectInput
 						level + 1,
 						overflow,
 						indent + TEXT("    "),
-						timeout
+						timeout,
+						machineStatusIncludeType
 						);
 
 					if (overflow)
@@ -1668,7 +1683,9 @@ void AEfficiencyCheckerLogic::collectInput
 
 		{
 			const auto nuclearGenerator = Cast<AFGBuildableGeneratorNuclear>(owner);
-			if (nuclearGenerator)
+			if (nuclearGenerator &&
+				(nuclearGenerator->HasPower() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Unpowered)) &&
+				(!nuclearGenerator->IsProductionPaused() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Paused)))
 			{
 				for (auto item : singleton->nuclearWasteItemDescriptors)
 				{
@@ -1724,7 +1741,8 @@ void AEfficiencyCheckerLogic::collectOutput
 	int level,
 	bool& overflow,
 	const FString& indent,
-	const float& timeout
+	const float& timeout,
+	int32 machineStatusIncludeType
 )
 {
 	TSet<TSubclassOf<UFGItemDescriptor>> injectedItems = in_injectedItems;
@@ -1813,7 +1831,9 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		{
 			const auto manufacturer = Cast<AFGBuildableManufacturer>(owner);
-			if (manufacturer)
+			if (manufacturer &&
+				(manufacturer->HasPower() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Unpowered)) &&
+				(!manufacturer->IsProductionPaused() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Paused)))
 			{
 				const auto recipeClass = manufacturer->GetCurrentRecipe();
 
@@ -2356,7 +2376,8 @@ void AEfficiencyCheckerLogic::collectOutput
 								level + 1,
 								overflow,
 								indent + TEXT("    "),
-								timeout
+								timeout,
+								machineStatusIncludeType
 								);
 
 							if (overflow)
@@ -2423,7 +2444,8 @@ void AEfficiencyCheckerLogic::collectOutput
 								level + 1,
 								overflow,
 								indent + TEXT("    "),
-								timeout
+								timeout,
+								machineStatusIncludeType
 								);
 
 							if (overflow)
@@ -2559,7 +2581,8 @@ void AEfficiencyCheckerLogic::collectOutput
 							level + 1,
 							overflow,
 							indent + TEXT("    "),
-							timeout
+							timeout,
+							machineStatusIncludeType
 							);
 
 						if (overflow)
@@ -2629,7 +2652,8 @@ void AEfficiencyCheckerLogic::collectOutput
 								level + 1,
 								overflow,
 								indent + TEXT("    "),
-								timeout
+								timeout,
+								machineStatusIncludeType
 								);
 
 							if (overflow)
@@ -2908,7 +2932,8 @@ void AEfficiencyCheckerLogic::collectOutput
 						level + 1,
 						overflow,
 						indent + TEXT("    "),
-						timeout
+						timeout,
+						machineStatusIncludeType
 						);
 
 					if (overflow)
@@ -2942,7 +2967,9 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		{
 			const auto generator = Cast<AFGBuildableGeneratorFuel>(owner);
-			if (generator)
+			if (generator &&
+				(generator->HasPower() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Unpowered)) &&
+				(!generator->IsProductionPaused() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Paused)))
 			{
 				if (injectedItems.Contains(generator->GetSupplementalResourceClass()) && !seenActors[generator].Contains(generator->GetSupplementalResourceClass()))
 				{

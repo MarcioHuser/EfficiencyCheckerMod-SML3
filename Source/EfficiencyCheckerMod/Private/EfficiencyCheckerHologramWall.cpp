@@ -2,14 +2,14 @@
 // ReSharper disable CommentTypo
 
 #include "EfficiencyCheckerHologramWall.h"
-#include "EfficiencyCheckerBuilding.h"
-#include "Util/Logging.h"
-#include "Util/EfficiencyCheckerOptimize.h"
 
-#include "FGConstructDisqualifier.h"
-#include "FGFactoryConnectionComponent.h"
 #include "Buildables/FGBuildableWall.h"
 #include "Components/WidgetComponent.h"
+#include "EfficiencyCheckerBuilding.h"
+#include "FGConstructDisqualifier.h"
+#include "FGFactoryConnectionComponent.h"
+#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/Logging.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )

@@ -1,9 +1,9 @@
 ﻿#include "EfficiencyCheckerRCO.h"
-#include "EfficiencyCheckerBuilding.h"
-#include "EFficiencyCheckerEquipment.h"
-#include "Util/EfficiencyCheckerOptimize.h"
 
+#include "EFficiencyCheckerEquipment.h"
+#include "EfficiencyCheckerBuilding.h"
 #include "FGPlayerController.h"
+#include "Util/EfficiencyCheckerOptimize.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
@@ -137,6 +137,19 @@ void UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Implementation(class AEfficienc
 }
 
 bool UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Validate(class AEfficiencyCheckerBuilding* efficiencyChecker, EAutoUpdateType autoUpdateMode)
+{
+    return true;
+}
+
+void UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Implementation(class AEfficiencyCheckerBuilding* efficiencyChecker, int32 machineStatusIncludeType)
+{
+    if (efficiencyChecker->HasAuthority())
+    {
+        efficiencyChecker->SetMachineStatusIncludeType(machineStatusIncludeType);
+    }
+}
+
+bool UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Validate(class AEfficiencyCheckerBuilding* efficiencyChecker, int32 machineStatusIncludeType)
 {
     return true;
 }

@@ -2,17 +2,19 @@
 // ReSharper disable CommentTypo
 
 #include "EfficiencyCheckerBuilding.h"
+
+#include "Buildables/FGBuildableConveyorBelt.h"
+#include "Buildables/FGBuildablePipeline.h"
+#include "Buildables/FGBuildablePipelineAttachment.h"
+#include "Components/WidgetComponent.h"
 #include "EfficiencyCheckerRCO.h"
 #include "EfficiencyChecker_ConfigStruct.h"
-#include "Logic/EfficiencyCheckerLogic.h"
-#include "Util/Logging.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-
 #include "FGFactoryConnectionComponent.h"
 #include "FGPipeConnectionComponent.h"
 #include "FGPipeSubsystem.h"
-#include "Buildables/FGBuildableConveyorBelt.h"
-#include "Components/WidgetComponent.h"
+#include "Logic/EfficiencyCheckerLogic.h"
+#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/Logging.h"
 
 #include <map>
 
@@ -208,7 +210,7 @@ void AEfficiencyCheckerBuilding::EndPlay(const EEndPlayReason::Type endPlayReaso
 					pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection2->GetOwner()));
 
 					auto newPipe = AFGBuildablePipeline::Merge(pipelines);
-					
+
 					auto pipeSubsystem = AFGPipeSubsystem::Get(GetWorld());
 					pipeSubsystem->TrySetNetworkFluidDescriptor(pipeConnection1->GetPipeNetworkID(), fluidType);
 				}
@@ -448,6 +450,35 @@ void AEfficiencyCheckerBuilding::Server_SetAutoUpdateMode(EAutoUpdateType in_aut
 	if (HasAuthority())
 	{
 		this->autoUpdateMode = in_autoUpdateMode;
+	}
+}
+
+void AEfficiencyCheckerBuilding::SetMachineStatusIncludeType(int32 in_machineStatusIncludeType)
+{
+	if (HasAuthority())
+	{
+		Server_SetMachineStatusIncludeType(in_machineStatusIncludeType);
+	}
+	else
+	{
+		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
+		if (rco)
+		{
+			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
+			{
+				EC_LOG_Display(*getTagName(), TEXT("Calling SetMachineStatusIncludeType at server"));
+			}
+
+			rco->SetMachineStatusIncludeTypeRPC(this, in_machineStatusIncludeType);
+		}
+	}
+}
+
+void AEfficiencyCheckerBuilding::Server_SetMachineStatusIncludeType(int32 in_machineStatusIncludeType)
+{
+	if (HasAuthority())
+	{
+		this->machineStatusIncludeType = in_machineStatusIncludeType;
 	}
 }
 
@@ -898,7 +929,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			0,
 			in_overflow,
 			indent,
-			timeout
+			timeout,
+			machineStatusIncludeType
 			);
 	}
 
@@ -920,7 +952,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			0,
 			in_overflow,
 			indent,
-			timeout
+			timeout,
+			machineStatusIncludeType
 			);
 	}
 	else
@@ -1251,6 +1284,10 @@ void AEfficiencyCheckerBuilding::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 	DOREPLIFETIME(AEfficiencyCheckerBuilding, customRequiredOutput);
 
 	DOREPLIFETIME(AEfficiencyCheckerBuilding, overflow);
+
+	DOREPLIFETIME(AEfficiencyCheckerBuilding, autoUpdateMode);
+
+	DOREPLIFETIME(AEfficiencyCheckerBuilding, machineStatusIncludeType);
 
 	// DOREPLIFETIME(AEfficiencyCheckerBuilding, connectedBuildables);
 

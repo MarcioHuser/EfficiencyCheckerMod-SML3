@@ -1,15 +1,14 @@
 ﻿#include "EfficiencyCheckerEquipment.h"
 
+#include "Buildables/FGBuildableConveyorBase.h"
 #include "EfficiencyCheckerModModule.h"
 #include "EfficiencyCheckerRCO.h"
 #include "FGFactoryConnectionComponent.h"
-#include "Logic/EfficiencyCheckerLogic.h"
-#include "Util/Logging.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-
 #include "FGPipeConnectionComponent.h"
 #include "FGPlayerController.h"
-#include "Buildables/FGBuildableConveyorBase.h"
+#include "Logic/EfficiencyCheckerLogic.h"
+#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/Logging.h"
 
 #include <map>
 
@@ -186,7 +185,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			0,
 			overflow,
 			indent,
-			timeout
+			timeout,
+			machineStatusIncludeType 
 			);
 	}
 
@@ -208,7 +208,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			0,
 			overflow,
 			indent,
-			timeout
+			timeout,
+			machineStatusIncludeType
 			);
 	}
 
