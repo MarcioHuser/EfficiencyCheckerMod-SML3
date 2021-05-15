@@ -6,7 +6,7 @@
 
 /* Struct generated from Mod Configuration Asset '/EfficiencyCheckerMod/Configuration/EfficiencyChecker_Config' */
 USTRUCT(BlueprintType)
-struct EFFICIENCYCHECKERMOD_API FEfficiencyChecker_ConfigStruct {
+struct FEfficiencyChecker_ConfigStruct {
     GENERATED_BODY()
 public:
     UPROPERTY(BlueprintReadWrite)
@@ -19,7 +19,7 @@ public:
     float autoUpdateDistance;
 
     UPROPERTY(BlueprintReadWrite)
-    bool dumpConnections;
+    int32 logLevel;
 
     UPROPERTY(BlueprintReadWrite)
     bool ignoreStorageTeleporter;

@@ -9,10 +9,11 @@
 #include "Logic/AutoUpdateType.h"
 #include "Logic/MachineStatusIncludeType.h"
 #include "Logic/PlacementType.h"
+#include "Logic/ProductionDetail.h"
 
 #include "EfficiencyCheckerBuilding.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_SevenParams(
 	FUpdateItemEvent,
 	float,
 	injectedInput,
@@ -22,6 +23,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	requiredOutput,
 	const TArray<TSubclassOf<class UFGItemDescriptor>>&,
 	injectedItems,
+	const TArray<FProductionDetail>&,
+	producers,
+	const TArray<FProductionDetail>&,
+	consumers,
 	bool,
 	overflow
 	);
@@ -103,7 +108,10 @@ public:
 		UPARAM(DisplayName = "Required Output") float& out_requiredOutput,
 		UPARAM(DisplayName = "Items") TSet<TSubclassOf<UFGItemDescriptor>>& out_injectedItems,
 		UPARAM(DisplayName = "Connected Buildings") TSet<AFGBuildable*>& connected,
-		UPARAM(DisplayName = "Overflow") bool& out_overflow
+		UPARAM(DisplayName = "Producers") TArray<FProductionDetail>& producers,
+		UPARAM(DisplayName = "Consumers") TArray<FProductionDetail>& consumers,
+		UPARAM(DisplayName = "Overflow") bool& out_overflow,
+		UPARAM(DisplayName = "Include Production Details") bool includeProductionDetails
 	);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "EfficiencyChecker")
@@ -114,7 +122,8 @@ public:
 		UPARAM(DisplayName = "Custom Injected Input") float in_customInjectedInput,
 		bool keepCustomOutput,
 		bool hasCustomRequiredOutput,
-		UPARAM(DisplayName = "Custom Required Output") float in_customRequiredOutput
+		UPARAM(DisplayName = "Custom Required Output") float in_customRequiredOutput,
+		bool includeProductionDetails = false
 	);
 	virtual void Server_UpdateConnectedProduction
 	(
@@ -123,7 +132,8 @@ public:
 		UPARAM(DisplayName = "Custom Injected Input") float in_customInjectedInput,
 		bool keepCustomOutput,
 		bool hasCustomRequiredOutput,
-		UPARAM(DisplayName = "Custom Required Output") float in_customRequiredOutput
+		UPARAM(DisplayName = "Custom Required Output") float in_customRequiredOutput,
+		bool includeProductionDetails = false
 	);
 
 	UPROPERTY(BlueprintAssignable, Category = "EfficiencyChecker")
@@ -136,6 +146,8 @@ public:
 		UPARAM(DisplayName = "Limited Throughput") float in_limitedThroughput,
 		UPARAM(DisplayName = "Required Output") float in_requiredOutput,
 		UPARAM(DisplayName = "Items") const TArray<TSubclassOf<UFGItemDescriptor>>& in_injectedItems,
+		UPARAM(DisplayName = "Producers") const TArray<FProductionDetail>& in_producers,
+		UPARAM(DisplayName = "Consumers") const TArray<FProductionDetail>& in_consumers,
 		UPARAM(DisplayName = "Overflow") bool in_overflow
 	);
 
@@ -179,21 +191,21 @@ public:
 	static void GetEfficiencyCheckerSettings
 	(
 		UPARAM(DisplayName = "Auto Update") bool& out_autoUpdate,
-		UPARAM(DisplayName = "Dump Connections") bool& out_dumpConnections,
+		UPARAM(DisplayName = "Log Level") int& out_logLevel,
 		UPARAM(DisplayName = "Auto Update Timeout") float& out_autoUpdateTimeout,
 		UPARAM(DisplayName = "Auto Updat Distance") float& out_autoUpdateDistance
 	);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
 	static bool IsAutoUpdateEnabled();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
-	static bool IsDumpConnectionsEnabled();
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
+	static int GetLogLevel();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
 	static float GetAutoUpdateTimeout();
 
-	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
 	static float GetAutoUpdateDistance();
 
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
@@ -218,7 +230,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	EAutoUpdateType autoUpdateMode = EAutoUpdateType::AUT_USE_DEFAULT;
 
-	UPROPERTY(BlueprintReadWrite, SaveGame, Replicated, meta = (Bitmask,BitmaskEnum = EMachineStatusIncludeType))
+	UPROPERTY(BlueprintReadWrite, SaveGame, Replicated, meta = (Bitmask, BitmaskEnum = EMachineStatusIncludeType))
 	int32 machineStatusIncludeType = TO_EMachineStatusIncludeType(EMachineStatusIncludeType::MSIT_All);
 
 	UPROPERTY(BlueprintReadOnly, SaveGame)

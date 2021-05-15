@@ -35,18 +35,16 @@ void AEfficiencyCheckerEquipment::BeginPlay()
 
 void AEfficiencyCheckerEquipment::PrimaryFirePressed(AFGBuildable* targetBuildable)
 {
-	if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-	{
-		EC_LOG_Display(
-			*getTagName(),
-			TEXT("PrimaryFirePressed = "),
-			*GetPathName(),
-			TEXT(" / Target = "),
-			*GetPathNameSafe(targetBuildable),
-			TEXT(" / "),
-			*getAuthorityAndPlayer(this)
-			);
-	}
+	EC_LOG_Display_Condition(
+		ELogVerbosity::Log,
+		*getTagName(),
+		TEXT("PrimaryFirePressed = "),
+		*GetPathName(),
+		TEXT(" / Target = "),
+		*GetPathNameSafe(targetBuildable),
+		TEXT(" / "),
+		*getAuthorityAndPlayer(this)
+		);
 
 	if (HasAuthority())
 	{
@@ -57,10 +55,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed(AFGBuildable* targetBuildab
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling PrimaryFirePressed at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling PrimaryFirePressed at server"));
 
 			rco->PrimaryFirePressedPC(this, targetBuildable);
 		}
@@ -186,7 +181,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			overflow,
 			indent,
 			timeout,
-			machineStatusIncludeType 
+			machineStatusIncludeType
 			);
 	}
 
@@ -228,14 +223,12 @@ void AEfficiencyCheckerEquipment::ShowStatsWidget_Implementation
 	bool in_overflow
 )
 {
-	if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-	{
-		EC_LOG_Display(
-			*getTagName(),
-			TEXT("Broadcasting ShowStats = "),
-			*GetPathName()
-			);
-	}
+	EC_LOG_Display_Condition(
+		ELogVerbosity::Log,
+		*getTagName(),
+		TEXT("Broadcasting ShowStats = "),
+		*GetPathName()
+		);
 
 	OnShowStatsWidget.Broadcast(in_injectedInput, in_limitedThroughput, in_requiredOutput, in_injectedItems, in_overflow);
 }

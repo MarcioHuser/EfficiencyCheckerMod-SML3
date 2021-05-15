@@ -1,8 +1,8 @@
 {
   "FileVersion": 3,
   "Version": 2,
-  "VersionName": "2.0.6",
-  "SemVersion": "2.0.6",
+  "VersionName": "2.0.7",
+  "SemVersion": "2.0.7",
   "FriendlyName": "Efficiency Checker Mod",
   "Description": "See if your production is underflowing! Now with a hand tool, too!",
   "Category": "Modding",
@@ -25,12 +25,12 @@
   "Plugins": [
     {
       "Name": "SML",
-      "SemVersion": "^3.1.0",
+      "SemVersion": "^3.1.1",
       "Enabled": true
     },
     {
       "Name": "MarcioCommonLibs",
-      "SemVersion": "^1.0.1",
+      "SemVersion": "^1.0.2",
       "Enabled": true
     }
   ]

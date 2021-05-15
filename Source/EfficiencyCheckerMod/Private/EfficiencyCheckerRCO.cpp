@@ -46,7 +46,8 @@ void UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Implementation
     float in_customInjectedInput,
     bool keepCustomOutput,
     bool hasCustomRequiredOutput,
-    float in_customRequiredOutput
+    float in_customRequiredOutput,
+    bool includeProductionDetails
 )
 {
     if (efficiencyChecker->HasAuthority())
@@ -57,7 +58,8 @@ void UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Implementation
             in_customInjectedInput,
             keepCustomOutput,
             hasCustomRequiredOutput,
-            in_customRequiredOutput
+            in_customRequiredOutput,
+            includeProductionDetails
             );
     }
 }
@@ -70,7 +72,8 @@ bool UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Validate
     float in_customInjectedInput,
     bool keepCustomOutput,
     bool hasCustomRequiredOutput,
-    float in_customRequiredOutput
+    float in_customRequiredOutput,
+    bool includeProductionDetails
 )
 {
     return true;

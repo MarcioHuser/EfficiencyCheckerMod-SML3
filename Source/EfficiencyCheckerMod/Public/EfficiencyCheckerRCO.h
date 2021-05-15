@@ -36,7 +36,8 @@ public:
 		UPARAM(DisplayName = "Custom Injected Input") float in_customInjectedInput,
 		bool keepCustomOutput,
 		bool hasCustomRequiredOutput,
-		UPARAM(DisplayName = "Custom Required Output") float in_customRequiredOutput
+		UPARAM(DisplayName = "Custom Required Output") float in_customRequiredOutput,
+		bool includeProductionDetails
 	);
 
 	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="EfficiencyCheckerRCO", DisplayName="RemoveBuilding")

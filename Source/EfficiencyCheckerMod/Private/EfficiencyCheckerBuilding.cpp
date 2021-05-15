@@ -4,8 +4,10 @@
 #include "EfficiencyCheckerBuilding.h"
 
 #include "Buildables/FGBuildableConveyorBelt.h"
+#include "Buildables/FGBuildableManufacturer.h"
 #include "Buildables/FGBuildablePipeline.h"
 #include "Buildables/FGBuildablePipelineAttachment.h"
+#include "Buildables/FGBuildableSplitterSmart.h"
 #include "Components/WidgetComponent.h"
 #include "EfficiencyCheckerRCO.h"
 #include "EfficiencyChecker_ConfigStruct.h"
@@ -44,7 +46,7 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 {
 	_TAG_NAME = GetName() + TEXT(": ");
 
-	EC_LOG_Display(getTagName(), TEXT("BeginPlay"));
+	EC_LOG_Display_Condition(ELogVerbosity::Display, getTagName(), TEXT("BeginPlay"));
 
 	Super::BeginPlay();
 
@@ -239,12 +241,20 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 	{
 		if (checkTick_)
 		{
-			EC_LOG_Display(*getTagName(), TEXT("Ticking"));
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Ticking"));
 		}
 
 		if (doUpdateItem)
 		{
-			UpdateItem(injectedInput, limitedThroughput, requiredOutput, injectedItems, overflow);
+			UpdateItem(
+				injectedInput,
+				limitedThroughput,
+				requiredOutput,
+				injectedItems,
+				TArray<FProductionDetail>(),
+				TArray<FProductionDetail>(),
+				overflow
+				);
 			SetActorTickEnabled(false);
 		}
 		else if (lastUpdated < updateRequested && updateRequested <= GetWorld()->GetTimeSeconds())
@@ -254,7 +264,7 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 			{
 				if (checkTick_)
 				{
-					EC_LOG_Display(*getTagName(), TEXT("Player Controller"));
+					EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Player Controller"));
 				}
 
 				const auto pawn = (*playerIt)->GetPawn();
@@ -266,9 +276,9 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 							autoUpdateMode == EAutoUpdateType::AUT_ENABLED) ||
 						FVector::Dist(playerTranslation, GetActorLocation()) <= AEfficiencyCheckerLogic::configuration.autoUpdateDistance)
 					{
-						EC_LOG_Display(*getTagName(), TEXT("Last Tick"));
-						// EC_LOG_Display(*getTagName(), TEXT("Player Pawn"));
-						// EC_LOG_Display(*getTagName(), TEXT("Translation X = "), playerTranslation.X, TEXT(" / Y = "), playerTranslation.Y,TEXT( " / Z = "), playerTranslation.Z);
+						EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Last Tick"));
+						// EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Player Pawn"));
+						// EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Translation X = "), playerTranslation.X, TEXT(" / Y = "), playerTranslation.Y,TEXT( " / Z = "), playerTranslation.Z);
 
 						// Check if has pending buildings
 						if (!mustUpdate_)
@@ -291,7 +301,8 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 
 										if (connectedBuildables.Contains(Cast<AFGBuildable>(connectionComponent->GetConnection()->GetOwner())))
 										{
-											EC_LOG_Display(
+											EC_LOG_Display_Condition(
+												ELogVerbosity::Display,
 												*getTagName(),
 												TEXT("New building "),
 												playerTranslation.X,
@@ -348,13 +359,13 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 //     {
 //         if (checkFactoryTick_)
 //         {
-//             EC_LOG_Display(*getTagName(), TEXT("Factory Ticking"));
+//             EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Factory Ticking"));
 //             checkFactoryTick_ = false;
 //         }
 //
 //         if (lastUpdated < updateRequested && updateRequested <= GetWorld()->GetTimeSeconds())
 //         {
-//             EC_LOG_Display(*getTagName(), TEXT("Last Factory Tick"));
+//             EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Last Factory Tick"));
 //
 //             //Server_UpdateConnectedProduction(injectedInput, limitedThroughput, requiredOutput, injectedItem, dumpConnections);
 //
@@ -375,10 +386,7 @@ void AEfficiencyCheckerBuilding::SetCustomInjectedInput(bool enabled, float valu
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
 
 			rco->SetCustomInjectedInputRPC(this, enabled, value);
 		}
@@ -405,10 +413,7 @@ void AEfficiencyCheckerBuilding::SetCustomRequiredOutput(bool enabled, float val
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling SetCustomRequiredOutput at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling SetCustomRequiredOutput at server"));
 
 			rco->SetCustomRequiredOutputRPC(this, enabled, value);
 		}
@@ -435,10 +440,7 @@ void AEfficiencyCheckerBuilding::SetAutoUpdateMode(EAutoUpdateType in_autoUpdate
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling SetAutoUpdateMode at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling SetAutoUpdateMode at server"));
 
 			rco->SetAutoUpdateModeRPC(this, in_autoUpdateMode);
 		}
@@ -464,10 +466,7 @@ void AEfficiencyCheckerBuilding::SetMachineStatusIncludeType(int32 in_machineSta
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling SetMachineStatusIncludeType at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling SetMachineStatusIncludeType at server"));
 
 			rco->SetMachineStatusIncludeTypeRPC(this, in_machineStatusIncludeType);
 		}
@@ -493,10 +492,7 @@ void AEfficiencyCheckerBuilding::UpdateBuilding(AFGBuildable* newBuildable)
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling UpdateBuilding at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling UpdateBuilding at server"));
 
 			rco->UpdateBuildingRPC(this, newBuildable);
 		}
@@ -520,10 +516,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateBuilding(AFGBuildable* newBuildabl
 
 	if (HasAuthority())
 	{
-		if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-		{
-			EC_LOG_Display(*getTagName(), TEXT(" OnUpdateBuilding"));
-		}
+		EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT(" OnUpdateBuilding"));
 
 		if (newBuildable)
 		{
@@ -536,7 +529,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateBuilding(AFGBuildable* newBuildabl
 		updateRequested = GetWorld()->GetTimeSeconds() + AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
 		// Give a 5 seconds timeout
 
-		EC_LOG_Display(TEXT("    Updating "), *GetName());
+		EC_LOG_Display_Condition(ELogVerbosity::Log, TEXT("    Updating "), *GetName());
 
 		SetActorTickEnabled(true);
 		SetActorTickInterval(AEfficiencyCheckerLogic::configuration.autoUpdateTimeout);
@@ -549,35 +542,29 @@ void AEfficiencyCheckerBuilding::Server_UpdateBuilding(AFGBuildable* newBuildabl
 	}
 	else
 	{
-		if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-		{
-			EC_LOG_Display(*getTagName(), TEXT(" OnUpdateBuilding - no authority"));
-		}
+		EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT(" OnUpdateBuilding - no authority"));
 	}
 
-	if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-	{
-		EC_LOG_Display(TEXT("===="));
-	}
+	EC_LOG_Display_Condition(ELogVerbosity::Log, TEXT("===="));
 }
 
 void AEfficiencyCheckerBuilding::UpdateBuildings(AFGBuildable* newBuildable)
 {
-	EC_LOG_Display(TEXT("EfficiencyCheckerBuilding: UpdateBuildings"));
+	EC_LOG_Display_Condition(ELogVerbosity::Display, TEXT("EfficiencyCheckerBuilding: UpdateBuildings"));
 
 	if (newBuildable)
 	{
-		EC_LOG_Display(TEXT("    New buildable: "), *newBuildable->GetName());
+		EC_LOG_Display_Condition(ELogVerbosity::Display, TEXT("    New buildable: "), *newBuildable->GetName());
 
 		//TArray<UActorComponent*> components = newBuildable->GetComponentsByClass(UFGFactoryConnectionComponent::StaticClass());
 		//for (auto component : components) {
 		//	UFGFactoryConnectionComponent* connectionComponent = Cast<UFGFactoryConnectionComponent>(component);
 
 		//	if (connectionComponent->IsConnected()) {
-		//		EC_LOG_Display(TEXT("        - "),  *component->GetName(), TEXT(" is connected to"), * connectionComponent->GetConnection()->GetOwner()->GetName());
+		//		EC_LOG_Display_Condition(ELogVerbosity::Display, TEXT("        - "),  *component->GetName(), TEXT(" is connected to"), * connectionComponent->GetConnection()->GetOwner()->GetName());
 		//	}
 		//	else {
-		//		EC_LOG_Display(TEXT( "        - "),  *component->GetName(), TEXT(" is not connected"));
+		//		EC_LOG_Display_Condition(ELogVerbosity::Display, TEXT( "        - "),  *component->GetName(), TEXT(" is not connected"));
 		//	}
 		//}
 	}
@@ -591,7 +578,7 @@ void AEfficiencyCheckerBuilding::UpdateBuildings(AFGBuildable* newBuildable)
 		efficiencyBuilding->UpdateBuilding(newBuildable);
 	}
 
-	EC_LOG_Display(TEXT("===="));
+	EC_LOG_Display_Condition(ELogVerbosity::Display, TEXT("===="));
 }
 
 // UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "EfficiencyChecker")
@@ -602,13 +589,13 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	float& out_requiredOutput,
 	TSet<TSubclassOf<UFGItemDescriptor>>& out_injectedItems,
 	TSet<AFGBuildable*>& connected,
-	bool& in_overflow
+	TArray<FProductionDetail>& producers,
+	TArray<FProductionDetail>& consumers,
+	bool& in_overflow,
+	bool includeProductionDetails
 )
 {
-	if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-	{
-		EC_LOG_Display(*getTagName(), TEXT("GetConnectedProduction"));
-	}
+	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), *getTagName(), TEXT("GetConnectedProduction"));
 
 	const FString indent(TEXT("    "));
 
@@ -678,10 +665,17 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	{
 		auto anchorPoint = GetActorLocation() + FVector(0, 0, 100);
 
-		if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-		{
-			EC_LOG_Display(*getTagName(), TEXT("Anchor point: X = "), anchorPoint.X, TEXT(" / Y = "), anchorPoint.Y, TEXT(" / Z = "), anchorPoint.Z);
-		}
+		EC_LOG_Display_Condition(
+			ELogVerbosity::Log,
+			*getTagName(),
+			*getTagName(),
+			TEXT("Anchor point: X = "),
+			anchorPoint.X,
+			TEXT(" / Y = "),
+			anchorPoint.Y,
+			TEXT(" / Z = "),
+			anchorPoint.Z
+			);
 
 		AFGBuildableConveyorBelt* currentConveyor = nullptr;
 
@@ -700,7 +694,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 			if (conveyor->IsPendingKill() || currentConveyor && conveyor->GetBuildTime() < currentConveyor->GetBuildTime())
 			{
-				EC_LOG_Display(*getTagName(), TEXT("Conveyor "), *conveyor->GetName(), anchorPoint.X, TEXT(" was skipped"));
+				EC_LOG_Display_Condition(ELogVerbosity::Verbose, *getTagName(), TEXT("Conveyor "), *conveyor->GetName(), anchorPoint.X, TEXT(" was skipped"));
 
 				continue;
 			}
@@ -708,19 +702,19 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			//FVector connection0Location = conveyor->GetConnection0()->GetConnectorLocation();
 			//FVector connection1Location = conveyor->GetConnection1()->GetConnectorLocation();
 
-			//EC_LOG_Display(*getTagName(), TEXT("    connection 0: X = "), connection0Location.X,TEXT( " / Y = "), connection0Location.Y,TEXT( " / Z = "), connection0Location.Z);
-			//EC_LOG_Display(*getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y,TEXT( " / Z = "), connection1Location.Z);
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    connection 0: X = "), connection0Location.X,TEXT( " / Y = "), connection0Location.Y,TEXT( " / Z = "), connection0Location.Z);
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y,TEXT( " / Z = "), connection1Location.Z);
 
 			//if (!inputConveyor && FVector::PointsAreNear(connection0Location, anchorPoint, 1)) {
-			//	EC_LOG_Display(*getTagName(), TEXT("Found input "),  *conveyor->GetName());
-			//	EC_LOG_Display(*getTagName(),TEXT( "    connection 0: X = "), connection0Location.X,TEXT( " / Y = "), connection0Location.Y, TEXT(" / Z = "), connection0Location.Z);
-			//	EC_LOG_Display(*getTagName(),TEXT( "    distance = "), FVector::Dist(connection0Location, anchorPoint));
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Found input "),  *conveyor->GetName());
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(),TEXT( "    connection 0: X = "), connection0Location.X,TEXT( " / Y = "), connection0Location.Y, TEXT(" / Z = "), connection0Location.Z);
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(),TEXT( "    distance = "), FVector::Dist(connection0Location, anchorPoint));
 
 			//	inputConveyor = conveyor;
 			//} else if (!outputConveyor && FVector::PointsAreNear(connection0Location, anchorPoint, 1)) {
-			//	EC_LOG_Display(*getTagName(), TEXT("Found output "),  *conveyor->GetName());
-			//	EC_LOG_Display(*getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y, TEXT(" / Z = "), connection1Location.Z);
-			//	EC_LOG_Display(*getTagName(), TEXT("    distance = "), FVector::Dist(connection1Location, anchorPoint));
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Found output "),  *conveyor->GetName());
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y, TEXT(" / Z = "), connection1Location.Z);
+			//EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    distance = "), FVector::Dist(connection1Location, anchorPoint));
 
 			//	outputConveyor = conveyor;
 			//}
@@ -735,7 +729,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				auto connection0Location = conveyor->GetConnection0()->GetConnectorLocation();
 				auto connection1Location = conveyor->GetConnection1()->GetConnectorLocation();
 
-				if (AEfficiencyCheckerLogic::configuration.dumpConnections)
+				if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 				{
 					EC_LOG_Display(*getTagName(), TEXT("Found intersecting conveyor "), *conveyor->GetName());
 					EC_LOG_Display(
@@ -778,12 +772,12 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			//if (!inputConveyor && !outputConveyor &&
 			//	FVector::Coincident(connection1Location - connection0Location, anchorPoint - connection0Location) &&
 			//	FVector::Dist(anchorPoint, connection0Location) <= FVector::Dist(connection1Location, connection0Location)) {
-			//	EC_LOG_Display(*getTagName(), TEXT("Found input and output "),  *conveyor->GetName());
-			//	EC_LOG_Display(*getTagName(), TEXT("    connection 0: X = "), connection0Location.X, TEXT(" / Y = "), connection0Location.Y, TEXT(" / Z = "), connection0Location.Z);
-			//	EC_LOG_Display(*getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y, TEXT(" / Z = "), connection1Location.Z);
-			//	EC_LOG_Display(*getTagName(), TEXT("    coincident = "), (connection1Location - connection0Location) | (anchorPoint - connection0Location));
-			//	EC_LOG_Display(*getTagName(), TEXT("    connectors distance = "), FVector::Dist(connection1Location, connection0Location));
-			//	EC_LOG_Display(*getTagName(), TEXT("    anchor distance = "), FVector::Dist(anchorPoint, connection0Location));
+			//	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Found input and output "),  *conveyor->GetName());
+			//	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    connection 0: X = "), connection0Location.X, TEXT(" / Y = "), connection0Location.Y, TEXT(" / Z = "), connection0Location.Z);
+			//	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y, TEXT(" / Z = "), connection1Location.Z);
+			//	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    coincident = "), (connection1Location - connection0Location) | (anchorPoint - connection0Location));
+			//	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    connectors distance = "), FVector::Dist(connection1Location, connection0Location));
+			//	EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("    anchor distance = "), FVector::Dist(anchorPoint, connection0Location));
 
 			//	inputConveyor = conveyor;
 			//	outputConveyor = conveyor;
@@ -821,10 +815,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	{
 		auto anchorPoint = GetActorLocation();
 
-		if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-		{
-			EC_LOG_Display(*getTagName(), TEXT("Anchor point: X = "), anchorPoint.X, TEXT(" / Y = "), anchorPoint.Y, TEXT(" / Z = "), anchorPoint.Z);
-		}
+		EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Anchor point: X = "), anchorPoint.X, TEXT(" / Y = "), anchorPoint.Y, TEXT(" / Z = "), anchorPoint.Z);
 
 		AFGBuildablePipeline* currentPipe = nullptr;
 
@@ -842,7 +833,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 			if (pipe->IsPendingKill() || currentPipe && pipe->GetBuildTime() < currentPipe->GetBuildTime())
 			{
-				EC_LOG_Display(*getTagName(), TEXT("Pipe "), *pipe->GetName(), anchorPoint.X, TEXT(" was skipped"));
+				EC_LOG_Display_Condition(ELogVerbosity::Verbose, *getTagName(), TEXT("Pipe "), *pipe->GetName(), anchorPoint.X, TEXT(" was skipped"));
 
 				continue;
 			}
@@ -853,7 +844,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			if (FVector::PointsAreNear(connection0Location, anchorPoint, 1) ||
 				FVector::PointsAreNear(connection1Location, anchorPoint, 1))
 			{
-				if (AEfficiencyCheckerLogic::configuration.dumpConnections)
+				if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 				{
 					EC_LOG_Display(*getTagName(), TEXT("Found connected pipe "), *pipe->GetName());
 					EC_LOG_Display(
@@ -961,7 +952,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		limitedThroughputOut = requiredOutput;
 	}
 
-	if (!inputConnector && !outputConnector && AEfficiencyCheckerLogic::configuration.dumpConnections)
+	if (IS_EC_LOG_LEVEL(ELogVerbosity::Log) && !inputConnector && !outputConnector)
 	{
 		if (resourceForm == EResourceForm::RF_SOLID)
 		{
@@ -975,10 +966,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 	out_limitedThroughput = FMath::Min(limitedThroughputIn, limitedThroughputOut);
 
-	if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-	{
-		EC_LOG_Display(TEXT("===="));
-	}
+	EC_LOG_Display_Condition(ELogVerbosity::Log, TEXT("===="));
 }
 
 void AEfficiencyCheckerBuilding::UpdateConnectedProduction
@@ -988,7 +976,8 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 	float in_customInjectedInput,
 	const bool keepCustomOutput,
 	const bool hasCustomRequiredOutput,
-	float in_customRequiredOutput
+	float in_customRequiredOutput,
+	bool includeProductionDetails
 )
 {
 	if (HasAuthority())
@@ -999,7 +988,8 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 			in_customInjectedInput,
 			keepCustomOutput,
 			hasCustomRequiredOutput,
-			in_customRequiredOutput
+			in_customRequiredOutput,
+			includeProductionDetails
 			);
 	}
 	else
@@ -1007,10 +997,7 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling UpdateConnectedProduction at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling UpdateConnectedProduction at server"));
 
 			rco->UpdateConnectedProductionRPC(
 				this,
@@ -1019,7 +1006,8 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 				in_customInjectedInput,
 				keepCustomOutput,
 				hasCustomRequiredOutput,
-				in_customRequiredOutput
+				in_customRequiredOutput,
+				includeProductionDetails
 				);
 		}
 	}
@@ -1032,7 +1020,8 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 	float in_customInjectedInput,
 	const bool keepCustomOutput,
 	const bool hasCustomRequiredOutput,
-	float in_customRequiredOutput
+	float in_customRequiredOutput,
+	bool includeProductionDetails
 )
 {
 	if (!IsInGameThread())
@@ -1047,7 +1036,8 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 					in_customInjectedInput,
 					keepCustomOutput,
 					hasCustomRequiredOutput,
-					in_customRequiredOutput
+					in_customRequiredOutput,
+					includeProductionDetails
 					);
 			}
 			);
@@ -1057,10 +1047,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 
 	if (HasAuthority())
 	{
-		if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-		{
-			EC_LOG_Display(*getTagName(), TEXT("Server_UpdateConnectedProduction"));
-		}
+		EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Server_UpdateConnectedProduction"));
 
 		limitedThroughput = 0;
 
@@ -1102,7 +1089,20 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 
 		overflow = false;
 
-		GetConnectedProduction(injectedInput, limitedThroughput, requiredOutput, injectedItemsSet, connectedBuildables, overflow);
+		TArray<FProductionDetail> producers;
+		TArray<FProductionDetail> consumers;
+
+		GetConnectedProduction(
+			injectedInput,
+			limitedThroughput,
+			requiredOutput,
+			injectedItemsSet,
+			connectedBuildables,
+			producers,
+			consumers,
+			overflow,
+			includeProductionDetails
+			);
 
 		injectedItems = injectedItemsSet.Array();
 
@@ -1128,20 +1128,14 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 			addOnSortRulesChangedDelegateBindings(bindingsToAdd);
 		}
 
-		UpdateItem(injectedInput, limitedThroughput, requiredOutput, injectedItems, overflow);
+		UpdateItem(injectedInput, limitedThroughput, requiredOutput, injectedItems, producers, consumers, overflow);
 	}
 	else
 	{
-		if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-		{
-			EC_LOG_Display(*getTagName(), TEXT("Server_UpdateConnectedProduction - no authority"));
-		}
+		EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Server_UpdateConnectedProduction - no authority"));
 	}
 
-	if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-	{
-		EC_LOG_Display(TEXT("===="));
-	}
+	EC_LOG_Display_Condition(ELogVerbosity::Log, TEXT("===="));
 }
 
 void AEfficiencyCheckerBuilding::addOnDestroyBindings(const TSet<AFGBuildable*>& buildings)
@@ -1219,10 +1213,7 @@ void AEfficiencyCheckerBuilding::RemoveBuilding(AFGBuildable* buildable)
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling RemoveBuilding at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling RemoveBuilding at server"));
 
 			rco->RemoveBuildingRPC(this, buildable);
 		}
@@ -1238,19 +1229,20 @@ void AEfficiencyCheckerBuilding::Server_RemoveBuilding(AFGBuildable* buildable)
 	}
 }
 
-void AEfficiencyCheckerBuilding::GetEfficiencyCheckerSettings(bool& out_autoUpdate, bool& out_dumpConnections, float& out_autoUpdateTimeout, float& out_autoUpdateDistance)
+void AEfficiencyCheckerBuilding::GetEfficiencyCheckerSettings(bool& out_autoUpdate, int& out_logLevel, float& out_autoUpdateTimeout, float& out_autoUpdateDistance)
 {
-	EC_LOG_Display(TEXT("EfficiencyCheckerBuilding: GetEfficiencyCheckerSettings"));
+	EC_LOG_Display_Condition(ELogVerbosity::Display, TEXT("EfficiencyCheckerBuilding: GetEfficiencyCheckerSettings"));
 
 	out_autoUpdate = AEfficiencyCheckerLogic::configuration.autoUpdate;
-	out_dumpConnections = AEfficiencyCheckerLogic::configuration.dumpConnections;
+	out_logLevel = AEfficiencyCheckerLogic::configuration.logLevel;
 	out_autoUpdateTimeout = AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
 	out_autoUpdateDistance = AEfficiencyCheckerLogic::configuration.autoUpdateDistance;
 }
 
 void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential)
 {
-	EC_LOG_Display(
+	EC_LOG_Display_Condition(
+		ELogVerbosity::Display,
 		TEXT("SetPendingPotential of building "),
 		*GetPathNameSafe(buildable),
 		TEXT(" to "),
@@ -1305,10 +1297,7 @@ void AEfficiencyCheckerBuilding::AddPendingBuilding(AFGBuildable* buildable)
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			if (AEfficiencyCheckerLogic::configuration.dumpConnections)
-			{
-				EC_LOG_Display(*getTagName(), TEXT("Calling AddPendingBuilding at server"));
-			}
+			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling AddPendingBuilding at server"));
 
 			rco->AddPendingBuildingRPC(this, buildable);
 		}
@@ -1328,9 +1317,9 @@ bool AEfficiencyCheckerBuilding::IsAutoUpdateEnabled()
 	return AEfficiencyCheckerLogic::configuration.autoUpdate;
 }
 
-bool AEfficiencyCheckerBuilding::IsDumpConnectionsEnabled()
+int AEfficiencyCheckerBuilding::GetLogLevel()
 {
-	return AEfficiencyCheckerLogic::configuration.dumpConnections;
+	return AEfficiencyCheckerLogic::configuration.logLevel;
 }
 
 float AEfficiencyCheckerBuilding::GetAutoUpdateTimeout()
@@ -1349,10 +1338,20 @@ void AEfficiencyCheckerBuilding::UpdateItem_Implementation
 	float in_limitedThroughput,
 	float in_requiredOutput,
 	const TArray<TSubclassOf<UFGItemDescriptor>>& in_injectedItems,
+	const TArray<FProductionDetail>& in_producers,
+	const TArray<FProductionDetail>& in_consumers,
 	bool in_overflow
 )
 {
-	OnUpdateItem.Broadcast(in_injectedInput, in_limitedThroughput, in_requiredOutput, in_injectedItems, in_overflow);
+	OnUpdateItem.Broadcast(
+		in_injectedInput,
+		in_limitedThroughput,
+		in_requiredOutput,
+		in_injectedItems,
+		in_producers,
+		in_consumers,
+		in_overflow
+		);
 }
 
 #ifndef OPTIMIZE

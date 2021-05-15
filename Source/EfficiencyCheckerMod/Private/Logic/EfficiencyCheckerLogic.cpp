@@ -213,9 +213,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 		if (timeout < connector->GetWorld()->GetTimeSeconds())
 		{
-			EC_LOG_Error(
-				TEXT("collectInput: timeout!")
-				);
+			EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
 
 			overflow = true;
 			return;
@@ -225,7 +223,8 @@ void AEfficiencyCheckerLogic::collectInput
 
 		if (level > 100)
 		{
-			EC_LOG_Error(
+			EC_LOG_Error_Condition(
+				ELogVerbosity::Error,
 				TEXT("collectInput: level is too deep: "),
 				level,
 				TEXT("; "),
@@ -239,19 +238,17 @@ void AEfficiencyCheckerLogic::collectInput
 			return;
 		}
 
-		if (configuration.dumpConnections)
-		{
-			EC_LOG_Display(
-				/**getTimeStamp(),*/
-				*indent,
-				TEXT("collectInput at level "),
-				level,
-				TEXT(": "),
-				*owner->GetName(),
-				TEXT(" / "),
-				*fullClassName
-				);
-		}
+		EC_LOG_Display_Condition(
+			ELogVerbosity::Log,
+			/**getTimeStamp(),*/
+			*indent,
+			TEXT("collectInput at level "),
+			level,
+			TEXT(": "),
+			*owner->GetName(),
+			TEXT(" / "),
+			*fullClassName
+			);
 
 		seenActors.Add(owner);
 
@@ -281,7 +278,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						out_injectedItems.Add(item.ItemClass);
 
-						if (configuration.dumpConnections)
+						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
 							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Item amount = "), item.Amount);
 							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
@@ -303,19 +300,17 @@ void AEfficiencyCheckerLogic::collectInput
 							itemAmountPerMinute /= 1000;
 						}
 
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								*manufacturer->GetName(),
-								TEXT(" produces "),
-								itemAmountPerMinute,
-								TEXT(" "),
-								*UFGItemDescriptor::GetItemName(item.ItemClass).ToString(),
-								TEXT("/minute")
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							*manufacturer->GetName(),
+							TEXT(" produces "),
+							itemAmountPerMinute,
+							TEXT(" "),
+							*UFGItemDescriptor::GetItemName(item.ItemClass).ToString(),
+							TEXT("/minute")
+							);
 
 						if (!customInjectedInput)
 						{
@@ -344,15 +339,13 @@ void AEfficiencyCheckerLogic::collectInput
 
 				auto speedMultiplier = resource ? resource->GetExtractionSpeedMultiplier() : 1;
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(
-						/**getTimeStamp(),*/
-						*indent,
-						TEXT("Extraction Speed Multiplier = "),
-						speedMultiplier
-						);
-				}
+				EC_LOG_Display_Condition(
+					ELogVerbosity::Log,
+					/**getTimeStamp(),*/
+					*indent,
+					TEXT("Extraction Speed Multiplier = "),
+					speedMultiplier
+					);
 
 				if (!item)
 				{
@@ -362,10 +355,12 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 					else
 					{
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Extractable resource is null"));
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							TEXT("Extractable resource is null")
+							);
 					}
 				}
 
@@ -379,14 +374,11 @@ void AEfficiencyCheckerLogic::collectInput
 					return;
 				}
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
-				}
+				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 				out_injectedItems.Add(item);
 
-				if (configuration.dumpConnections)
+				if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 				{
 					EC_LOG_Display(*indent, TEXT("Current potential = "), extractor->GetCurrentPotential());
 					EC_LOG_Display(*indent, TEXT("Pending potential = "), extractor->GetPendingPotential());
@@ -414,19 +406,17 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 				}
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(
-						/**getTimeStamp(),*/
-						*indent,
-						*extractor->GetName(),
-						TEXT(" extracts "),
-						itemAmountPerMinute,
-						TEXT(" "),
-						*UFGItemDescriptor::GetItemName(item).ToString(),
-						TEXT("/minute")
-						);
-				}
+				EC_LOG_Display_Condition(
+					ELogVerbosity::Log,
+					/**getTimeStamp(),*/
+					*indent,
+					*extractor->GetName(),
+					TEXT(" extracts "),
+					itemAmountPerMinute,
+					TEXT(" "),
+					*UFGItemDescriptor::GetItemName(item).ToString(),
+					TEXT("/minute")
+					);
 
 				if (!customInjectedInput)
 				{
@@ -475,10 +465,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, conveyor->GetSpeed() / 2);
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
-				}
+				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
 
 				continue;
 			}
@@ -570,54 +557,44 @@ void AEfficiencyCheckerLogic::collectInput
 						     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 						     ++offsetDistance)
 						{
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									*connectedPlatform->GetName(),
-									TEXT(" direction = "),
-									i,
-									TEXT(" / orientation reversed = "),
-									connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								*connectedPlatform->GetName(),
+								TEXT(" direction = "),
+								i,
+								TEXT(" / orientation reversed = "),
+								connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
+								);
 
 							auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
 							if (station)
 							{
 								destinationStations.Add(station);
 
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(
-										/**getTimeStamp(),*/
-										*indent,
-										TEXT("    Station = "),
-										*station->GetStationIdentifier()->GetStationName().ToString()
-										);
-								}
+								EC_LOG_Display_Condition(
+									ELogVerbosity::Log,
+									/**getTimeStamp(),*/
+									*indent,
+									TEXT("    Station = "),
+									*station->GetStationIdentifier()->GetStationName().ToString()
+									);
 
 								if (i == 0 && connectedPlatform->IsOrientationReversed() ||
 									i == 1 && !connectedPlatform->IsOrientationReversed())
 								{
 									stationOffsets.insert(offsetDistance);
-									if (configuration.dumpConnections)
-									{
-										EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
-									}
+									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
 								}
 								else
 								{
 									stationOffsets.insert(-offsetDistance);
-									if (configuration.dumpConnections)
-									{
-										EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
-									}
+									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
 								}
 							}
 
-							if (configuration.dumpConnections)
+							if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 							{
 								auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 								if (cargo)
@@ -643,7 +620,7 @@ void AEfficiencyCheckerLogic::collectInput
 							continue;
 						}
 
-						if (configuration.dumpConnections)
+						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
 							if (!train->GetTrainName().IsEmpty())
 							{
@@ -696,15 +673,13 @@ void AEfficiencyCheckerLogic::collectInput
 								continue;
 							}
 
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									TEXT("    Stop = "),
-									*stop.Station->GetStationName().ToString()
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								TEXT("    Stop = "),
+								*stop.Station->GetStationName().ToString()
+								);
 
 							for (auto i = 0; i <= 1; i++)
 							{
@@ -825,21 +800,19 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						auto rule = smartSplitter->GetSortRuleAt(x);
 
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								TEXT("Rule "),
-								x,
-								TEXT(" / output index = "),
-								rule.OutputIndex,
-								TEXT(" / item = "),
-								*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
-								TEXT(" / class = "),
-								*GetPathNameSafe(rule.ItemClass)
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							TEXT("Rule "),
+							x,
+							TEXT(" / output index = "),
+							rule.OutputIndex,
+							TEXT(" / item = "),
+							*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
+							TEXT(" / class = "),
+							*GetPathNameSafe(rule.ItemClass)
+							);
 
 						restrictedItemsByOutput[rule.OutputIndex].Add(rule.ItemClass);
 					}
@@ -910,10 +883,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					connector = connectedInputs[0]->GetConnection();
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
-					}
+					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					if (smartSplitter)
 					{
@@ -928,7 +898,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (connectedInputs.Num() == 0)
 				{
 					// Nothing is being inputed. Bail
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" has no input"));
 				}
 				else
 				{
@@ -1054,10 +1024,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						if (discountedInput > 0)
 						{
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" items/minute"));
-							}
+							EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" items/minute"));
 
 							if (!customInjectedInput)
 							{
@@ -1071,10 +1038,15 @@ void AEfficiencyCheckerLogic::collectInput
 						out_injectedInput += out_limitedThroughput;
 					}
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
-					}
+					EC_LOG_Display_Condition(
+						ELogVerbosity::Log,
+						/**getTimeStamp(),*/
+						*indent,
+						*buildable->GetName(),
+						TEXT(" limited at "),
+						out_limitedThroughput,
+						TEXT(" items/minute")
+						);
 				}
 
 				connected.Add(buildable);
@@ -1185,7 +1157,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (otherConnections.Num() == 0)
 				{
 					// No more connections. Bail
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" has no other connection"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
@@ -1197,10 +1169,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					connector = otherConnections[0]->GetConnection();
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
-					}
+					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					continue;
 				}
@@ -1321,10 +1290,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 							if (discountedInput > 0)
 							{
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
 
 								if (!customInjectedInput)
 								{
@@ -1334,10 +1300,7 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 					}
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
-					}
+					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 				}
 
 				connected.Add(buildable);
@@ -1368,54 +1331,44 @@ void AEfficiencyCheckerLogic::collectInput
 					     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 					     ++offsetDistance)
 					{
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								*connectedPlatform->GetName(),
-								TEXT(" direction = "),
-								i,
-								TEXT(" / orientation reversed = "),
-								connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							*connectedPlatform->GetName(),
+							TEXT(" direction = "),
+							i,
+							TEXT(" / orientation reversed = "),
+							connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
+							);
 
 						auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
 						if (station)
 						{
 							destinationStations.Add(station);
 
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									TEXT("    Station = "),
-									*station->GetStationIdentifier()->GetStationName().ToString()
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								TEXT("    Station = "),
+								*station->GetStationIdentifier()->GetStationName().ToString()
+								);
 
 							if (i == 0 && connectedPlatform->IsOrientationReversed() ||
 								i == 1 && !connectedPlatform->IsOrientationReversed())
 							{
 								stationOffsets.insert(offsetDistance);
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
 							}
 							else
 							{
 								stationOffsets.insert(-offsetDistance);
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
 							}
 						}
 
-						if (configuration.dumpConnections)
+						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
 							auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 							if (cargo)
@@ -1441,7 +1394,7 @@ void AEfficiencyCheckerLogic::collectInput
 						continue;
 					}
 
-					if (configuration.dumpConnections)
+					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 					{
 						if (!train->GetTrainName().IsEmpty())
 						{
@@ -1494,15 +1447,13 @@ void AEfficiencyCheckerLogic::collectInput
 							continue;
 						}
 
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								TEXT("    Stop = "),
-								*stop.Station->GetStationName().ToString()
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							TEXT("    Stop = "),
+							*stop.Station->GetStationName().ToString()
+							);
 
 						for (auto i = 0; i <= 1; i++)
 						{
@@ -1658,10 +1609,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					if (discountedInput > 0)
 					{
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
-						}
+						EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
 
 						if (!customInjectedInput)
 						{
@@ -1670,10 +1618,7 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 				}
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
-				}
+				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
 				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
 
@@ -1719,7 +1664,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 		// out_limitedThroughput = 0;
 
-		if (configuration.dumpConnections)
+		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 		{
 			dumpUnknownClass(indent, owner);
 		}
@@ -1763,9 +1708,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		if (timeout < connector->GetWorld()->GetTimeSeconds())
 		{
-			EC_LOG_Error(
-				TEXT("collectOutput: timeout!")
-				);
+			EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectOutput: timeout!"));
 
 			overflow = true;
 			return;
@@ -1775,7 +1718,8 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		if (level > 100)
 		{
-			EC_LOG_Error(
+			EC_LOG_Error_Condition(
+				ELogVerbosity::Error,
 				TEXT("collectOutput: level is too deep: "),
 				level,
 				TEXT("; "),
@@ -1815,19 +1759,17 @@ void AEfficiencyCheckerLogic::collectOutput
 			}
 		}
 
-		if (configuration.dumpConnections)
-		{
-			EC_LOG_Display(
-				/**getTimeStamp(),*/
-				*indent,
-				TEXT("collectOutput at level "),
-				level,
-				TEXT(": "),
-				*owner->GetName(),
-				TEXT(" / "),
-				*fullClassName
-				);
-		}
+		EC_LOG_Display_Condition(
+			ELogVerbosity::Log,
+			/**getTimeStamp(),*/
+			*indent,
+			TEXT("collectOutput at level "),
+			level,
+			TEXT(": "),
+			*owner->GetName(),
+			TEXT(" / "),
+			*fullClassName
+			);
 
 		{
 			const auto manufacturer = Cast<AFGBuildableManufacturer>(owner);
@@ -1857,7 +1799,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							continue;
 						}
 
-						if (configuration.dumpConnections)
+						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
 							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Item amount = "), item.Amount);
 							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
@@ -1879,19 +1821,17 @@ void AEfficiencyCheckerLogic::collectOutput
 							itemAmountPerMinute /= 1000;
 						}
 
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								*manufacturer->GetName(),
-								TEXT(" consumes "),
-								itemAmountPerMinute,
-								TEXT(" "),
-								*UFGItemDescriptor::GetItemName(item.ItemClass).ToString(),
-								TEXT("/minute")
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							*manufacturer->GetName(),
+							TEXT(" consumes "),
+							itemAmountPerMinute,
+							TEXT(" "),
+							*UFGItemDescriptor::GetItemName(item.ItemClass).ToString(),
+							TEXT("/minute")
+							);
 
 						out_requiredOutput += itemAmountPerMinute;
 
@@ -1941,10 +1881,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, conveyor->GetSpeed() / 2);
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
-				}
+				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
 
 				continue;
 			}
@@ -2002,65 +1939,53 @@ void AEfficiencyCheckerLogic::collectOutput
 						     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 						     ++offsetDistance)
 						{
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									*connectedPlatform->GetName(),
-									TEXT(" direction = "),
-									i,
-									TEXT(" / orientation reversed = "),
-									connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								*connectedPlatform->GetName(),
+								TEXT(" direction = "),
+								i,
+								TEXT(" / orientation reversed = "),
+								connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
+								);
 
 							auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
 							if (station)
 							{
 								destinationStations.Add(station);
 
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(
-										/**getTimeStamp(),*/
-										*indent,
-										TEXT("    Station = "),
-										*station->GetStationIdentifier()->GetStationName().ToString()
-										);
-								}
+								EC_LOG_Display_Condition(
+									ELogVerbosity::Log,
+									/**getTimeStamp(),*/
+									*indent,
+									TEXT("    Station = "),
+									*station->GetStationIdentifier()->GetStationName().ToString()
+									);
 
 								if (i == 0 && connectedPlatform->IsOrientationReversed() ||
 									i == 1 && !connectedPlatform->IsOrientationReversed())
 								{
 									stationOffsets.insert(offsetDistance);
-									if (configuration.dumpConnections)
-									{
-										EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
-									}
+									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
 								}
 								else
 								{
 									stationOffsets.insert(-offsetDistance);
-									if (configuration.dumpConnections)
-									{
-										EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
-									}
+									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
 								}
 							}
 
 							auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 							if (cargo)
 							{
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(
-										/**getTimeStamp(),*/
-										*indent,
-										TEXT("    Load mode = "),
-										cargo->GetIsInLoadMode() ? TEXT("true") : TEXT("false")
-										);
-								}
+								EC_LOG_Display_Condition(
+									ELogVerbosity::Log,
+									/**getTimeStamp(),*/
+									*indent,
+									TEXT("    Load mode = "),
+									cargo->GetIsInLoadMode() ? TEXT("true") : TEXT("false")
+									);
 							}
 						}
 					}
@@ -2075,7 +2000,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							continue;
 						}
 
-						if (configuration.dumpConnections)
+						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
 							if (!train->GetTrainName().IsEmpty())
 							{
@@ -2128,15 +2053,13 @@ void AEfficiencyCheckerLogic::collectOutput
 								continue;
 							}
 
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									TEXT("    Stop = "),
-									*stop.Station->GetStationName().ToString()
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								TEXT("    Stop = "),
+								*stop.Station->GetStationName().ToString()
+								);
 
 							for (auto i = 0; i <= 1; i++)
 							{
@@ -2234,21 +2157,19 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						auto rule = smartSplitter->GetSortRuleAt(x);
 
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								TEXT("Rule "),
-								x,
-								TEXT(" / output index = "),
-								rule.OutputIndex,
-								TEXT(" / item = "),
-								*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
-								TEXT(" / class = "),
-								*GetPathNameSafe(rule.ItemClass)
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							TEXT("Rule "),
+							x,
+							TEXT(" / output index = "),
+							rule.OutputIndex,
+							TEXT(" / item = "),
+							*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
+							TEXT(" / class = "),
+							*GetPathNameSafe(rule.ItemClass)
+							);
 
 						restrictedItemsByOutput[rule.OutputIndex].Add(rule.ItemClass);
 					}
@@ -2315,10 +2236,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					connector = connectedOutputs[0]->GetConnection();
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
-					}
+					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					if (smartSplitter)
 					{
@@ -2333,7 +2251,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (connectedOutputs.Num() == 0)
 				{
 					// Nothing is being outputed. Bail
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" has no input"));
 				}
 				else
 				{
@@ -2455,20 +2373,22 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (discountedOutput > 0)
 							{
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedOutput, TEXT(" items/minute"));
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedOutput, TEXT(" items/minute"));
 
 								out_requiredOutput -= discountedOutput;
 							}
 						}
 					}
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
-					}
+					EC_LOG_Display_Condition(
+						ELogVerbosity::Log,
+						/**getTimeStamp(),*/
+						*indent,
+						*buildable->GetName(),
+						TEXT(" limited at "),
+						out_limitedThroughput,
+						TEXT(" items/minute")
+						);
 				}
 
 				connected.Add(buildable);
@@ -2495,14 +2415,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					out_limitedThroughput = FMath::Min(out_limitedThroughput, getPipeSpeed(pipeline));
 				}
 
-				auto otherConnections = seenActors.size() == 1
-					                        ? components
-					                        : components.FilterByPredicate(
-						                        [connector, seenActors](UFGPipeConnectionComponent* pipeConnection)
-						                        {
-							                        return pipeConnection != connector && pipeConnection->IsConnected();
-						                        }
-						                        );
+				auto otherConnections =
+					seenActors.size() == 1
+						? components
+						: components.FilterByPredicate(
+							[connector, seenActors](UFGPipeConnectionComponent* pipeConnection)
+							{
+								return pipeConnection != connector && pipeConnection->IsConnected();
+							}
+							);
 
 				auto pipePump = Cast<AFGBuildablePipelinePump>(fluidIntegrant);
 				auto pipeConnection = Cast<UFGPipeConnectionComponent>(connector);
@@ -2524,7 +2445,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (otherConnections.Num() == 0)
 				{
 					// No more connections. Bail
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" has no other connection"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
@@ -2536,10 +2457,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					connector = otherConnections[0]->GetConnection();
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
-					}
+					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					continue;
 				}
@@ -2663,20 +2581,14 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (discountedOutput > 0)
 							{
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedOutput, TEXT(" m³/minute"));
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedOutput, TEXT(" m³/minute"));
 
 								out_requiredOutput -= discountedOutput;
 							}
 						}
 					}
 
-					if (configuration.dumpConnections)
-					{
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
-					}
+					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 				}
 
 				connected.Add(buildable);
@@ -2709,54 +2621,44 @@ void AEfficiencyCheckerLogic::collectOutput
 					     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 					     ++offsetDistance)
 					{
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								*connectedPlatform->GetName(),
-								TEXT(" direction = "),
-								i,
-								TEXT(" / orientation reversed = "),
-								connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							*connectedPlatform->GetName(),
+							TEXT(" direction = "),
+							i,
+							TEXT(" / orientation reversed = "),
+							connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
+							);
 
 						auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
 						if (station)
 						{
 							destinationStations.Add(station);
 
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									TEXT("    Station = "),
-									*station->GetStationIdentifier()->GetStationName().ToString()
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								TEXT("    Station = "),
+								*station->GetStationIdentifier()->GetStationName().ToString()
+								);
 
 							if (i == 0 && connectedPlatform->IsOrientationReversed() ||
 								i == 1 && !connectedPlatform->IsOrientationReversed())
 							{
 								stationOffsets.insert(offsetDistance);
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
 							}
 							else
 							{
 								stationOffsets.insert(-offsetDistance);
-								if (configuration.dumpConnections)
-								{
-									EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
-								}
+								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
 							}
 						}
 
-						if (configuration.dumpConnections)
+						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
 							auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 							if (cargo)
@@ -2782,7 +2684,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						continue;
 					}
 
-					if (configuration.dumpConnections)
+					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 					{
 						if (!train->GetTrainName().IsEmpty())
 						{
@@ -2835,15 +2737,13 @@ void AEfficiencyCheckerLogic::collectOutput
 							continue;
 						}
 
-						if (configuration.dumpConnections)
-						{
-							EC_LOG_Display(
-								/**getTimeStamp(),*/
-								*indent,
-								TEXT("    Stop = "),
-								*stop.Station->GetStationName().ToString()
-								);
-						}
+						EC_LOG_Display_Condition(
+							ELogVerbosity::Log,
+							/**getTimeStamp(),*/
+							*indent,
+							TEXT("    Stop = "),
+							*stop.Station->GetStationName().ToString()
+							);
 
 						for (auto i = 0; i <= 1; i++)
 						{
@@ -2954,10 +2854,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, limitedThroughput);
 
-				if (configuration.dumpConnections)
-				{
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
-				}
+				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
 				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
 
@@ -2973,7 +2870,7 @@ void AEfficiencyCheckerLogic::collectOutput
 			{
 				if (injectedItems.Contains(generator->GetSupplementalResourceClass()) && !seenActors[generator].Contains(generator->GetSupplementalResourceClass()))
 				{
-					if (configuration.dumpConnections)
+					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 					{
 						EC_LOG_Display(
 							/**getTimeStamp(),*/
@@ -2998,10 +2895,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (generator->IsValidFuel(item) && !seenActors[generator].Contains(item))
 						{
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
-							}
+							EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 							float energy = UFGItemDescriptor::GetEnergyValue(item);
 
@@ -3010,7 +2904,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							//     energy *= 1000;
 							// }
 
-							if (configuration.dumpConnections)
+							if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 							{
 								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Energy = "), energy);
 								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Current potential = "), generator->GetCurrentPotential());
@@ -3026,19 +2920,17 @@ void AEfficiencyCheckerLogic::collectOutput
 								itemAmountPerMinute /= 1000;
 							}
 
-							if (configuration.dumpConnections)
-							{
-								EC_LOG_Display(
-									/**getTimeStamp(),*/
-									*indent,
-									*generator->GetName(),
-									TEXT(" consumes "),
-									itemAmountPerMinute,
-									TEXT(" "),
-									*UFGItemDescriptor::GetItemName(item).ToString(),
-									TEXT("/minute")
-									);
-							}
+							EC_LOG_Display_Condition(
+								ELogVerbosity::Log,
+								/**getTimeStamp(),*/
+								*indent,
+								*generator->GetName(),
+								TEXT(" consumes "),
+								itemAmountPerMinute,
+								TEXT(" "),
+								*UFGItemDescriptor::GetItemName(item).ToString(),
+								TEXT("/minute")
+								);
 
 							seenActors[generator].Add(item);
 							out_requiredOutput += itemAmountPerMinute;
@@ -3058,7 +2950,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		// out_limitedThroughput = 0;
 
-		if (configuration.dumpConnections)
+		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 		{
 			dumpUnknownClass(indent, owner);
 		}
@@ -3082,7 +2974,7 @@ bool AEfficiencyCheckerLogic::inheritsFrom(AActor* owner, const FString& classNa
 
 void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* owner)
 {
-	if (configuration.dumpConnections)
+	if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 	{
 		EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Unknown Class "), *GetPathNameSafe(owner->GetClass()));
 
@@ -3381,7 +3273,7 @@ void AEfficiencyCheckerLogic::setConfiguration(const FEfficiencyChecker_ConfigSt
 	EC_LOG_Display(TEXT("autoUpdate = "), configuration.autoUpdate ? TEXT("true") : TEXT("false"));
 	EC_LOG_Display(TEXT("autoUpdateTimeout = "), configuration.autoUpdateTimeout);
 	EC_LOG_Display(TEXT("autoUpdateDistance = "), configuration.autoUpdateDistance);
-	EC_LOG_Display(TEXT("dumpConnections = "), configuration.dumpConnections ? TEXT("true") : TEXT("false"));
+	EC_LOG_Display(TEXT("logLevel = "), configuration.logLevel);
 	EC_LOG_Display(TEXT("ignoreStorageTeleporter = "), configuration.ignoreStorageTeleporter ? TEXT("true") : TEXT("false"));
 	EC_LOG_Display(TEXT("updateTimeout = "), configuration.updateTimeout);
 
