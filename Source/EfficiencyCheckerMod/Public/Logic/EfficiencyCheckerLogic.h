@@ -29,7 +29,7 @@ public:
 	virtual void Terminate();
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
-	static void DumpInformation(TSubclassOf<UFGItemDescriptor> equipmentDescriptor);
+	static void DumpInformation(AActor* worldContext, TSubclassOf<UFGItemDescriptor> equipmentDescriptor);
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
 	virtual bool IsValidBuildable(class AFGBuildable* newBuildable);

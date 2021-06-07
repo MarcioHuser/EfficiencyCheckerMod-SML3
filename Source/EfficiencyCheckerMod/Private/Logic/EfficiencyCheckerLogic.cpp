@@ -3,6 +3,8 @@
 // ReSharper disable IdentifierTypo
 
 #include "Logic/EfficiencyCheckerLogic.h"
+#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/Logging.h"
 
 #include "AkAudioEvent.h"
 #include "Animation/AnimSequence.h"
@@ -33,8 +35,7 @@
 #include "Patching/NativeHookManager.h"
 #include "Reflection/ReflectionHelper.h"
 #include "Resources/FGEquipmentDescriptor.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
+#include "Animation/AimOffsetBlendSpace.h"
 
 #include <map>
 #include <set>
@@ -280,16 +281,15 @@ void AEfficiencyCheckerLogic::collectInput
 
 						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Item amount = "), item.Amount);
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
+							EC_LOG_Display(*indent, TEXT("Item amount = "), item.Amount);
+							EC_LOG_Display(*indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
+							EC_LOG_Display(*indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
 							EC_LOG_Display(
-								/**getTimeStamp(),*/
 								*indent,
 								TEXT("Production cycle time = "),
 								manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential())
 								);
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
+							EC_LOG_Display(*indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 						}
 
 						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60 /
@@ -374,7 +374,7 @@ void AEfficiencyCheckerLogic::collectInput
 					return;
 				}
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
+				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 				out_injectedItems.Add(item);
 
@@ -465,7 +465,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, conveyor->GetSpeed() / 2);
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
+				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
 
 				continue;
 			}
@@ -585,12 +585,12 @@ void AEfficiencyCheckerLogic::collectInput
 									i == 1 && !connectedPlatform->IsOrientationReversed())
 								{
 									stationOffsets.insert(offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
+									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
 								}
 								else
 								{
 									stationOffsets.insert(-offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
+									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
 								}
 							}
 
@@ -883,7 +883,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					connector = connectedInputs[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					if (smartSplitter)
 					{
@@ -898,7 +898,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (connectedInputs.Num() == 0)
 				{
 					// Nothing is being inputed. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *buildable->GetName(), TEXT(" has no input"));
 				}
 				else
 				{
@@ -1024,7 +1024,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						if (discountedInput > 0)
 						{
-							EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" items/minute"));
+							EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedInput, TEXT(" items/minute"));
 
 							if (!customInjectedInput)
 							{
@@ -1101,8 +1101,8 @@ void AEfficiencyCheckerLogic::collectInput
 			//
 			//     if (configuration.dumpConnections)
 			//     {
-			//         EC_LOG_Display(/**getTimeStamp(),*/ *indent, *pipeline->GetName(), TEXT(" flow limit = "), flowLimit, TEXT(" m³/minute"));
-			//         EC_LOG_Display(/**getTimeStamp(),*/ *indent, *pipeline->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+			//         EC_LOG_Display(*indent, *pipeline->GetName(), TEXT(" flow limit = "), flowLimit, TEXT(" m³/minute"));
+			//         EC_LOG_Display(*indent, *pipeline->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 			//     }
 			//
 			//     connected.Add(pipeline);
@@ -1157,7 +1157,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (otherConnections.Num() == 0)
 				{
 					// No more connections. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" has no other connection"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
@@ -1169,7 +1169,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					connector = otherConnections[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					continue;
 				}
@@ -1290,7 +1290,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 							if (discountedInput > 0)
 							{
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
 
 								if (!customInjectedInput)
 								{
@@ -1300,7 +1300,7 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 					}
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 				}
 
 				connected.Add(buildable);
@@ -1359,12 +1359,12 @@ void AEfficiencyCheckerLogic::collectInput
 								i == 1 && !connectedPlatform->IsOrientationReversed())
 							{
 								stationOffsets.insert(offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
 							}
 							else
 							{
 								stationOffsets.insert(-offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
 							}
 						}
 
@@ -1609,7 +1609,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					if (discountedInput > 0)
 					{
-						EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
+						EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
 
 						if (!customInjectedInput)
 						{
@@ -1618,7 +1618,7 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 				}
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
 				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
 
@@ -1801,16 +1801,15 @@ void AEfficiencyCheckerLogic::collectOutput
 
 						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 						{
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Item amount = "), item.Amount);
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
+							EC_LOG_Display(*indent, TEXT("Item amount = "), item.Amount);
+							EC_LOG_Display(*indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
+							EC_LOG_Display(*indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
 							EC_LOG_Display(
-								/**getTimeStamp(),*/
 								*indent,
 								TEXT("Production cycle time = "),
 								manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential())
 								);
-							EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
+							EC_LOG_Display(*indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 						}
 
 						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60
@@ -1881,7 +1880,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, conveyor->GetSpeed() / 2);
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
+				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
 
 				continue;
 			}
@@ -1967,12 +1966,12 @@ void AEfficiencyCheckerLogic::collectOutput
 									i == 1 && !connectedPlatform->IsOrientationReversed())
 								{
 									stationOffsets.insert(offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
+									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
 								}
 								else
 								{
 									stationOffsets.insert(-offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
+									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
 								}
 							}
 
@@ -2236,7 +2235,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					connector = connectedOutputs[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					if (smartSplitter)
 					{
@@ -2251,7 +2250,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (connectedOutputs.Num() == 0)
 				{
 					// Nothing is being outputed. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *buildable->GetName(), TEXT(" has no input"));
 				}
 				else
 				{
@@ -2373,7 +2372,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (discountedOutput > 0)
 							{
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedOutput, TEXT(" items/minute"));
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedOutput, TEXT(" items/minute"));
 
 								out_requiredOutput -= discountedOutput;
 							}
@@ -2445,7 +2444,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (otherConnections.Num() == 0)
 				{
 					// No more connections. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" has no other connection"));
+					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
@@ -2457,7 +2456,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					connector = otherConnections[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
 
 					continue;
 				}
@@ -2581,14 +2580,14 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (discountedOutput > 0)
 							{
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Discounting "), discountedOutput, TEXT(" m³/minute"));
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedOutput, TEXT(" m³/minute"));
 
 								out_requiredOutput -= discountedOutput;
 							}
 						}
 					}
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 				}
 
 				connected.Add(buildable);
@@ -2649,12 +2648,12 @@ void AEfficiencyCheckerLogic::collectOutput
 								i == 1 && !connectedPlatform->IsOrientationReversed())
 							{
 								stationOffsets.insert(offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), offsetDistance);
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
 							}
 							else
 							{
 								stationOffsets.insert(-offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("        offset distance = "), -offsetDistance);
+								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
 							}
 						}
 
@@ -2854,7 +2853,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, limitedThroughput);
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
 				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
 
@@ -2878,7 +2877,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							TEXT("Supplemental item = "),
 							*UFGItemDescriptor::GetItemName(generator->GetSupplementalResourceClass()).ToString()
 							);
-						EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Supplemental amount = "), generator->GetSupplementalConsumptionRateMaximum());
+						EC_LOG_Display(*indent, TEXT("Supplemental amount = "), generator->GetSupplementalConsumptionRateMaximum());
 					}
 
 					out_requiredOutput += generator->GetSupplementalConsumptionRateMaximum() * (
@@ -2895,7 +2894,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (generator->IsValidFuel(item) && !seenActors[generator].Contains(item))
 						{
-							EC_LOG_Display_Condition(ELogVerbosity::Log,/**getTimeStamp(),*/ *indent, TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
+							EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 							float energy = UFGItemDescriptor::GetEnergyValue(item);
 
@@ -2906,11 +2905,11 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 							{
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Energy = "), energy);
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Current potential = "), generator->GetCurrentPotential());
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Pending potential = "), generator->GetPendingPotential());
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Power production capacity = "), generator->GetPowerProductionCapacity());
-								EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Default power production capacity = "), generator->GetDefaultPowerProductionCapacity());
+								EC_LOG_Display(*indent, TEXT("Energy = "), energy);
+								EC_LOG_Display(*indent, TEXT("Current potential = "), generator->GetCurrentPotential());
+								EC_LOG_Display(*indent, TEXT("Pending potential = "), generator->GetPendingPotential());
+								EC_LOG_Display(*indent, TEXT("Power production capacity = "), generator->GetPowerProductionCapacity());
+								EC_LOG_Display(*indent, TEXT("Default power production capacity = "), generator->GetDefaultPowerProductionCapacity());
 							}
 
 							float itemAmountPerMinute = 60 / (energy / generator->GetPowerProductionCapacity());
@@ -2976,19 +2975,18 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 {
 	if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 	{
-		EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Unknown Class "), *GetPathNameSafe(owner->GetClass()));
+		EC_LOG_Display(*indent, TEXT("Unknown Class "), *GetPathNameSafe(owner->GetClass()));
 
 		for (auto cls = owner->GetClass()->GetSuperClass(); cls && cls != AActor::StaticClass(); cls = cls->GetSuperClass())
 		{
-			EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("    - Super: "), *GetPathNameSafe(cls));
+			EC_LOG_Display(*indent, TEXT("    - Super: "), *GetPathNameSafe(cls));
 		}
 
-		EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("Properties "), *GetPathNameSafe(owner->GetClass()));
+		EC_LOG_Display(*indent, TEXT("Properties "), *GetPathNameSafe(owner->GetClass()));
 
 		for (TFieldIterator<FProperty> property(owner->GetClass()); property; ++property)
 		{
 			EC_LOG_Display(
-				/**getTimeStamp(),*/
 				*indent,
 				TEXT("        - "),
 				*property->GetName(),
@@ -3005,19 +3003,19 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 			auto floatProperty = CastField<FFloatProperty>(*property);
 			if (floatProperty)
 			{
-				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), floatProperty->GetPropertyValue_InContainer(owner));
+				EC_LOG_Display(*indent, TEXT("            = "), floatProperty->GetPropertyValue_InContainer(owner));
 			}
 
 			auto intProperty = CastField<FIntProperty>(*property);
 			if (intProperty)
 			{
-				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), intProperty->GetPropertyValue_InContainer(owner));
+				EC_LOG_Display(*indent, TEXT("            = "), intProperty->GetPropertyValue_InContainer(owner));
 			}
 
 			auto boolProperty = CastField<FBoolProperty>(*property);
 			if (boolProperty)
 			{
-				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), boolProperty->GetPropertyValue_InContainer(owner) ? TEXT("true") : TEXT("false"));
+				EC_LOG_Display(*indent, TEXT("            = "), boolProperty->GetPropertyValue_InContainer(owner) ? TEXT("true") : TEXT("false"));
 			}
 
 			auto structProperty = CastField<FStructProperty>(*property);
@@ -3026,27 +3024,27 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 				auto factoryTick = structProperty->ContainerPtrToValuePtr<FFactoryTickFunction>(owner);
 				if (factoryTick)
 				{
-					EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            - Tick Interval = "), factoryTick->TickInterval);
+					EC_LOG_Display(*indent, TEXT("            - Tick Interval = "), factoryTick->TickInterval);
 				}
 			}
 
 			auto strProperty = CastField<FStrProperty>(*property);
 			if (strProperty)
 			{
-				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            = "), *strProperty->GetPropertyValue_InContainer(owner));
+				EC_LOG_Display(*indent, TEXT("            = "), *strProperty->GetPropertyValue_InContainer(owner));
 			}
 
 			auto classProperty = CastField<FClassProperty>(*property);
 			if (classProperty)
 			{
 				auto ClassObject = Cast<UClass>(classProperty->GetPropertyValue_InContainer(owner));
-				EC_LOG_Display(/**getTimeStamp(),*/ *indent, TEXT("            - Class = "), *GetPathNameSafe(ClassObject));
+				EC_LOG_Display(*indent, TEXT("            - Class = "), *GetPathNameSafe(ClassObject));
 			}
 		}
 	}
 }
 
-void AEfficiencyCheckerLogic::DumpInformation(TSubclassOf<UFGItemDescriptor> itemDescriptorClass)
+void AEfficiencyCheckerLogic::DumpInformation(AActor* worldContext, TSubclassOf<UFGItemDescriptor> itemDescriptorClass)
 {
 	// if (configuration.dumpConnections)
 	{
@@ -3057,50 +3055,87 @@ void AEfficiencyCheckerLogic::DumpInformation(TSubclassOf<UFGItemDescriptor> ite
 
 		auto className = GetFullNameSafe(itemDescriptorClass);
 
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Dumping "), *className);
+		EC_LOG_Display(TEXT("Dumping "), *className);
 
 		auto itemDescriptor = Cast<UFGItemDescriptor>(itemDescriptorClass->GetDefaultObject());
 		if (!itemDescriptor)
 		{
-			EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment small icon = "), *GetPathNameSafe(itemDescriptor->mSmallIcon));
-			EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment big icon = "), *GetPathNameSafe(itemDescriptor->mPersistentBigIcon));
-			EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment conveyor mesh = "), *GetPathNameSafe(itemDescriptor->mConveyorMesh));
-			EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment item category = "), *GetPathNameSafe(itemDescriptor->mItemCategory));
+			EC_LOG_Display(TEXT("    Equipment small icon = "), *GetPathNameSafe(itemDescriptor->mSmallIcon));
+			EC_LOG_Display(TEXT("    Equipment big icon = "), *GetPathNameSafe(itemDescriptor->mPersistentBigIcon));
+			EC_LOG_Display(TEXT("    Equipment conveyor mesh = "), *GetPathNameSafe(itemDescriptor->mConveyorMesh));
+			EC_LOG_Display(TEXT("    Equipment item category = "), *GetPathNameSafe(itemDescriptor->mItemCategory));
 		}
 
 		auto equipmentDescriptor = Cast<UFGEquipmentDescriptor>(itemDescriptor);
 		if (!equipmentDescriptor)
 		{
-			EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Class "), *className, TEXT(" is not an Equipment Descriptor"));
+			EC_LOG_Display(TEXT("    Class "), *className, TEXT(" is not an Equipment Descriptor"));
 
 			return;
 		}
 
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment stack size = "), *getEnumItemName(TEXT("EStackSize"), (int)equipmentDescriptor->mStackSize));
+		EC_LOG_Display(TEXT("    Equipment stack size = "), *getEnumItemName(TEXT("EStackSize"), (int)equipmentDescriptor->mStackSize));
 
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment class = "), *GetPathNameSafe(equipmentDescriptor->mEquipmentClass));
+		EC_LOG_Display(TEXT("    Equipment class = "), *GetPathNameSafe(equipmentDescriptor->mEquipmentClass));
 
 		if (!equipmentDescriptor->mEquipmentClass)
 		{
 			return;
 		}
 
-		auto equipment = Cast<AFGEquipment>(equipmentDescriptor->mEquipmentClass->GetDefaultObject());
+		// auto equipment = Cast<AFGEquipment>(equipmentDescriptor->mEquipmentClass->GetDefaultObject());
 
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment attachment = "), *GetPathNameSafe(equipment->mAttachmentClass));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment secondary attachment = "), *GetPathNameSafe(equipment->mSecondaryAttachmentClass));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment slot = "), *getEnumItemName(TEXT("EEquipmentSlot"), (int)equipment->mEquipmentSlot));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment attachment socket = "), *equipment->mAttachSocket.ToString());
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment arm animation = "), *getEnumItemName(TEXT("EArmEquipment"), (int)equipment->GetArmsAnimation()));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment back animation = "), *getEnumItemName(TEXT("EBackEquipment"), (int)equipment->GetBackAnimation()));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment equip sound = "), *GetPathNameSafe(equipment->mEquipSound));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment unequip sound = "), *GetPathNameSafe(equipment->mUnequipSound));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment widget = "), *GetPathNameSafe(equipment->mEquipmentWidget));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment use default primary fire = "), equipment->CanDoDefaultPrimaryFire() ? TEXT("true") : TEXT("false"));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment idle pose animation = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation()));
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Equipment idle pose animation 3p = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation3p()));
+		auto equipment = Cast<AFGEquipment>(
+			worldContext->GetWorld()->SpawnActor(
+				equipmentDescriptor->mEquipmentClass
+				)
+			);
 
-		EC_LOG_Display(/**getTimeStamp(),*/ TEXT(" Dump done"));
+		EC_LOG_Display(TEXT("    Equipment attachment = "), *GetPathNameSafe(equipment->mAttachmentClass));
+		EC_LOG_Display(TEXT("    Equipment secondary attachment = "), *GetPathNameSafe(equipment->mSecondaryAttachmentClass));
+		EC_LOG_Display(TEXT("    Equipment slot = "), *getEnumItemName(TEXT("EEquipmentSlot"), (int)equipment->mEquipmentSlot));
+		EC_LOG_Display(TEXT("    Equipment attachment socket = "), *equipment->mAttachSocket.ToString());
+		EC_LOG_Display(TEXT("    Equipment arm animation = "), *getEnumItemName(TEXT("EArmEquipment"), (int)equipment->GetArmsAnimation()));
+		EC_LOG_Display(TEXT("    Equipment back animation = "), *getEnumItemName(TEXT("EBackEquipment"), (int)equipment->GetBackAnimation()));
+		EC_LOG_Display(TEXT("    Equipment equip sound = "), *GetPathNameSafe(equipment->mEquipSound));
+		EC_LOG_Display(TEXT("    Equipment unequip sound = "), *GetPathNameSafe(equipment->mUnequipSound));
+		EC_LOG_Display(TEXT("    Equipment widget = "), *GetPathNameSafe(equipment->mEquipmentWidget));
+		EC_LOG_Display(TEXT("    Equipment use default primary fire = "), equipment->CanDoDefaultPrimaryFire() ? TEXT("true") : TEXT("false"));
+		EC_LOG_Display(TEXT("    Equipment idle pose animation = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation()));
+		EC_LOG_Display(TEXT("    Equipment idle pose animation 3p = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation3p()));
+		EC_LOG_Display(TEXT("    Equipment crouch pose animation 3p = "), *GetPathNameSafe(equipment->GetCrouchPoseAnimation3p()));
+		EC_LOG_Display(TEXT("    Equipment slide pose animation 3p = "), *GetPathNameSafe(equipment->GetSlidePoseAnimation3p()));
+		EC_LOG_Display(TEXT("    Equipment attachmend idle AO = "), *GetPathNameSafe(equipment->GetAttachmentIdleAO()));
+
+		auto& components = equipment->GetComponents();
+
+		for (auto component : components)
+		{
+			EC_LOG_Display(TEXT("    Component Class = "), *GetFullNameSafe(component->GetClass()));
+
+			if (auto scene = Cast<USceneComponent>(component))
+			{
+				EC_LOG_Display(TEXT("        Location = "), *scene->GetComponentLocation().ToString());
+				EC_LOG_Display(TEXT("        Rotation = "), *scene->GetComponentRotation().ToString());
+				EC_LOG_Display(TEXT("        Scale = "), *scene->GetComponentScale().ToString());
+			}
+
+			if (auto skeletalMesh = Cast<USkeletalMeshComponent>(component))
+			{
+				EC_LOG_Display(TEXT("        Animation Mode = "), *getEnumItemName(TEXT("EAnimationMode"), skeletalMesh->GetAnimationMode()));
+				EC_LOG_Display(TEXT("        Anim Class = "), *GetPathNameSafe(skeletalMesh->GetAnimClass()));
+				EC_LOG_Display(TEXT("        Disable Post Process Blueprint = "), skeletalMesh->GetDisablePostProcessBlueprint() ? TEXT("true") : TEXT("false"));
+				EC_LOG_Display(TEXT("        Global Anim Rate Scale = "), skeletalMesh->GlobalAnimRateScale);
+				EC_LOG_Display(TEXT("        Pause Anims = "), skeletalMesh->bPauseAnims ? TEXT("true") : TEXT("false"));
+				EC_LOG_Display(TEXT("        Use Ref Pose On Init Anim = "), skeletalMesh->bUseRefPoseOnInitAnim ? TEXT("true") : TEXT("false"));
+				EC_LOG_Display(TEXT("        Skeletal Mesh = "), *GetPathNameSafe(skeletalMesh->SkeletalMesh));
+			}
+		}
+
+		equipment->Destroy();
+
+		EC_LOG_Display(TEXT(" Dump done"));
+		EC_LOG_Display(TEXT("===="));
 	}
 }
 
