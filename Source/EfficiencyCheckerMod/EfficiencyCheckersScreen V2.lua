@@ -14,7 +14,7 @@ h = 35
 line = 0
 lineOffset = 0
 gpu = nil
-gpus = computer.getGPUs()
+gpus = computer.getPCIDevices(findClass("FIN_GPU_T1"))
 screens = component.proxy(component.findComponent("MainScreen"))
 
 table.sort(screens, function(a,b) return a.nick < b.nick end)

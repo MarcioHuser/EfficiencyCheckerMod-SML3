@@ -550,13 +550,39 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto i = 0; i <= 1; i++)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						auto offsetDistance = 1;
+
+						TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 						for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
 						     connectedPlatform;
 						     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 						     ++offsetDistance)
 						{
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
+							if (seenPlatforms.Contains(connectedPlatform))
+							{
+								// Loop detected
+								break;
+							}
+
+							seenPlatforms.Add(connectedPlatform);
+
 							EC_LOG_Display_Condition(
 								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
@@ -615,6 +641,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto train : trains)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+							
 						if (!train->HasTimeTable())
 						{
 							continue;
@@ -651,6 +685,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 						for (auto stop : stops)
 						{
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							if (!stop.Station || !stop.Station->GetStation() || !destinationStations.Contains(stop.Station->GetStation()))
 							{
 								continue;
@@ -668,6 +710,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 						for (auto stop : stops)
 						{
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							if (!stop.Station || !stop.Station->GetStation())
 							{
 								continue;
@@ -683,19 +733,45 @@ void AEfficiencyCheckerLogic::collectInput
 
 							for (auto i = 0; i <= 1; i++)
 							{
+								if (timeout < connector->GetWorld()->GetTimeSeconds())
+								{
+									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+									overflow = true;
+									return;
+								}
+							
 								auto offsetDistance = 1;
+
+								TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 								for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
 								     connectedPlatform;
 								     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 								     ++offsetDistance)
 								{
+									if (timeout < connector->GetWorld()->GetTimeSeconds())
+									{
+										EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+										overflow = true;
+										return;
+									}
+							
+									if (seenPlatforms.Contains(connectedPlatform))
+									{
+										// Loop detected
+										break;
+									}
+
 									auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 									if (!stopCargo || stopCargo == cargoPlatform)
 									{
 										// Not a cargo or the same as the current one. Skip
 										continue;
 									}
+
+									seenPlatforms.Add(stopCargo);
 
 									auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
 									                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
@@ -740,6 +816,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+							
 						if (testTeleporter->IsPendingKill() || testTeleporter == storageTeleporter)
 						{
 							continue;
@@ -775,6 +859,14 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					for (int connectorIndex = 0; connectorIndex < components.Num(); connectorIndex++)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+							
 						auto connection = components[connectorIndex];
 
 						if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
@@ -857,6 +949,14 @@ void AEfficiencyCheckerLogic::collectInput
 				TArray<UFGFactoryConnectionComponent*> connectedInputs, connectedOutputs;
 				for (auto connection : components)
 				{
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+							
 					if (!connection->IsConnected())
 					{
 						continue;
@@ -907,6 +1007,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto connection : components)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+							
 						if (!connection->IsConnected())
 						{
 							continue;
@@ -966,6 +1074,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (int connectorIndex = 0; connectorIndex < components.Num(); connectorIndex++)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+							
 						auto connection = components[connectorIndex];
 
 						if (connection == connector)
@@ -1182,6 +1298,14 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto connection : components)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (connection == connector && !firstActor)
 						{
 							continue;
@@ -1247,6 +1371,14 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						for (auto connection : components)
 						{
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							if (connection == connector)
 							{
 								continue;
@@ -1324,13 +1456,37 @@ void AEfficiencyCheckerLogic::collectInput
 
 				for (auto i = 0; i <= 1; i++)
 				{
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					auto offsetDistance = 1;
+
+					TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 					for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
 					     connectedPlatform;
 					     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 					     ++offsetDistance)
 					{
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
+						if (seenPlatforms.Contains(connectedPlatform))
+						{
+							// Loop detected
+							break;
+						}
+
 						EC_LOG_Display_Condition(
 							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
@@ -1388,7 +1544,15 @@ void AEfficiencyCheckerLogic::collectInput
 				railroadSubsystem->GetTrains(trackId, trains);
 
 				for (auto train : trains)
-				{
+				{					
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					if (!train->HasTimeTable())
 					{
 						continue;
@@ -1424,7 +1588,15 @@ void AEfficiencyCheckerLogic::collectInput
 					bool stopAtStations = false;
 
 					for (auto stop : stops)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (!stop.Station || !stop.Station->GetStation() || !destinationStations.Contains(stop.Station->GetStation()))
 						{
 							continue;
@@ -1441,7 +1613,15 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 
 					for (auto stop : stops)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (!stop.Station || !stop.Station->GetStation())
 						{
 							continue;
@@ -1456,20 +1636,46 @@ void AEfficiencyCheckerLogic::collectInput
 							);
 
 						for (auto i = 0; i <= 1; i++)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							auto offsetDistance = 1;
+
+							TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 							for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
 							     connectedPlatform;
 							     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 							     ++offsetDistance)
-							{
+							{							
+								if (timeout < connector->GetWorld()->GetTimeSeconds())
+								{
+									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+									overflow = true;
+									return;
+								}
+								
+								if (seenPlatforms.Contains(connectedPlatform))
+								{
+									// Loop detected
+									break;
+								}
+								
 								auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 								if (!stopCargo || stopCargo == cargoPlatform)
 								{
 									// Not a cargo or the same as the current one. Skip
 									continue;
 								}
+
+								seenPlatforms.Add(stopCargo);
 
 								auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
 								                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
@@ -1522,7 +1728,15 @@ void AEfficiencyCheckerLogic::collectInput
 				float limitedThroughput = out_limitedThroughput;
 
 				for (auto connection : pipeConnections)
-				{
+				{							
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					if (!connection->IsConnected() ||
 						connection->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER ||
 						connection == connector)
@@ -1568,7 +1782,15 @@ void AEfficiencyCheckerLogic::collectInput
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, limitedThroughput);
 
 				for (auto connection : pipeConnections)
-				{
+				{							
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					if (connection == connector ||
 						!connection->IsConnected() ||
 						connection->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER)
@@ -1930,14 +2152,38 @@ void AEfficiencyCheckerLogic::collectOutput
 					TSet<AFGBuildableRailroadStation*> destinationStations;
 
 					for (auto i = 0; i <= 1; i++)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						auto offsetDistance = 1;
+
+						TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 						for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
 						     connectedPlatform;
 						     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 						     ++offsetDistance)
-						{
+						{														
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
+							if (seenPlatforms.Contains(connectedPlatform))
+							{
+								// Loop detected
+								break;
+							}								
+								
 							EC_LOG_Display_Condition(
 								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
@@ -1993,7 +2239,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					railroadSubsystem->GetTrains(trackId, trains);
 
 					for (auto train : trains)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (!train->HasTimeTable())
 						{
 							continue;
@@ -2029,7 +2283,15 @@ void AEfficiencyCheckerLogic::collectOutput
 						bool stopAtStations = false;
 
 						for (auto stop : stops)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							if (!stop.Station || !stop.Station->GetStation() || !destinationStations.Contains(stop.Station->GetStation()))
 							{
 								continue;
@@ -2046,7 +2308,15 @@ void AEfficiencyCheckerLogic::collectOutput
 						}
 
 						for (auto stop : stops)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							if (!stop.Station || !stop.Station->GetStation())
 							{
 								continue;
@@ -2061,14 +2331,38 @@ void AEfficiencyCheckerLogic::collectOutput
 								);
 
 							for (auto i = 0; i <= 1; i++)
-							{
+							{							
+								if (timeout < connector->GetWorld()->GetTimeSeconds())
+								{
+									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+									overflow = true;
+									return;
+								}
+								
 								auto offsetDistance = 1;
+
+								TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 								for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
 								     connectedPlatform;
 								     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 								     ++offsetDistance)
-								{
+								{							
+									if (timeout < connector->GetWorld()->GetTimeSeconds())
+									{
+										EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+										overflow = true;
+										return;
+									}
+									
+									if (seenPlatforms.Contains(connectedPlatform))
+									{
+										// Loop detected
+										break;
+									}
+								
 									auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 									if (!stopCargo || stopCargo == cargoPlatform)
 									{
@@ -2118,7 +2412,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					FScopeLock ScopeLock(&singleton->eclCritical);
 
 					for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (testTeleporter == storageTeleporter)
 						{
 							continue;
@@ -2153,7 +2455,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (smartSplitter)
 				{
 					for (int x = 0; x < smartSplitter->GetNumSortRules(); ++x)
-					{
+					{							
 						auto rule = smartSplitter->GetSortRuleAt(x);
 
 						EC_LOG_Display_Condition(
@@ -2208,7 +2510,15 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				TArray<UFGFactoryConnectionComponent*> connectedInputs, connectedOutputs;
 				for (auto connection : components)
-				{
+				{							
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					if (!connection->IsConnected())
 					{
 						continue;
@@ -2260,7 +2570,15 @@ void AEfficiencyCheckerLogic::collectOutput
 						float limitedThroughput = 0;
 
 						for (int connectorIndex = 0; connectorIndex < components.Num(); connectorIndex++)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							auto connection = components[connectorIndex];
 
 							if (!connection->IsConnected())
@@ -2316,7 +2634,15 @@ void AEfficiencyCheckerLogic::collectOutput
 						out_limitedThroughput = FMath::Min(out_limitedThroughput, limitedThroughput);
 
 						for (int connectorIndex = 0; connectorIndex < components.Num(); connectorIndex++)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							auto connection = components[connectorIndex];
 
 							if (connection == connector)
@@ -2469,7 +2795,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					bool firstActor = seenActors.size() == 1;
 
 					for (auto connection : (firstActor ? components : otherConnections))
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (connection == connector && !firstActor)
 						{
 							continue;
@@ -2532,7 +2866,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					if (pipePump && pipeConnector->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER)
 					{
 						for (auto connection : components)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							if (connection == connector)
 							{
 								continue;
@@ -2612,14 +2954,38 @@ void AEfficiencyCheckerLogic::collectOutput
 				TSet<AFGBuildableRailroadStation*> destinationStations;
 
 				for (auto i = 0; i <= 1; i++)
-				{
+				{							
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					auto offsetDistance = 1;
+
+					TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 					for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
 					     connectedPlatform;
 					     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 					     ++offsetDistance)
-					{
+					{													
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
+						if (seenPlatforms.Contains(connectedPlatform))
+						{
+							// Loop detected
+							break;
+						}								
+								
 						EC_LOG_Display_Condition(
 							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
@@ -2677,7 +3043,15 @@ void AEfficiencyCheckerLogic::collectOutput
 				railroadSubsystem->GetTrains(trackId, trains);
 
 				for (auto train : trains)
-				{
+				{							
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					if (!train->HasTimeTable())
 					{
 						continue;
@@ -2713,7 +3087,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					bool stopAtStations = false;
 
 					for (auto stop : stops)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (!stop.Station || !stop.Station->GetStation() || !destinationStations.Contains(stop.Station->GetStation()))
 						{
 							continue;
@@ -2730,7 +3112,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					}
 
 					for (auto stop : stops)
-					{
+					{							
+						if (timeout < connector->GetWorld()->GetTimeSeconds())
+						{
+							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+							overflow = true;
+							return;
+						}
+						
 						if (!stop.Station || !stop.Station->GetStation())
 						{
 							continue;
@@ -2745,14 +3135,38 @@ void AEfficiencyCheckerLogic::collectOutput
 							);
 
 						for (auto i = 0; i <= 1; i++)
-						{
+						{							
+							if (timeout < connector->GetWorld()->GetTimeSeconds())
+							{
+								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+								overflow = true;
+								return;
+							}
+							
 							auto offsetDistance = 1;
+
+							TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
 							for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
 							     connectedPlatform;
 							     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 							     ++offsetDistance)
-							{
+							{							
+								if (timeout < connector->GetWorld()->GetTimeSeconds())
+								{
+									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+									overflow = true;
+									return;
+								}
+								
+								if (seenPlatforms.Contains(connectedPlatform))
+								{
+									// Loop detected
+									break;
+								}
+								
 								auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
 								if (!stopCargo || stopCargo == cargoPlatform)
 								{
@@ -2811,7 +3225,15 @@ void AEfficiencyCheckerLogic::collectOutput
 				float limitedThroughput = 0;
 
 				for (auto connection : pipeConnections)
-				{
+				{							
+					if (timeout < connector->GetWorld()->GetTimeSeconds())
+					{
+						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT("collectInput: timeout!"));
+
+						overflow = true;
+						return;
+					}
+					
 					if (!connection->IsConnected() ||
 						connection->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER)
 					{
