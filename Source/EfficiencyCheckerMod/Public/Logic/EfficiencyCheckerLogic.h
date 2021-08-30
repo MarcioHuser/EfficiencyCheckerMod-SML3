@@ -52,7 +52,7 @@ public:
 		int level,
 		bool& overflow,
 		const FString& indent,
-		const float& timeout,
+		const time_t& timeout,
 		int32 machineStatusIncludeType
 	);
 
@@ -69,7 +69,7 @@ public:
 		int level,
 		bool& overflow,
 		const FString& indent,
-		const float& timeout,
+		const time_t& timeout,
 		int32 machineStatusIncludeType
 	);
 

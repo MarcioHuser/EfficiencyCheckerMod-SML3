@@ -1,8 +1,8 @@
 {
   "FileVersion": 3,
   "Version": 2,
-  "VersionName": "2.0.10",
-  "SemVersion": "2.0.10",
+  "VersionName": "2.0.11",
+  "SemVersion": "2.0.11",
   "FriendlyName": "Efficiency Checker Mod",
   "Description": "See if your production is underflowing! Now with a hand tool, too!",
   "Category": "Modding",

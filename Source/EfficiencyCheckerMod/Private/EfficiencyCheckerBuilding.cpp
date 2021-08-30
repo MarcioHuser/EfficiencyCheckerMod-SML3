@@ -526,7 +526,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateBuilding(AFGBuildable* newBuildabl
 		}
 
 		// Trigger specific building
-		updateRequested = GetWorld()->GetTimeSeconds() + AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
+		updateRequested = GetWorld()->GetRealTimeSeconds() + AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
 		// Give a 5 seconds timeout
 
 		EC_LOG_Display_Condition(ELogVerbosity::Log, TEXT("    Updating "), *GetName());
@@ -900,7 +900,18 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 	float limitedThroughputIn = customInjectedInput ? injectedInput : initialThroughtputLimit;
 
-	float timeout = GetWorld()->GetTimeSeconds() + AEfficiencyCheckerLogic::configuration.updateTimeout;
+	time_t t = time(NULL);
+	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
+
+	EC_LOG_Warning_Condition(
+		ELogVerbosity::Warning,
+		TEXT(__FUNCTION__) TEXT(": time = "),
+		t,
+		TEXT(" / timeout = "),
+		timeout,
+		TEXT(" / updateTimeout = "),
+		AEfficiencyCheckerLogic::configuration.updateTimeout
+		);
 
 	if (inputConnector)
 	{
@@ -927,7 +938,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 	float limitedThroughputOut = initialThroughtputLimit;
 
-	if (outputConnector && !customRequiredOutput)
+	if (outputConnector && !customRequiredOutput && !in_overflow)
 	{
 		std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
 

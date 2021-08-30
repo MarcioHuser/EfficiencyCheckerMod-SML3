@@ -160,7 +160,18 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 	float limitedThroughputIn = initialThroughtputLimit;
 
-	float timeout = GetWorld()->GetTimeSeconds() + AEfficiencyCheckerLogic::configuration.updateTimeout;
+	time_t t = time(NULL);
+	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
+
+	EC_LOG_Warning_Condition(
+		ELogVerbosity::Warning,
+		TEXT(__FUNCTION__) TEXT(": time = "),
+		t,
+		TEXT(" / timeout = "),
+		timeout,
+		TEXT(" / updateTimeout = "),
+		AEfficiencyCheckerLogic::configuration.updateTimeout
+		);
 
 	if (inputConnector)
 	{
@@ -187,7 +198,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 	float limitedThroughputOut = initialThroughtputLimit;
 
-	if (outputConnector)
+	if (outputConnector && !overflow)
 	{
 		std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
 
