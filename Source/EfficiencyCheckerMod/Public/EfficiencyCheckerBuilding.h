@@ -37,8 +37,6 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerBuilding : public AFGBuildable
 {
 	GENERATED_BODY()
 
-	friend class AEfficiencyCheckerLogic;
-
 public:
 	// Sets default values for this actor's properties
 	AEfficiencyCheckerBuilding();

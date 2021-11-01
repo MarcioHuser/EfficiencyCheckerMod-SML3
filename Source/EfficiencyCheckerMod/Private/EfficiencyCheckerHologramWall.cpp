@@ -88,7 +88,7 @@ bool AEfficiencyCheckerHologramWall::IsValidHitResult(const FHitResult& hitResul
 	return ret;
 }
 
-void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult, FVector& out_adjustedLocation, FRotator& out_adjustedRotation)
+void AEfficiencyCheckerHologramWall::AdjustForGround(FVector& out_adjustedLocation, FRotator& out_adjustedRotation)
 {
 	static float lastCheck = 0;
 
@@ -104,13 +104,13 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult
 		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
 		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
 
-		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *hitResult.GetActor()->GetName());
-
-		location = hitResult.GetActor()->GetActorLocation();
-		rotator = hitResult.GetActor()->GetActorRotation();
-
-		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
-		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
+		// EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *hitResult.GetActor()->GetName());
+		//
+		// location = hitResult.GetActor()->GetActorLocation();
+		// rotator = hitResult.GetActor()->GetActorRotation();
+		//
+		// EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
+		// EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
 	}
 
 	bool isSnapped = false;
@@ -123,7 +123,7 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult
 
 	if (defaultBuildable->resourceForm == EResourceForm::RF_SOLID)
 	{
-		wall = Cast<AFGBuildableWall>(hitResult.GetActor());
+		wall = Cast<AFGBuildableWall>(lastHit_.GetActor());
 
 		if (wall)
 		{
@@ -137,10 +137,10 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult
 
 			for (const auto attachment : components)
 			{
-				if (FVector::Dist(attachment->GetComponentLocation(), hitResult.Location) <= 300 &&
-					(!nearestConnection || FVector::Dist(attachment->GetComponentLocation(), hitResult.Location) < FVector::Dist(
+				if (FVector::Dist(attachment->GetComponentLocation(), lastHit_.Location) <= 300 &&
+					(!nearestConnection || FVector::Dist(attachment->GetComponentLocation(), lastHit_.Location) < FVector::Dist(
 						nearestConnection->GetComponentLocation(),
-						hitResult.Location
+						lastHit_.Location
 						)))
 				{
 					nearestConnection = attachment;
@@ -158,7 +158,7 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult
 
 	if (!isSnapped)
 	{
-		Super::AdjustForGround(hitResult, out_adjustedLocation, out_adjustedRotation);
+		Super::AdjustForGround(out_adjustedLocation, out_adjustedRotation);
 
 		wall = nullptr;
 	}
@@ -172,9 +172,9 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult
 		//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    After Adjusted location:  X = "), out_adjustedLocation.X, TEXT(" / Y = "), out_adjustedLocation.Y, TEXT(" / Z = "), out_adjustedLocation.Z);
 		//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    After Adjusted rotation: Pitch = "), out_adjustedRotation.Pitch, TEXT(" / Roll = "), out_adjustedRotation.Roll, TEXT(" / Yaw = "), out_adjustedRotation.Yaw);
 
-		if (hitResult.GetActor())
+		if (lastHit_.GetActor())
 		{
-			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *hitResult.GetActor()->GetName());
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *lastHit_.GetActor()->GetName());
 
 			//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
 			//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
@@ -278,6 +278,8 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(const FHitResult& hitResult
 
 void AEfficiencyCheckerHologramWall::SetHologramLocationAndRotation(const FHitResult& hitResult)
 {
+	lastHit_ = hitResult;
+	
 	Super::SetHologramLocationAndRotation(hitResult);
 
 	static float lastCheck = 0;

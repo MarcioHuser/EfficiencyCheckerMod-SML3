@@ -18,8 +18,8 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerHologram : public AFGBuildableH
 	///** Net Construction Messages */
 	//virtual void SerializeConstructMessage(FArchive& ar, FNetConstructionID id) override;
 	virtual bool IsValidHitResult(const FHitResult& hitResult) const override;
-	// virtual void SetHologramLocationAndRotation(const FHitResult& hitResult) override;
-	virtual void AdjustForGround(const FHitResult& hitResult, FVector& out_adjustedLocation, FRotator& out_adjustedRotation) override;
+	virtual void SetHologramLocationAndRotation(const FHitResult& hitResult) override;
+	virtual void AdjustForGround(FVector& out_adjustedLocation, FRotator& out_adjustedRotation) override;
 	//virtual AActor* Construct(TArray< AActor* >& out_children, FNetConstructionID netConstructionID) override;
 	virtual void ScrollRotate(int32 delta, int32 step) override;
 	//// End AFGHologram interface
@@ -79,4 +79,6 @@ protected:
 
 	UPROPERTY()
 	class AFGBuildablePipeline* pipeline = nullptr;
+
+    FHitResult lastHit_;
 };

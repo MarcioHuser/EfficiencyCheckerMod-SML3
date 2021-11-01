@@ -120,7 +120,7 @@ bool AEfficiencyCheckerHologram::IsValidHitResult(const FHitResult& hitResult) c
 	return ret;
 }
 
-void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FVector& out_adjustedLocation, FRotator& out_adjustedRotation)
+void AEfficiencyCheckerHologram::AdjustForGround(FVector& out_adjustedLocation, FRotator& out_adjustedRotation)
 {
 	const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
 
@@ -144,13 +144,19 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
 		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
 
-		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *hitResult.GetActor()->GetName());
+		if(lastHit_.GetActor())
+		{
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "),  *lastHit_.GetActor()->GetName());
 
-		location = hitResult.GetActor()->GetActorLocation();
-		rotator = hitResult.GetActor()->GetActorRotation();
+			location = lastHit_.GetActor()->GetActorLocation();
+			rotator = lastHit_.GetActor()->GetActorRotation();
 
-		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
-		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
+		} else
+		{
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("No Actor"));
+		}
 	}
 
 	bool isSnapped = false;
@@ -162,7 +168,7 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 	FVector direction;
 
 	{
-		efficiencyChecker = Cast<AEfficiencyCheckerBuilding>(hitResult.GetActor());
+		efficiencyChecker = Cast<AEfficiencyCheckerBuilding>(lastHit_.GetActor());
 		if (efficiencyChecker && efficiencyChecker->GetActorRotation().Pitch == 0 && efficiencyChecker->GetActorRotation().Roll == 0)
 		{
 			nearestCoord = efficiencyChecker->GetActorLocation();
@@ -183,12 +189,12 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 
 	if (!isSnapped && defaultBuildable->resourceForm == EResourceForm::RF_SOLID)
 	{
-		conveyor = Cast<AFGBuildableConveyorBelt>(hitResult.GetActor());
+		conveyor = Cast<AFGBuildableConveyorBelt>(lastHit_.GetActor());
 		if (conveyor)
 		{
-			splitOffset = conveyor->FindOffsetClosestToLocation(hitResult.Location);
+			splitOffset = conveyor->FindOffsetClosestToLocation(lastHit_.Location);
 
-			conveyor->GetLocationAndDirectionAtOffset(conveyor->FindOffsetClosestToLocation(hitResult.Location), nearestCoord, direction);
+			conveyor->GetLocationAndDirectionAtOffset(conveyor->FindOffsetClosestToLocation(lastHit_.Location), nearestCoord, direction);
 
 			out_adjustedRotation = direction.Rotation().Add(0, rotationDelta * 180, 0);
 			out_adjustedLocation = nearestCoord + out_adjustedRotation.RotateVector(FVector(0, 0, -100)); // 1m bellow the belt
@@ -199,10 +205,10 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 
 	if (!isSnapped && (defaultBuildable->resourceForm == EResourceForm::RF_LIQUID || defaultBuildable->resourceForm == EResourceForm::RF_GAS))
 	{
-		pipeline = Cast<AFGBuildablePipeline>(hitResult.GetActor());
+		pipeline = Cast<AFGBuildablePipeline>(lastHit_.GetActor());
 		if (pipeline)
 		{
-			splitOffset = pipeline->FindOffsetClosestToLocation(hitResult.Location);
+			splitOffset = pipeline->FindOffsetClosestToLocation(lastHit_.Location);
 
 			pipeline->GetLocationAndDirectionAtOffset(splitOffset, nearestCoord, direction);
 
@@ -235,7 +241,7 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 
 	if (!isSnapped)
 	{
-		Super::AdjustForGround(hitResult, out_adjustedLocation, out_adjustedRotation);
+		Super::AdjustForGround(out_adjustedLocation, out_adjustedRotation);
 
 		efficiencyChecker = nullptr;
 		pipeline = nullptr;
@@ -249,9 +255,9 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 		//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    After Adjusted location:  X = "), out_adjustedLocation.X, TEXT(" / Y = "), out_adjustedLocation.Y, TEXT(" / Z = "), out_adjustedLocation.Z);
 		//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    After Adjusted rotation: Pitch = "), out_adjustedRotation.Pitch, TEXT(" / Roll = "), out_adjustedRotation.Roll, TEXT(" / Yaw = "), out_adjustedRotation.Yaw);
 
-		if (hitResult.GetActor())
+		if (lastHit_.GetActor())
 		{
-			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *hitResult.GetActor()->GetName());
+			EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Actor = "), *lastHit_.GetActor()->GetName());
 
 			//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    X = "), location.X, TEXT(" / Y = "), location.Y, TEXT(" / Z = "), location.Z);
 			//EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("    Pitch = "), rotator.Pitch, TEXT(" / Roll = "), rotator.Roll, TEXT(" / Yaw = "), rotator.Yaw);
@@ -392,23 +398,25 @@ void AEfficiencyCheckerHologram::AdjustForGround(const FHitResult& hitResult, FV
 //     return ret;
 // }
 
-// void AEfficiencyCheckerHologram::SetHologramLocationAndRotation(const FHitResult& hitResult)
-// {
-//     Super::SetHologramLocationAndRotation(hitResult);
-//
-//     static float lastCheck = 0;
-//
-//     if (GetWorld()->TimeSince(lastCheck) > 10)
-//     {
-//         EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("SetHologramLocationAndRotation"));
-//
-//         dumpDisqualifiers();
-//
-//         lastCheck = GetWorld()->GetTimeSeconds();
-//
-//         EC_LOG_Display_Condition(ELogVerbosity::Display,TEXT("===="));
-//     }
-// }
+void AEfficiencyCheckerHologram::SetHologramLocationAndRotation(const FHitResult& hitResult)
+{
+	lastHit_ = hitResult;
+	
+    Super::SetHologramLocationAndRotation(hitResult);
+
+    static float lastCheck = 0;
+
+    if (GetWorld()->TimeSince(lastCheck) > 10)
+    {
+        EC_LOG_Display_Condition(ELogVerbosity::Display,*getTagName(), TEXT("SetHologramLocationAndRotation"));
+
+        dumpDisqualifiers();
+
+        lastCheck = GetWorld()->GetTimeSeconds();
+
+        EC_LOG_Display_Condition(ELogVerbosity::Display,TEXT("===="));
+    }
+}
 
 void AEfficiencyCheckerHologram::CheckValidPlacement()
 {
