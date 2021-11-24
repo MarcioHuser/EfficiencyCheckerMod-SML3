@@ -52,7 +52,7 @@ void AEfficiencyCheckerHologram::BeginPlay()
 
 	if (HasAuthority())
 	{
-		const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
+		const auto defaultBuildable = GetCheckerBuildable();
 
 		TInlineComponentArray<UWidgetComponent*> widgets(defaultBuildable, true);
 		for (auto widget : widgets)
@@ -70,7 +70,7 @@ void AEfficiencyCheckerHologram::BeginPlay()
 
 bool AEfficiencyCheckerHologram::IsValidHitResult(const FHitResult& hitResult) const
 {
-	const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
+	const auto defaultBuildable = GetCheckerBuildable();
 
 	bool ret = Super::IsValidHitResult(hitResult);
 
@@ -122,7 +122,7 @@ bool AEfficiencyCheckerHologram::IsValidHitResult(const FHitResult& hitResult) c
 
 void AEfficiencyCheckerHologram::AdjustForGround(FVector& out_adjustedLocation, FRotator& out_adjustedRotation)
 {
-	const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
+	const auto defaultBuildable = GetCheckerBuildable();
 
 	static float lastCheck = 0;
 
@@ -501,7 +501,7 @@ void AEfficiencyCheckerHologram::ConfigureComponents(AFGBuildable* inBuildable) 
 		newEfficiencyChecker->pipelineToSplit = pipeline;
 		newEfficiencyChecker->pipelineSplitOffset = splitOffset;
 
-		const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
+		const auto defaultBuildable = GetCheckerBuildable();
 
 		auto holoLoc = defaultBuildable->GetActorLocation();
 		auto holoRot = defaultBuildable->GetActorRotation();
@@ -573,6 +573,18 @@ void AEfficiencyCheckerHologram::GetSupportedScrollModes(TArray<EHologramScrollM
 	{
 		out_modes->Add(EHologramScrollMode::HSM_ROTATE);
 	}
+}
+
+AEfficiencyCheckerBuilding* AEfficiencyCheckerHologram::GetCheckerBuildable() const
+{
+	if (mBuildClass->IsChildOf(AEfficiencyCheckerBuilding::StaticClass()))
+	{
+		AEfficiencyCheckerBuilding* cdo = mBuildClass->GetDefaultObject<AEfficiencyCheckerBuilding>();
+
+		return cdo;
+	}
+
+	return nullptr;
 }
 
 #ifndef OPTIMIZE

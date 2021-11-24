@@ -50,6 +50,8 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerHologramWall : public AFGBuilda
         return /*getTimeStamp() + TEXT(" ") +*/ _TAG_NAME;
     }
 
+    class AEfficiencyCheckerBuilding* GetCheckerBuildable() const;
+
 public:
     AEfficiencyCheckerHologramWall();
 

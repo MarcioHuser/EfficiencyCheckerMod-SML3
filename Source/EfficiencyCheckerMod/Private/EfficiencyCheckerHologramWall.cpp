@@ -33,7 +33,7 @@ void AEfficiencyCheckerHologramWall::BeginPlay()
 	{
 		TInlineComponentArray<UWidgetComponent*> widgets;
 
-		GetDefaultBuildable<AEfficiencyCheckerBuilding>()->GetComponents(widgets);
+		GetCheckerBuildable()->GetComponents(widgets);
 
 		for (auto widget : widgets)
 		{
@@ -44,7 +44,7 @@ void AEfficiencyCheckerHologramWall::BeginPlay()
 
 bool AEfficiencyCheckerHologramWall::IsValidHitResult(const FHitResult& hitResult) const
 {
-	const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
+	const auto defaultBuildable = GetCheckerBuildable();
 
 	bool ret = false;
 
@@ -119,7 +119,7 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(FVector& out_adjustedLocati
 	FVector nearestCoord;
 	FVector direction;
 
-	const auto defaultBuildable = GetDefaultBuildable<AEfficiencyCheckerBuilding>();
+	const auto defaultBuildable = GetCheckerBuildable();
 
 	if (defaultBuildable->resourceForm == EResourceForm::RF_SOLID)
 	{
@@ -279,7 +279,7 @@ void AEfficiencyCheckerHologramWall::AdjustForGround(FVector& out_adjustedLocati
 void AEfficiencyCheckerHologramWall::SetHologramLocationAndRotation(const FHitResult& hitResult)
 {
 	lastHit_ = hitResult;
-	
+
 	Super::SetHologramLocationAndRotation(hitResult);
 
 	static float lastCheck = 0;
@@ -346,6 +346,19 @@ void AEfficiencyCheckerHologramWall::ScrollRotate(int32 delta, int32 step)
 		EC_LOG_Display_Condition(ELogVerbosity::Display, *getTagName(), TEXT("Scroll rotate delta = "), delta, TEXT(" / step = "), step);
 	}
 }
+
+AEfficiencyCheckerBuilding* AEfficiencyCheckerHologramWall::GetCheckerBuildable() const
+{
+	if (mBuildClass->IsChildOf(AEfficiencyCheckerBuilding::StaticClass()))
+	{
+		AEfficiencyCheckerBuilding* cdo = mBuildClass->GetDefaultObject<AEfficiencyCheckerBuilding>();
+
+		return cdo;
+	}
+
+	return nullptr;
+}
+
 
 #ifndef OPTIMIZE
 #pragma optimize( "", on)
