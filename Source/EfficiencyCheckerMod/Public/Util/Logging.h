@@ -51,7 +51,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEfficiencyChecker, Log, All)
 
 #define IS_EC_LOG_LEVEL(level) (AEfficiencyCheckerLogic::configuration.logLevel > 0 && AEfficiencyCheckerLogic::configuration.logLevel >= static_cast<uint8>(level))
 
-#define EC_LOG_Log_Condition(level, first, ...) if(IS_EC_LOG_LEVEL(level)) EC_LOG_Log(first, ##__VA_ARGS__)
-#define EC_LOG_Display_Condition(level, first, ...) if(IS_EC_LOG_LEVEL(level)) EC_LOG_Display(first, ##__VA_ARGS__)
-#define EC_LOG_Warning_Condition(level, first, ...) if(IS_EC_LOG_LEVEL(level)) EC_LOG_Warning(first, ##__VA_ARGS__)
-#define EC_LOG_Error_Condition(level, first, ...) if(IS_EC_LOG_LEVEL(level)) EC_LOG_Error(first, ##__VA_ARGS__)
+#define EC_LOG_Log_Condition(first, ...) if(IS_EC_LOG_LEVEL(ELogVerbosity::Log)) EC_LOG_Log(first, ##__VA_ARGS__)
+#define EC_LOG_Display_Condition(first, ...) if(IS_EC_LOG_LEVEL(ELogVerbosity::Display)) EC_LOG_Display(first, ##__VA_ARGS__)
+#define EC_LOG_Warning_Condition(first, ...) if(IS_EC_LOG_LEVEL(ELogVerbosity::Warning)) EC_LOG_Warning(first, ##__VA_ARGS__)
+#define EC_LOG_Error_Condition(first, ...) if(IS_EC_LOG_LEVEL(ELogVerbosity::Error)) EC_LOG_Error(first, ##__VA_ARGS__)

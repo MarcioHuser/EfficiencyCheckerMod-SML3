@@ -36,7 +36,6 @@ void AEfficiencyCheckerEquipment::BeginPlay()
 void AEfficiencyCheckerEquipment::PrimaryFirePressed(AFGBuildable* targetBuildable)
 {
 	EC_LOG_Display_Condition(
-		ELogVerbosity::Log,
 		*getTagName(),
 		TEXT("PrimaryFirePressed = "),
 		*GetPathName(),
@@ -55,7 +54,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed(AFGBuildable* targetBuildab
 		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
 		if (rco)
 		{
-			EC_LOG_Display_Condition(ELogVerbosity::Log, *getTagName(), TEXT("Calling PrimaryFirePressed at server"));
+			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling PrimaryFirePressed at server"));
 
 			rco->PrimaryFirePressedPC(this, targetBuildable);
 		}
@@ -164,7 +163,6 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
 
 	EC_LOG_Warning_Condition(
-		ELogVerbosity::Warning,
 		TEXT(__FUNCTION__) TEXT(": time = "),
 		t,
 		TEXT(" / timeout = "),
@@ -235,7 +233,6 @@ void AEfficiencyCheckerEquipment::ShowStatsWidget_Implementation
 )
 {
 	EC_LOG_Display_Condition(
-		ELogVerbosity::Log,
 		*getTagName(),
 		TEXT("Broadcasting ShowStats = "),
 		*GetPathName()

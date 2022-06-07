@@ -214,7 +214,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 		if (timeout < time(NULL))
 		{
-			EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout!"));
+			EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout!"));
 
 			overflow = true;
 			return;
@@ -225,7 +225,6 @@ void AEfficiencyCheckerLogic::collectInput
 		if (level > 100)
 		{
 			EC_LOG_Error_Condition(
-				ELogVerbosity::Error,
 				TEXT(__FUNCTION__) TEXT(": level is too deep: "),
 				level,
 				TEXT("; "),
@@ -240,7 +239,6 @@ void AEfficiencyCheckerLogic::collectInput
 		}
 
 		EC_LOG_Display_Condition(
-			ELogVerbosity::Log,
 			/**getTimeStamp(),*/
 			*indent,
 			TEXT("collectInput at level "),
@@ -279,18 +277,15 @@ void AEfficiencyCheckerLogic::collectInput
 
 						out_injectedItems.Add(item.ItemClass);
 
-						if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
-						{
-							EC_LOG_Display(*indent, TEXT("Item amount = "), item.Amount);
-							EC_LOG_Display(*indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
-							EC_LOG_Display(*indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
-							EC_LOG_Display(
-								*indent,
-								TEXT("Production cycle time = "),
-								manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential())
-								);
-							EC_LOG_Display(*indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
-						}
+						EC_LOG_Display_Condition(*indent, TEXT("Item amount = "), item.Amount);
+						EC_LOG_Display_Condition(*indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
+						EC_LOG_Display_Condition(*indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
+						EC_LOG_Display_Condition(
+							*indent,
+							TEXT("Production cycle time = "),
+							manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential())
+							);
+						EC_LOG_Display_Condition(*indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 
 						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60 /
 							manufacturer->GetDefaultProductionCycleTime();
@@ -301,7 +296,6 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							*manufacturer->GetName(),
@@ -340,7 +334,6 @@ void AEfficiencyCheckerLogic::collectInput
 				auto speedMultiplier = resource ? resource->GetExtractionSpeedMultiplier() : 1;
 
 				EC_LOG_Display_Condition(
-					ELogVerbosity::Log,
 					/**getTimeStamp(),*/
 					*indent,
 					TEXT("Extraction Speed Multiplier = "),
@@ -356,7 +349,6 @@ void AEfficiencyCheckerLogic::collectInput
 					else
 					{
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							TEXT("Extractable resource is null")
@@ -374,7 +366,7 @@ void AEfficiencyCheckerLogic::collectInput
 					return;
 				}
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
+				EC_LOG_Display_Condition(*indent, TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 				out_injectedItems.Add(item);
 
@@ -407,7 +399,6 @@ void AEfficiencyCheckerLogic::collectInput
 				}
 
 				EC_LOG_Display_Condition(
-					ELogVerbosity::Log,
 					/**getTimeStamp(),*/
 					*indent,
 					*extractor->GetName(),
@@ -465,7 +456,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, conveyor->GetSpeed() / 2);
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
+				EC_LOG_Display_Condition(*indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
 
 				continue;
 			}
@@ -561,7 +552,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 								overflow = true;
 								return;
@@ -576,7 +567,6 @@ void AEfficiencyCheckerLogic::collectInput
 							seenPlatforms.Add(connectedPlatform);
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								*connectedPlatform->GetName(),
@@ -592,7 +582,6 @@ void AEfficiencyCheckerLogic::collectInput
 								destinationStations.Add(station);
 
 								EC_LOG_Display_Condition(
-									ELogVerbosity::Log,
 									/**getTimeStamp(),*/
 									*indent,
 									TEXT("    Station = "),
@@ -603,12 +592,12 @@ void AEfficiencyCheckerLogic::collectInput
 									i == 1 && !connectedPlatform->IsOrientationReversed())
 								{
 									stationOffsets.insert(offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
+									EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
 								}
 								else
 								{
 									stationOffsets.insert(-offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
+									EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), -offsetDistance);
 								}
 							}
 
@@ -635,7 +624,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
 
 							overflow = true;
 							return;
@@ -679,7 +668,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout iterating train stops!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout iterating train stops!"));
 
 								overflow = true;
 								return;
@@ -704,7 +693,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout iterating train stops!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout iterating train stops!"));
 
 								overflow = true;
 								return;
@@ -716,7 +705,6 @@ void AEfficiencyCheckerLogic::collectInput
 							}
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								TEXT("    Stop = "),
@@ -736,7 +724,7 @@ void AEfficiencyCheckerLogic::collectInput
 								{
 									if (timeout < time(NULL))
 									{
-										EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platformst!"));
+										EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platformst!"));
 
 										overflow = true;
 										return;
@@ -802,7 +790,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating storage teleporters!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating storage teleporters!"));
 
 							overflow = true;
 							return;
@@ -845,7 +833,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating smart splitters connectors!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating smart splitters connectors!"));
 
 							overflow = true;
 							return;
@@ -875,7 +863,6 @@ void AEfficiencyCheckerLogic::collectInput
 						auto rule = smartSplitter->GetSortRuleAt(x);
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							TEXT("Rule "),
@@ -898,12 +885,12 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
 						}
-						
+
 						if (singleton->noneItemDescriptors.Intersect(it->second).Num())
 						{
 							// No item is valid. Empty it all
@@ -925,12 +912,12 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
 						}
-						
+
 						if (singleton->anyUndefinedItemDescriptors.Intersect(it->second).Num())
 						{
 							it->second = it->second.Union(restrictItems.Difference(definedItems));
@@ -949,7 +936,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 						overflow = true;
 						return;
@@ -981,7 +968,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					connector = connectedInputs[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(*indent, *buildable->GetName(), TEXT(" skipped"));
 
 					if (smartSplitter)
 					{
@@ -996,7 +983,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (connectedInputs.Num() == 0)
 				{
 					// Nothing is being inputed. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(*indent, *buildable->GetName(), TEXT(" has no input"));
 				}
 				else
 				{
@@ -1007,7 +994,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -1074,7 +1061,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -1112,12 +1099,12 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
 
 								overflow = true;
 								return;
 							}
-						
+
 							seenActorsCopy[actor] = out_injectedItems;
 						}
 
@@ -1144,7 +1131,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						if (discountedInput > 0)
 						{
-							EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedInput, TEXT(" items/minute"));
+							EC_LOG_Display_Condition(*indent, TEXT("Discounting "), discountedInput, TEXT(" items/minute"));
 
 							if (!customInjectedInput)
 							{
@@ -1159,7 +1146,6 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 
 					EC_LOG_Display_Condition(
-						ELogVerbosity::Log,
 						/**getTimeStamp(),*/
 						*indent,
 						*buildable->GetName(),
@@ -1277,7 +1263,7 @@ void AEfficiencyCheckerLogic::collectInput
 				if (otherConnections.Num() == 0)
 				{
 					// No more connections. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *owner->GetName(), TEXT(" has no other connection"));
+					EC_LOG_Error_Condition(*indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
@@ -1289,7 +1275,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					connector = otherConnections[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(*indent, *buildable->GetName(), TEXT(" skipped"));
 
 					continue;
 				}
@@ -1304,7 +1290,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -1377,7 +1363,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -1402,12 +1388,12 @@ void AEfficiencyCheckerLogic::collectInput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
 
 									overflow = true;
 									return;
 								}
-						
+
 								seenActorsCopy[actor] = out_injectedItems;
 							}
 
@@ -1434,7 +1420,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 							if (discountedInput > 0)
 							{
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
+								EC_LOG_Display_Condition(*indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
 
 								if (!customInjectedInput)
 								{
@@ -1444,7 +1430,7 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 					}
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+					EC_LOG_Display_Condition(*indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 				}
 
 				connected.Add(buildable);
@@ -1479,7 +1465,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 							overflow = true;
 							return;
@@ -1492,7 +1478,6 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							*connectedPlatform->GetName(),
@@ -1508,7 +1493,6 @@ void AEfficiencyCheckerLogic::collectInput
 							destinationStations.Add(station);
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								TEXT("    Station = "),
@@ -1519,12 +1503,12 @@ void AEfficiencyCheckerLogic::collectInput
 								i == 1 && !connectedPlatform->IsOrientationReversed())
 							{
 								stationOffsets.insert(offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
+								EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
 							}
 							else
 							{
 								stationOffsets.insert(-offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
+								EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), -offsetDistance);
 							}
 						}
 
@@ -1551,7 +1535,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
 
 						overflow = true;
 						return;
@@ -1595,7 +1579,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -1620,7 +1604,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -1632,7 +1616,6 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							TEXT("    Stop = "),
@@ -1652,7 +1635,7 @@ void AEfficiencyCheckerLogic::collectInput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 									overflow = true;
 									return;
@@ -1727,7 +1710,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
 
 						overflow = true;
 						return;
@@ -1781,7 +1764,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
 
 						overflow = true;
 						return;
@@ -1803,12 +1786,12 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
 
 							overflow = true;
 							return;
 						}
-						
+
 						seenActorsCopy[actor] = out_injectedItems;
 					}
 
@@ -1835,7 +1818,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					if (discountedInput > 0)
 					{
-						EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
+						EC_LOG_Display_Condition(*indent, TEXT("Discounting "), discountedInput, TEXT(" m³/minute"));
 
 						if (!customInjectedInput)
 						{
@@ -1844,7 +1827,7 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 				}
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+				EC_LOG_Display_Condition(*indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
 				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
 
@@ -1934,7 +1917,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		if (timeout < time(NULL))
 		{
-			EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout!"));
+			EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout!"));
 
 			overflow = true;
 			return;
@@ -1945,7 +1928,6 @@ void AEfficiencyCheckerLogic::collectOutput
 		if (level > 100)
 		{
 			EC_LOG_Error_Condition(
-				ELogVerbosity::Error,
 				TEXT(__FUNCTION__) TEXT(": level is too deep: "),
 				level,
 				TEXT("; "),
@@ -1986,7 +1968,6 @@ void AEfficiencyCheckerLogic::collectOutput
 		}
 
 		EC_LOG_Display_Condition(
-			ELogVerbosity::Log,
 			/**getTimeStamp(),*/
 			*indent,
 			TEXT("collectOutput at level "),
@@ -2047,7 +2028,6 @@ void AEfficiencyCheckerLogic::collectOutput
 						}
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							*manufacturer->GetName(),
@@ -2106,7 +2086,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, conveyor->GetSpeed() / 2);
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
+				EC_LOG_Display_Condition(*indent, *conveyor->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" items/minute"));
 
 				continue;
 			}
@@ -2168,7 +2148,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 								overflow = true;
 								return;
@@ -2181,7 +2161,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							}
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								*connectedPlatform->GetName(),
@@ -2197,7 +2176,6 @@ void AEfficiencyCheckerLogic::collectOutput
 								destinationStations.Add(station);
 
 								EC_LOG_Display_Condition(
-									ELogVerbosity::Log,
 									/**getTimeStamp(),*/
 									*indent,
 									TEXT("    Station = "),
@@ -2208,12 +2186,12 @@ void AEfficiencyCheckerLogic::collectOutput
 									i == 1 && !connectedPlatform->IsOrientationReversed())
 								{
 									stationOffsets.insert(offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
+									EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
 								}
 								else
 								{
 									stationOffsets.insert(-offsetDistance);
-									EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
+									EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), -offsetDistance);
 								}
 							}
 
@@ -2221,7 +2199,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							if (cargo)
 							{
 								EC_LOG_Display_Condition(
-									ELogVerbosity::Log,
 									/**getTimeStamp(),*/
 									*indent,
 									TEXT("    Load mode = "),
@@ -2238,7 +2215,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
 
 							overflow = true;
 							return;
@@ -2282,7 +2259,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating trains stops!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains stops!"));
 
 								overflow = true;
 								return;
@@ -2307,7 +2284,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
 
 								overflow = true;
 								return;
@@ -2319,7 +2296,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							}
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								TEXT("    Stop = "),
@@ -2339,7 +2315,7 @@ void AEfficiencyCheckerLogic::collectOutput
 								{
 									if (timeout < time(NULL))
 									{
-										EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+										EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 										overflow = true;
 										return;
@@ -2403,7 +2379,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating teleporters!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating teleporters!"));
 
 							overflow = true;
 							return;
@@ -2447,7 +2423,6 @@ void AEfficiencyCheckerLogic::collectOutput
 						auto rule = smartSplitter->GetSortRuleAt(x);
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							TEXT("Rule "),
@@ -2469,12 +2444,12 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
 						}
-						
+
 						if (singleton->noneItemDescriptors.Intersect(it->second).Num())
 						{
 							// No item is valid. Empty it all
@@ -2496,12 +2471,12 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
 						}
-						
+
 						if (singleton->anyUndefinedItemDescriptors.Intersect(it->second).Num())
 						{
 							it->second = it->second.Union(injectedItems.Difference(definedItems));
@@ -2517,7 +2492,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 						overflow = true;
 						return;
@@ -2549,7 +2524,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					connector = connectedOutputs[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(*indent, *buildable->GetName(), TEXT(" skipped"));
 
 					if (smartSplitter)
 					{
@@ -2564,7 +2539,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (connectedOutputs.Num() == 0)
 				{
 					// Nothing is being outputed. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(*indent, *buildable->GetName(), TEXT(" has no input"));
 				}
 				else
 				{
@@ -2577,7 +2552,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -2639,7 +2614,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -2672,12 +2647,12 @@ void AEfficiencyCheckerLogic::collectOutput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
 
 									overflow = true;
 									return;
 								}
-						
+
 								seenActorsCopy.Add(actor.first);
 							}
 
@@ -2706,7 +2681,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (discountedOutput > 0)
 							{
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedOutput, TEXT(" items/minute"));
+								EC_LOG_Display_Condition(*indent, TEXT("Discounting "), discountedOutput, TEXT(" items/minute"));
 
 								out_requiredOutput -= discountedOutput;
 							}
@@ -2714,7 +2689,6 @@ void AEfficiencyCheckerLogic::collectOutput
 					}
 
 					EC_LOG_Display_Condition(
-						ELogVerbosity::Log,
 						/**getTimeStamp(),*/
 						*indent,
 						*buildable->GetName(),
@@ -2778,7 +2752,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (otherConnections.Num() == 0)
 				{
 					// No more connections. Bail
-					EC_LOG_Error_Condition(ELogVerbosity::Display, *indent, *owner->GetName(), TEXT(" has no other connection"));
+					EC_LOG_Error_Condition(*indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
@@ -2790,7 +2764,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					connector = otherConnections[0]->GetConnection();
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *buildable->GetName(), TEXT(" skipped"));
+					EC_LOG_Display_Condition(*indent, *buildable->GetName(), TEXT(" skipped"));
 
 					continue;
 				}
@@ -2806,7 +2780,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -2877,7 +2851,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -2904,12 +2878,12 @@ void AEfficiencyCheckerLogic::collectOutput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
 
 									overflow = true;
 									return;
 								}
-								
+
 								seenActorsCopy.Add(actor.first);
 							}
 
@@ -2938,14 +2912,14 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							if (discountedOutput > 0)
 							{
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Discounting "), discountedOutput, TEXT(" m³/minute"));
+								EC_LOG_Display_Condition(*indent, TEXT("Discounting "), discountedOutput, TEXT(" m³/minute"));
 
 								out_requiredOutput -= discountedOutput;
 							}
 						}
 					}
 
-					EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+					EC_LOG_Display_Condition(*indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 				}
 
 				connected.Add(buildable);
@@ -2982,7 +2956,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 							overflow = true;
 							return;
@@ -2995,7 +2969,6 @@ void AEfficiencyCheckerLogic::collectOutput
 						}
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							*connectedPlatform->GetName(),
@@ -3011,7 +2984,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							destinationStations.Add(station);
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								TEXT("    Station = "),
@@ -3022,12 +2994,12 @@ void AEfficiencyCheckerLogic::collectOutput
 								i == 1 && !connectedPlatform->IsOrientationReversed())
 							{
 								stationOffsets.insert(offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), offsetDistance);
+								EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
 							}
 							else
 							{
 								stationOffsets.insert(-offsetDistance);
-								EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("        offset distance = "), -offsetDistance);
+								EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), -offsetDistance);
 							}
 						}
 
@@ -3054,7 +3026,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
 
 						overflow = true;
 						return;
@@ -3098,7 +3070,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -3123,7 +3095,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -3135,7 +3107,6 @@ void AEfficiencyCheckerLogic::collectOutput
 						}
 
 						EC_LOG_Display_Condition(
-							ELogVerbosity::Log,
 							/**getTimeStamp(),*/
 							*indent,
 							TEXT("    Stop = "),
@@ -3155,7 +3126,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
 
 									overflow = true;
 									return;
@@ -3228,7 +3199,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
+						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
 
 						overflow = true;
 						return;
@@ -3275,7 +3246,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				out_limitedThroughput = FMath::Min(out_limitedThroughput, limitedThroughput);
 
-				EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
+				EC_LOG_Display_Condition(*indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
 				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
 
@@ -3316,15 +3287,15 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(ELogVerbosity::Error, TEXT(__FUNCTION__) TEXT(": timeout while iterating injected items!"));
+							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating injected items!"));
 
 							overflow = true;
 							return;
 						}
-						
+
 						if (generator->IsValidFuel(item) && !seenActors[generator].Contains(item))
 						{
-							EC_LOG_Display_Condition(ELogVerbosity::Log, *indent, TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
+							EC_LOG_Display_Condition(*indent, TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 							float energy = UFGItemDescriptor::GetEnergyValue(item);
 
@@ -3350,7 +3321,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							}
 
 							EC_LOG_Display_Condition(
-								ELogVerbosity::Log,
 								/**getTimeStamp(),*/
 								*indent,
 								*generator->GetName(),
