@@ -14,7 +14,7 @@ enum class EMachineStatusIncludeType: uint8
 
 ENUM_CLASS_FLAGS(EMachineStatusIncludeType);
 
-#define TO_EMachineStatusIncludeType(Enum) static_cast<uint32>(Enum);
+#define TO_EMachineStatusIncludeType(Enum) static_cast<uint32>(Enum)
 #define Has_EMachineStatusIncludeType(Value, Enum) ((static_cast<uint32>(Value) & static_cast<uint32>(Enum)) == static_cast<uint32>(Enum))
 #define Add_EMachineStatusIncludeType(Value, Enum) (static_cast<uint32>(Value) | static_cast<uint32>(Enum))
 #define Remove_EMachineStatusIncludeType(Value, Enum) (static_cast<uint32>(Value) & ~static_cast<uint32>(Enum))
