@@ -124,4 +124,16 @@ public:
 	virtual void removePipe(AActor* actor, EEndPlayReason::Type reason);
 	UFUNCTION()
 	virtual void removeTeleporter(AActor* actor, EEndPlayReason::Type reason);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
+	static bool IsAutoUpdateEnabled();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
+	static int GetLogLevelECM();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
+	static float GetAutoUpdateTimeout();
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
+	static float GetAutoUpdateDistance();
 };

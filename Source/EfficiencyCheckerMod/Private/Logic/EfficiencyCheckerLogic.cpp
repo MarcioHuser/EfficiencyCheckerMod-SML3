@@ -3756,6 +3756,26 @@ void AEfficiencyCheckerLogic::setConfiguration(const FEfficiencyChecker_ConfigSt
 	EC_LOG_Display(TEXT("==="));
 }
 
+bool AEfficiencyCheckerLogic::IsAutoUpdateEnabled()
+{
+	return configuration.autoUpdate;
+}
+
+int AEfficiencyCheckerLogic::GetLogLevelECM()
+{
+	return configuration.logLevel;
+}
+
+float AEfficiencyCheckerLogic::GetAutoUpdateTimeout()
+{
+	return configuration.autoUpdateTimeout;
+}
+
+float AEfficiencyCheckerLogic::GetAutoUpdateDistance()
+{
+	return configuration.autoUpdateDistance;
+}
+
 #ifndef OPTIMIZE
 #pragma optimize( "", on)
 #endif

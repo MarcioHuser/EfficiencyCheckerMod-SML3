@@ -194,18 +194,6 @@ public:
 		UPARAM(DisplayName = "Auto Updat Distance") float& out_autoUpdateDistance
 	);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static bool IsAutoUpdateEnabled();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static int GetLogLevel();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static float GetAutoUpdateTimeout();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static float GetAutoUpdateDistance();
-
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	TArray<TSubclassOf<UFGItemDescriptor>> injectedItems;
 

@@ -1319,26 +1319,6 @@ void AEfficiencyCheckerBuilding::Server_AddPendingBuilding(AFGBuildable* buildab
 	}
 }
 
-bool AEfficiencyCheckerBuilding::IsAutoUpdateEnabled()
-{
-	return AEfficiencyCheckerLogic::configuration.autoUpdate;
-}
-
-int AEfficiencyCheckerBuilding::GetLogLevel()
-{
-	return AEfficiencyCheckerLogic::configuration.logLevel;
-}
-
-float AEfficiencyCheckerBuilding::GetAutoUpdateTimeout()
-{
-	return AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
-}
-
-float AEfficiencyCheckerBuilding::GetAutoUpdateDistance()
-{
-	return AEfficiencyCheckerLogic::configuration.autoUpdateDistance;
-}
-
 void AEfficiencyCheckerBuilding::UpdateItem_Implementation
 (
 	float in_injectedInput,
