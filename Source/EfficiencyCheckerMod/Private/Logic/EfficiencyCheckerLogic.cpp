@@ -3463,7 +3463,7 @@ void AEfficiencyCheckerLogic::DumpInformation(AActor* worldContext, TSubclassOf<
 			EC_LOG_Display(TEXT("    Equipment small icon = "), *GetPathNameSafe(itemDescriptor->mSmallIcon));
 			EC_LOG_Display(TEXT("    Equipment big icon = "), *GetPathNameSafe(itemDescriptor->mPersistentBigIcon));
 			EC_LOG_Display(TEXT("    Equipment conveyor mesh = "), *GetPathNameSafe(itemDescriptor->mConveyorMesh));
-			EC_LOG_Display(TEXT("    Equipment item category = "), *GetPathNameSafe(itemDescriptor->mItemCategory));
+			EC_LOG_Display(TEXT("    Equipment category = "), *GetPathNameSafe(itemDescriptor->mCategory));
 		}
 
 		auto equipmentDescriptor = Cast<UFGEquipmentDescriptor>(itemDescriptor);
