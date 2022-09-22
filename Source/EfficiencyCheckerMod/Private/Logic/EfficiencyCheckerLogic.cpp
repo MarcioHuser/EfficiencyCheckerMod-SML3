@@ -389,8 +389,12 @@ void AEfficiencyCheckerLogic::collectInput
 				}
 				else
 				{
-					itemAmountPerMinute = extractor->GetNumExtractedItemsPerCycle() * extractor->GetPendingPotential() * 60 /
-						(speedMultiplier * extractor->GetDefaultExtractCycleTime());
+					auto itemsPerCycle = extractor->GetNumExtractedItemsPerCycle();
+					auto pendingPotential = extractor->GetPendingPotential();
+					auto defaultExtractCycleTime = extractor->GetDefaultExtractCycleTime();
+					
+					itemAmountPerMinute = itemsPerCycle * pendingPotential * 60 /
+						(speedMultiplier * defaultExtractCycleTime);
 
 					if (resourceForm == EResourceForm::RF_LIQUID || resourceForm == EResourceForm::RF_GAS)
 					{
