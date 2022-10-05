@@ -1249,6 +1249,11 @@ void AEfficiencyCheckerBuilding::GetEfficiencyCheckerSettings(bool& out_autoUpda
 
 void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential)
 {
+	if (!AEfficiencyCheckerLogic::singleton)
+	{
+		return;
+	}
+
 	EC_LOG_Display_Condition(
 		TEXT("SetPendingPotential of building "),
 		*GetPathNameSafe(buildable),
