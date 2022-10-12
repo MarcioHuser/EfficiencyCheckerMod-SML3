@@ -106,6 +106,7 @@ void AEfficiencyCheckerLogic::Initialize
 	removeBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
 	removePipeDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removePipe);
 	removeTeleporterDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeTeleporter);
+	removeUndergroundInputBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeUndergroundInputBelt);
 
 	auto subsystem = AFGBuildableSubsystem::Get(this);
 
@@ -136,6 +137,7 @@ void AEfficiencyCheckerLogic::Terminate()
 	allBelts.Empty();
 	allPipes.Empty();
 	allTeleporters.Empty();
+	allUndergroundInputBelts.Empty();
 
 	singleton = nullptr;
 }
@@ -259,20 +261,72 @@ void AEfficiencyCheckerLogic::collectInput
 			{
 				const auto recipeClass = manufacturer->GetCurrentRecipe();
 
+				connected.Add(manufacturer);
+
 				if (recipeClass)
 				{
-					auto products = UFGRecipe::GetProducts(recipeClass);
+					auto products = UFGRecipe::GetProducts(recipeClass)
+						.FilterByPredicate(
+							[resourceForm](const FItemAmount& item)
+							{
+								return UFGItemDescriptor::GetForm(item.ItemClass) == resourceForm;
+							}
+							);
 
-					for (auto item : products)
+					if (products.Num())
 					{
-						auto itemForm = UFGItemDescriptor::GetForm(item.ItemClass);
+						int outputIndex = 0;
 
-						if (itemForm == EResourceForm::RF_SOLID && resourceForm != EResourceForm::RF_SOLID ||
-							(itemForm == EResourceForm::RF_LIQUID || itemForm == EResourceForm::RF_GAS) &&
-							resourceForm != EResourceForm::RF_LIQUID && resourceForm != EResourceForm::RF_GAS ||
-							!restrictItems.Contains(item.ItemClass))
+						if (products.Num() > 1)
 						{
-							continue;
+							TArray<FString> names;
+
+							auto isBelt = Cast<UFGFactoryConnectionComponent>(connector) != nullptr;
+							auto isPipe = Cast<UFGPipeConnectionComponent>(connector) != nullptr;
+
+							TInlineComponentArray<UFGConnectionComponent*> components;
+							manufacturer->GetComponents(components);
+
+							for (auto component : components)
+							{
+								if (isBelt)
+								{
+									auto factoryConnectionComponent = Cast<UFGFactoryConnectionComponent>(component);
+									if (factoryConnectionComponent && factoryConnectionComponent->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
+									{
+										names.Add(component->GetName());
+
+										continue;
+									}
+								}
+
+								if (isPipe)
+								{
+									auto pipeConnectionComponent = Cast<UFGPipeConnectionComponent>(component);
+									if (pipeConnectionComponent && pipeConnectionComponent->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER)
+									{
+										names.Add(component->GetName());
+
+										continue;
+									}
+								}
+							}
+
+							names.Sort(
+								[](const FString& x, const FString& y)
+								{
+									return x.Compare(y, ESearchCase::IgnoreCase) < 0;
+								}
+								);
+
+							outputIndex = names.Find(connector->GetName());
+						}
+
+						auto item = outputIndex > 0 ? products[outputIndex] : products[0];
+
+						if (!restrictItems.Contains(item.ItemClass))
+						{
+							return;
 						}
 
 						out_injectedItems.Add(item.ItemClass);
@@ -310,12 +364,8 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							out_injectedInput += itemAmountPerMinute;
 						}
-
-						break;
 					}
 				}
-
-				connected.Add(manufacturer);
 
 				return;
 			}
@@ -392,7 +442,7 @@ void AEfficiencyCheckerLogic::collectInput
 					auto itemsPerCycle = extractor->GetNumExtractedItemsPerCycle();
 					auto pendingPotential = extractor->GetPendingPotential();
 					auto defaultExtractCycleTime = extractor->GetDefaultExtractCycleTime();
-					
+
 					itemAmountPerMinute = itemsPerCycle * pendingPotential * 60 /
 						(speedMultiplier * defaultExtractCycleTime);
 
@@ -470,8 +520,16 @@ void AEfficiencyCheckerLogic::collectInput
 			AFGBuildableConveyorAttachment* conveyorAttachment = nullptr;
 			AFGBuildableDockingStation* dockingStation = nullptr;
 			AFGBuildableFactory* storageTeleporter = nullptr;
+			AFGBuildableStorage* undergroundBelt = nullptr;
 
 			AFGBuildableFactory* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
+
+			if (!buildable && (fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C") ||
+				fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C")))
+			{
+				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
+			}
+
 			if (!buildable)
 			{
 				buildable = storageContainer = Cast<AFGBuildableStorage>(owner);
@@ -531,7 +589,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 			if (buildable)
 			{
-				auto components = buildable->GetConnectionComponents();
+				auto components = TSet<UFGFactoryConnectionComponent*>(buildable->GetConnectionComponents());
 
 				if (cargoPlatform)
 				{
@@ -824,6 +882,13 @@ void AEfficiencyCheckerLogic::collectInput
 							}
 						}
 					}
+				}
+
+				if (undergroundBelt)
+				{
+					TSet<AActor*> undergroundActors;
+					collectUndergroundBeltsComponents(undergroundBelt, components, undergroundActors);
+					seenActors.Append(undergroundActors);
 				}
 
 				int currentOutputIndex = -1;
@@ -1271,7 +1336,8 @@ void AEfficiencyCheckerLogic::collectInput
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
-						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER ||
+						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
+						GetConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
 						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
 						otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER))
 				{
@@ -1310,7 +1376,8 @@ void AEfficiencyCheckerLogic::collectInput
 							continue;
 						}
 
-						if (connection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER)
+						if (connection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER ||
+							GetConnectedPipeConnectionType(connection) == EPipeConnectionType::PCT_CONSUMER)
 						{
 							continue;
 						}
@@ -2100,8 +2167,16 @@ void AEfficiencyCheckerLogic::collectOutput
 			AFGBuildableConveyorAttachment* conveyorAttachment = nullptr;
 			AFGBuildableDockingStation* dockingStation = nullptr;
 			AFGBuildableFactory* storageTeleporter = nullptr;
+			AFGBuildableStorage* undergroundBelt = nullptr;
 
 			AFGBuildableFactory* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
+
+			if (!buildable && (fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C") ||
+				fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C")))
+			{
+				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
+			}
+
 			if (!buildable)
 			{
 				buildable = storageContainer = Cast<AFGBuildableStorage>(owner);
@@ -2127,7 +2202,7 @@ void AEfficiencyCheckerLogic::collectOutput
 			{
 				addAllItemsToActor(seenActors, buildable, injectedItems);
 
-				auto components = buildable->GetConnectionComponents();
+				auto components = TSet<UFGFactoryConnectionComponent*>(buildable->GetConnectionComponents());
 
 				if (cargoPlatform)
 				{
@@ -2389,7 +2464,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							return;
 						}
 
-						if (testTeleporter == storageTeleporter)
+						if (testTeleporter->IsPendingKill() || testTeleporter == storageTeleporter)
 						{
 							continue;
 						}
@@ -2413,6 +2488,16 @@ void AEfficiencyCheckerLogic::collectOutput
 									);
 							}
 						}
+					}
+				}
+
+				if (undergroundBelt)
+				{
+					TSet<AActor*> undergroundActors;
+					collectUndergroundBeltsComponents(undergroundBelt, components, undergroundActors);
+					for (auto undergroundActor : undergroundActors)
+					{
+						addAllItemsToActor(seenActors, undergroundActor, injectedItems);
 					}
 				}
 
@@ -2760,7 +2845,8 @@ void AEfficiencyCheckerLogic::collectOutput
 				}
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
-						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER ||
+						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
+						GetConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
 						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
 						otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER))
 				{
@@ -2800,7 +2886,8 @@ void AEfficiencyCheckerLogic::collectOutput
 							continue;
 						}
 
-						if (connection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER)
+						if (connection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER ||
+							GetConnectedPipeConnectionType(connection) == EPipeConnectionType::PCT_PRODUCER)
 						{
 							continue;
 						}
@@ -3564,6 +3651,15 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	{
 		return true;
 	}
+	if (GetPathNameSafe(newBuildable->GetClass()).EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"))
+	{
+		if (auto underGroundBelt = Cast<AFGBuildableStorage>(newBuildable))
+		{
+			addUndergroundInputBelt(underGroundBelt);
+
+			return true;
+		}
+	}
 	if (Cast<AFGBuildableStorage>(newBuildable))
 	{
 		return true;
@@ -3687,6 +3783,22 @@ void AEfficiencyCheckerLogic::removeTeleporter(AActor* actor, EEndPlayReason::Ty
 	actor->OnEndPlay.Remove(removeTeleporterDelegate);
 }
 
+void AEfficiencyCheckerLogic::addUndergroundInputBelt(AFGBuildableStorage* undergroundInputBelt)
+{
+	FScopeLock ScopeLock(&eclCritical);
+	allUndergroundInputBelts.Add(undergroundInputBelt);
+
+	undergroundInputBelt->OnEndPlay.Add(removeUndergroundInputBeltDelegate);
+}
+
+void AEfficiencyCheckerLogic::removeUndergroundInputBelt(AActor* actor, EEndPlayReason::Type reason)
+{
+	FScopeLock ScopeLock(&eclCritical);
+	allUndergroundInputBelts.Remove(Cast<AFGBuildableStorage>(actor));
+
+	actor->OnEndPlay.Remove(removeUndergroundInputBeltDelegate);
+}
+
 float AEfficiencyCheckerLogic::getPipeSpeed(AFGBuildablePipeline* pipe)
 {
 	if (!pipe)
@@ -3779,6 +3891,94 @@ float AEfficiencyCheckerLogic::GetAutoUpdateDistance()
 {
 	return configuration.autoUpdateDistance;
 }
+
+EPipeConnectionType AEfficiencyCheckerLogic::GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component)
+{
+	auto connectionType = EPipeConnectionType::PCT_ANY;
+
+	if (component)
+	{
+		connectionType = component->GetPipeConnectionType();
+
+		if (connectionType == EPipeConnectionType::PCT_ANY && component->IsConnected() && component->GetConnection())
+		{
+			connectionType = component->GetConnection()->GetPipeConnectionType();
+		}
+	}
+
+	return connectionType;
+}
+
+void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
+(
+	AFGBuildableStorage* undergroundBelt,
+	TSet<UFGFactoryConnectionComponent*>& components,
+	TSet<AActor*>& actors
+)
+{
+	auto outputsProperty = CastField<FArrayProperty>(undergroundBelt->GetClass()->FindPropertyByName("Outputs"));
+	if (outputsProperty)
+	{
+		FScriptArrayHelper arrayHelper(outputsProperty, outputsProperty->ContainerPtrToValuePtr<void>(undergroundBelt));
+		auto arrayObjectProperty = CastField<FObjectProperty>(outputsProperty->Inner);
+
+		for (auto x = 0; x < arrayHelper.Num(); x++)
+		{
+			void* ObjectContainer = arrayHelper.GetRawPtr(x);
+			auto output = Cast<AFGBuildableFactory>(arrayObjectProperty->GetObjectPropertyValue(ObjectContainer));
+			if (output)
+			{
+				actors.Add(output);
+
+				components.Append(
+					output->GetConnectionComponents().FilterByPredicate(
+						[&components](UFGFactoryConnectionComponent* connection)
+						{
+							return !components.Contains(connection) && // Not in use already
+								connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT; // Is output connection
+						}
+						)
+					);
+			}
+		}
+	}
+	else
+	{
+		for (auto inputUndergroundBelt : singleton->allUndergroundInputBelts)
+		{
+			outputsProperty = CastField<FArrayProperty>(inputUndergroundBelt->GetClass()->FindPropertyByName("Outputs"));
+			if (outputsProperty)
+			{
+				FScriptArrayHelper arrayHelper(outputsProperty, outputsProperty->ContainerPtrToValuePtr<void>(inputUndergroundBelt));
+				auto arrayObjectProperty = CastField<FObjectProperty>(outputsProperty->Inner);
+
+				auto found = false;
+
+				for (auto x = 0; !found && x < arrayHelper.Num(); x++)
+				{
+					void* ObjectContainer = arrayHelper.GetRawPtr(x);
+					found = undergroundBelt == arrayObjectProperty->GetObjectPropertyValue(ObjectContainer);
+				}
+
+				if (found)
+				{
+					actors.Add(inputUndergroundBelt);
+
+					components.Append(
+						inputUndergroundBelt->GetConnectionComponents().FilterByPredicate(
+							[&components](UFGFactoryConnectionComponent* connection)
+							{
+								return !components.Contains(connection) && // Not in use already
+									connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT; // Is output connection
+							}
+							)
+						);
+				}
+			}
+		}
+	}
+}
+
 
 #ifndef OPTIMIZE
 #pragma optimize( "", on)

@@ -2,6 +2,7 @@
 
 #include <map>
 
+#include "FGPipeConnectionComponent.h"
 #include "MachineStatusIncludeType.h"
 #include "Resources/FGItemDescriptor.h"
 
@@ -105,16 +106,19 @@ public:
 	TSet<class AFGBuildableConveyorBelt*> allBelts;
 	TSet<class AFGBuildablePipeline*> allPipes;
 	TSet<class AFGBuildable*> allTeleporters;
+	TSet<class AFGBuildableStorage*> allUndergroundInputBelts;
 
 	FActorEndPlaySignature::FDelegate removeEffiencyBuildingDelegate;
 	FActorEndPlaySignature::FDelegate removeBeltDelegate;
 	FActorEndPlaySignature::FDelegate removePipeDelegate;
 	FActorEndPlaySignature::FDelegate removeTeleporterDelegate;
+	FActorEndPlaySignature::FDelegate removeUndergroundInputBeltDelegate;
 
 	virtual void addEfficiencyBuilding(class AEfficiencyCheckerBuilding* actor);
-	virtual void addBelt(AFGBuildableConveyorBelt* actor);
-	virtual void addPipe(AFGBuildablePipeline* actor);
-	virtual void addTeleporter(AFGBuildable* actor);
+	virtual void addBelt(class AFGBuildableConveyorBelt* actor);
+	virtual void addPipe(class AFGBuildablePipeline* actor);
+	virtual void addTeleporter(class AFGBuildable* actor);
+	virtual void addUndergroundInputBelt(class AFGBuildableStorage* actor);
 
 	UFUNCTION()
 	virtual void removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason);
@@ -124,6 +128,8 @@ public:
 	virtual void removePipe(AActor* actor, EEndPlayReason::Type reason);
 	UFUNCTION()
 	virtual void removeTeleporter(AActor* actor, EEndPlayReason::Type reason);
+	UFUNCTION()
+	virtual void removeUndergroundInputBelt(AActor* actor, EEndPlayReason::Type reason);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
 	static bool IsAutoUpdateEnabled();
@@ -136,4 +142,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
 	static float GetAutoUpdateDistance();
+
+	static EPipeConnectionType GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
+
+	static void collectUndergroundBeltsComponents(class AFGBuildableStorage* undergroundBelt, TSet<class UFGFactoryConnectionComponent*>& components, TSet<AActor*>& actors);
 };
