@@ -522,7 +522,7 @@ void AEfficiencyCheckerLogic::collectInput
 			AFGBuildableFactory* storageTeleporter = nullptr;
 			AFGBuildableStorage* undergroundBelt = nullptr;
 
-			AFGBuildableFactory* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
+			AFGBuildable* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
 
 			if (!buildable && (fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C") ||
 				fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C")))
@@ -548,12 +548,12 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto stack : stacks)
 					{
-						if (!restrictItems.Contains(stack.Item.ItemClass))
+						if (!restrictItems.Contains(stack.Item.GetItemClass()))
 						{
 							continue;
 						}
 
-						out_injectedItems.Add(stack.Item.ItemClass);
+						out_injectedItems.Add(stack.Item.GetItemClass());
 					}
 				}
 			}
@@ -571,12 +571,12 @@ void AEfficiencyCheckerLogic::collectInput
 
 					for (auto stack : stacks)
 					{
-						if (!restrictItems.Contains(stack.Item.ItemClass))
+						if (!restrictItems.Contains(stack.Item.GetItemClass()))
 						{
 							continue;
 						}
 
-						out_injectedItems.Add(stack.Item.ItemClass);
+						out_injectedItems.Add(stack.Item.GetItemClass());
 					}
 				}
 			}
@@ -589,7 +589,9 @@ void AEfficiencyCheckerLogic::collectInput
 
 			if (buildable)
 			{
-				auto components = TSet<UFGFactoryConnectionComponent*>(buildable->GetConnectionComponents());
+				TArray<UFGFactoryConnectionComponent*> tempComponents;
+				buildable->GetComponents(tempComponents);				
+				auto components = TSet<UFGFactoryConnectionComponent*>(tempComponents);
 
 				if (cargoPlatform)
 				{
@@ -2169,7 +2171,7 @@ void AEfficiencyCheckerLogic::collectOutput
 			AFGBuildableFactory* storageTeleporter = nullptr;
 			AFGBuildableStorage* undergroundBelt = nullptr;
 
-			AFGBuildableFactory* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
+			AFGBuildable* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 
 			if (!buildable && (fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C") ||
 				fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C")))
@@ -2202,7 +2204,9 @@ void AEfficiencyCheckerLogic::collectOutput
 			{
 				addAllItemsToActor(seenActors, buildable, injectedItems);
 
-				auto components = TSet<UFGFactoryConnectionComponent*>(buildable->GetConnectionComponents());
+				TArray<UFGFactoryConnectionComponent*> tempComponents;
+				buildable->GetComponents(tempComponents);				
+				auto components = TSet<UFGFactoryConnectionComponent*>(tempComponents);
 
 				if (cargoPlatform)
 				{
