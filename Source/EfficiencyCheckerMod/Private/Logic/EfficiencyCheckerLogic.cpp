@@ -590,7 +590,7 @@ void AEfficiencyCheckerLogic::collectInput
 			if (buildable)
 			{
 				TArray<UFGFactoryConnectionComponent*> tempComponents;
-				buildable->GetComponents(tempComponents);				
+				buildable->GetComponents(tempComponents);
 				auto components = TSet<UFGFactoryConnectionComponent*>(tempComponents);
 
 				if (cargoPlatform)
@@ -2205,7 +2205,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				addAllItemsToActor(seenActors, buildable, injectedItems);
 
 				TArray<UFGFactoryConnectionComponent*> tempComponents;
-				buildable->GetComponents(tempComponents);				
+				buildable->GetComponents(tempComponents);
 				auto components = TSet<UFGFactoryConnectionComponent*>(tempComponents);
 
 				if (cargoPlatform)
