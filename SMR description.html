@@ -28,12 +28,12 @@ Find me at <a href="https://discord.gg/A9bFvkbav4">Satisfactory Modding</a> Disc
 
 <h3>What it includes:</h3>
 <ul>
-    <li>Two building for SOLIDS which you can snap on existing belts (or have a belt passing through it). One with panels on each side; the other with panel on top of it. They can be
+    <li>Two building for SOLIDS which you can snap on existing belts (or have a belt passing through it). One with panels on each side; the other with panel on top of it. They can be 
         stacked on top of each other. Both will show you:
         <ol>
             <li>The maximum amount of items/minute the <i>producers</i> can inject into the belts
                 (miners, constructors, foundries, etc. Modded producers should work as well). You can manually change this number, if you find it necessary;</li>
-            <li>The maximum amount of items/minute your belts can transport. This takes into account not only the belt it is connected to, but also connected belts / lifts
+            <li>The maximum amount of items/minute your belts can transport. This takes into account not only the belt it is connected to, but also connected belts/lifts
                 preceding or following the current one;</li>
             <li>The required amount of items/minute your <i>consumers</i> need to receive to be able to work at 100%. You can manually change this number, if you find it necessary</li>
         </ol>
@@ -112,14 +112,14 @@ The following methods are available for all the Efficiency Checker variants
 <li>injectItems(): return a list of known items that can possible pass through the conveyors</li>
 
 <li>injectedInput: the amount of inject items the checker knows about</li>
-<li>setCustomInjectedInput(float): defines the custom amount of injected items. If zero, it will be reset to the computed one</li>
+<li>setCustomInjectedInput(float): defines the custom amount of injected items. If zero, it will reset to the computed one</li>
 <li>isCustomInjectedInput(): true if a custom input is defined; false otherwise</li>
 <li>resetCustomInjectedInput(): resets the custom input to the computed one</li>
 
 <li>limitedThroughput: the maximum amount of items per minute the conveyors system can handle</li>
 
 <li>requiredOutput: the amount of required items the checker knows about</li>
-<li>setCustomRequiredOutput(float): defines the custom amount of required items. If zero, it will be reset to the computed one</li>
+<li>setCustomRequiredOutput(float): defines the custom amount of required items. If zero, it will reset to the computed one</li>
 <li>isCustomRequiredOutput(): true if a custom output is defined; false otherwise</li>
 <li>resetCustomRequiredOutput(): resets the custom output to the computed one</li>
 </ul>
@@ -173,7 +173,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
 		- Fixed miners and water extractors not reporting as valid producers
 
 - Version 2.1.8
-	- Removed some old, unused code, that was still being called and could cause a crash, when using the Handtool
+	- Removed some old, unused code, that was still being called and could cause a crash, when using the Hand Tool
 
 - Version 2.1.7
 	- Recompiled for latest Update 6 Exp
@@ -213,13 +213,13 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
 
 - Version 2.0.8
     - Fix
-        - Fixed a bug which would make the pioneer look as a giant in multiplayer, when the Hand Tool was equipped
+        - Fixed a bug which would make the Pionner look as a giant in multiplayer, when the Hand Tool was equipped
 
 - Version 2.0.7
     - Fix
         - Reduced log usage to spam less messages
     - QoL
-        - Tweaking of the "yellow" color at the hand tool and the checker Buildings, for better readability
+        - Tweaking of the "yellow" color at the Hand Tool and the Checker Buildings, for better readability
 
 - Version 2.0.6
     - Fix
@@ -261,7 +261,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
 - Version 1.1.6
     - Fix
         - Fixed T-Pose while the Hand Tool is equipped, in multiplayer
-        - Proper flow rate are taken into account when there's a valve at a pipe sequence
+        - Proper flow rate are taken into account when there's a valve at a pipe sequence 
 
 - Version 1.1.5
     - Fix
@@ -277,7 +277,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
 
 - Version 1.1.2
     - Optimization
-        - Code refactoring to optimize connected pipes/belts crawling to prevent Stack Overflow errors for very long/heavy split setups. Regardless, if it can't find a
+        - Code refactoring to optimize connected pipes/belts crawling to prevent Stack Overflow errors for very long/heavy splitting setups. Regardless, if it can't find a
             tight enough crawling path, the game will no longer crash (hopefully), but the checkers will not report any number, showing instead an "Error" status
     - Fix
         - Fixed the correct throughput limit for pipe networks that include MK2 pipes
@@ -296,7 +296,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
         - Mergers placed AFTER the checker (or after the belt you point at with the hand tool) will now be considered for accounting.
             The amount of items that become injected from the other inputs will be discounted from the total Required Output
         - Hold "Left Ctrl" while using the Hand Toll to fixate the number it reads. The read on the screen will remain the same until you do another read, which
-            will be reseted to its default behaviour if you don't hold "Left Ctrl" while using it. It can be combined with "Left Shift" to read and fixate
+            will reset to its default behaviour if you don't hold "Left Ctrl" while using it. It can be combined with "Left Shift" to read and fixate
             the net value
 
 - Version 1.0.4
@@ -309,7 +309,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
 
 - Version 1.0.2
     - Fix
-        - Code refactoring to prevent random crashes at game startup, depending on the combination of other mods you had installed
+        - Code refactoring to prevent random crashes at game startup, depending of the combination of other mods you had installed
 
 - Version 1.0.1
     - Fix
@@ -349,13 +349,13 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
 
 - Version 0.3.4
     - Fix
-        - Fixed a bug that would make wall pipe checkers to only consider one side of the system for input computing. If it chooses the wrong side, it will not
+        - Fixed a bug that would make wall pipe checkers to only consider one side of the system for input computing. If it chooses the wrong side, it will not 
             collect any producing machine, only consumers, and will give "zero" for the Inject Input and Limited Throughput stats
 
 - Version 0.3.3
     - Fix
         - Fixed Truck Stations handling, where the belt system comming in for the fuel input was considered as part of the belt system used for the input/output ones
-        - Fixed a bug caused by Micro Manage when moving the pipe checker, which caused the pipe attachment points to not move with it
+        - Fixed a bug caused by Micro Manage when moving the pipe checker, which caused the pipe attachment points to not move with it 
 
 - Version 0.3.2
     - Fix
@@ -400,7 +400,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
         - Checker variants for LIQUIDS
         - Refactored to be Multiplayer compatible (still testing. Your feedback will be welcome)
         - Now you can manually set how many items are/will be injected and/or consumed. Useful if you have complex systems and already now how they would split,
-            and only wants to check if the consumers will not be underflowed (and if the belts can handle it, too)
+            and only wants to check if the consumers will not be under-flowed (and if the belts can handle it, too)
         - Added compatibility for MK4 Miners (from <a href="https://ficsit.app/mod/9NsNwDAa3dRXRA">Miner Mk4 mod</a>)
         - Now the popup window will show all the items that can pass by the checker, for mixed belts that relly on smart/programmable splitters
 
@@ -423,7 +423,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
         - Added compatibility for <a href="https://ficsit.app/mod/oapk7n37fGskj">Farming Mod greenhouses</a> (the effective consumption/production is multiplied accordingly to the Greenhouse type)
         - New texture for the wall variant
     - Optimization
-        - Changed the overclock value of a connected building are detected in real-time, now
+        - Changes on the overclock value of a connected building are detected in real-time, now
 
 - Version 0.0.6
     - New content
