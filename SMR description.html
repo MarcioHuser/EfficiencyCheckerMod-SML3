@@ -1,4 +1,5 @@
 <h2>See if your production is under-flowing!</h2>
+<h2>See if your production is under-flowing!</h2>
 
 <hr/>
 <b>ATTENTION:</b> this mod is not compatible with Refined Power and other mods with custom machines that does not implement Attachments (like Splitters/Mergers), "Factories"
@@ -112,14 +113,14 @@ The following methods are available for all the Efficiency Checker variants
 <li>injectItems(): return a list of known items that can possible pass through the conveyors</li>
 
 <li>injectedInput: the amount of inject items the checker knows about</li>
-<li>setCustomInjectedInput(float): defines the custom amount of injected items. If zero, it will be reset to the computed one</li>
+<li>setCustomInjectedInput(float): defines the custom amount of injected items. If zero, it will reset to the computed one</li>
 <li>isCustomInjectedInput(): true if a custom input is defined; false otherwise</li>
 <li>resetCustomInjectedInput(): resets the custom input to the computed one</li>
 
 <li>limitedThroughput: the maximum amount of items per minute the conveyors system can handle</li>
 
 <li>requiredOutput: the amount of required items the checker knows about</li>
-<li>setCustomRequiredOutput(float): defines the custom amount of required items. If zero, it will be reset to the computed one</li>
+<li>setCustomRequiredOutput(float): defines the custom amount of required items. If zero, it will reset to the computed one</li>
 <li>isCustomRequiredOutput(): true if a custom output is defined; false otherwise</li>
 <li>resetCustomRequiredOutput(): resets the custom output to the computed one</li>
 </ul>
@@ -296,7 +297,7 @@ To solve it you can either rebuild the Checker; OR just walk way and return late
         - Mergers placed AFTER the checker (or after the belt you point at with the hand tool) will now be considered for accounting.
             The amount of items that become injected from the other inputs will be discounted from the total Required Output
         - Hold "Left Ctrl" while using the Hand Toll to fixate the number it reads. The read on the screen will remain the same until you do another read, which
-            will be reset to its default behaviour if you don't hold "Left Ctrl" while using it. It can be combined with "Left Shift" to read and fixate
+            will reset to its default behaviour if you don't hold "Left Ctrl" while using it. It can be combined with "Left Shift" to read and fixate
             the net value
 
 - Version 1.0.4
