@@ -1,5 +1,5 @@
 # Efficiency Checker Mod
-See if your production is underflowing!
+See if your production is under-flowing!
 
 See the mod at [ficsit.app](https://ficsit.app/mod/ZNFaaRV4ow5M4)
 
