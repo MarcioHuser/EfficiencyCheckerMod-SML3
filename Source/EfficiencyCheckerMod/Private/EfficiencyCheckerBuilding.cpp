@@ -27,6 +27,11 @@
 // Sets default values
 AEfficiencyCheckerBuilding::AEfficiencyCheckerBuilding()
 {
+	//Add dummy power connector for Ficsit Networks cable compatability
+	class UFGPowerConnectionComponent* FGPowerConnection;
+	FGPowerConnection = CreateDefaultSubobject<UFGPowerConnectionComponent>(TEXT("FGPowerConnection"));
+	FGPowerConnection->SetupAttachment(RootComponent);
+	
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bAllowTickOnDedicatedServer = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;
