@@ -17,6 +17,7 @@
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Util/EfficiencyCheckerOptimize.h"
 #include "Util/Logging.h"
+#include "FGPowerConnectionComponent.h"
 
 #include <map>
 
