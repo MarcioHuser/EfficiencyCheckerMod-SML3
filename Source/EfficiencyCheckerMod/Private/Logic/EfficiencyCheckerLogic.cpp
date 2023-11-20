@@ -61,7 +61,7 @@ FEfficiencyChecker_ConfigStruct AEfficiencyCheckerLogic::configuration;
 
 // TSet<class AEfficiencyCheckerBuilding*> AEfficiencyCheckerLogic::allEfficiencyBuildings;
 
-inline FString getEnumItemName(TCHAR* name, int value)
+inline FString getEnumItemName(const TCHAR* name, int value)
 {
 	FString valueStr;
 
@@ -216,7 +216,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 		if (timeout < time(NULL))
 		{
-			EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout!"));
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout!"));
 
 			overflow = true;
 			return;
@@ -227,7 +227,7 @@ void AEfficiencyCheckerLogic::collectInput
 		if (level > 100)
 		{
 			EC_LOG_Error_Condition(
-				TEXT(__FUNCTION__) TEXT(": level is too deep: "),
+				FUNCTIONSTR TEXT(": level is too deep: "),
 				level,
 				TEXT("; "),
 				*owner->GetName(),
@@ -616,7 +616,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 								overflow = true;
 								return;
@@ -688,7 +688,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating trains!"));
 
 							overflow = true;
 							return;
@@ -732,7 +732,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout iterating train stops!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout iterating train stops!"));
 
 								overflow = true;
 								return;
@@ -757,7 +757,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout iterating train stops!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout iterating train stops!"));
 
 								overflow = true;
 								return;
@@ -788,7 +788,7 @@ void AEfficiencyCheckerLogic::collectInput
 								{
 									if (timeout < time(NULL))
 									{
-										EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platformst!"));
+										EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platformst!"));
 
 										overflow = true;
 										return;
@@ -854,13 +854,13 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating storage teleporters!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating storage teleporters!"));
 
 							overflow = true;
 							return;
 						}
 
-						if (testTeleporter->IsPendingKill() || testTeleporter == storageTeleporter)
+						if (IsValid(testTeleporter) || testTeleporter == storageTeleporter)
 						{
 							continue;
 						}
@@ -904,7 +904,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating smart splitters connectors!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating smart splitters connectors!"));
 
 							overflow = true;
 							return;
@@ -956,7 +956,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
@@ -983,7 +983,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
@@ -1007,7 +1007,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 						overflow = true;
 						return;
@@ -1065,7 +1065,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -1132,7 +1132,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -1170,7 +1170,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
 
 								overflow = true;
 								return;
@@ -1362,7 +1362,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -1436,7 +1436,7 @@ void AEfficiencyCheckerLogic::collectInput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -1461,7 +1461,7 @@ void AEfficiencyCheckerLogic::collectInput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
 
 									overflow = true;
 									return;
@@ -1538,7 +1538,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 							overflow = true;
 							return;
@@ -1608,7 +1608,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating trains!"));
 
 						overflow = true;
 						return;
@@ -1652,7 +1652,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -1677,7 +1677,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -1708,7 +1708,7 @@ void AEfficiencyCheckerLogic::collectInput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 									overflow = true;
 									return;
@@ -1783,7 +1783,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating pipe connectors!"));
 
 						overflow = true;
 						return;
@@ -1837,7 +1837,7 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating pipe connectors!"));
 
 						overflow = true;
 						return;
@@ -1859,7 +1859,7 @@ void AEfficiencyCheckerLogic::collectInput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
 
 							overflow = true;
 							return;
@@ -1990,7 +1990,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 		if (timeout < time(NULL))
 		{
-			EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout!"));
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout!"));
 
 			overflow = true;
 			return;
@@ -2001,7 +2001,7 @@ void AEfficiencyCheckerLogic::collectOutput
 		if (level > 100)
 		{
 			EC_LOG_Error_Condition(
-				TEXT(__FUNCTION__) TEXT(": level is too deep: "),
+				FUNCTIONSTR TEXT(": level is too deep: "),
 				level,
 				TEXT("; "),
 				*owner->GetName(),
@@ -2231,7 +2231,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 								overflow = true;
 								return;
@@ -2298,7 +2298,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating trains!"));
 
 							overflow = true;
 							return;
@@ -2342,7 +2342,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains stops!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating trains stops!"));
 
 								overflow = true;
 								return;
@@ -2367,7 +2367,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
 
 								overflow = true;
 								return;
@@ -2398,7 +2398,7 @@ void AEfficiencyCheckerLogic::collectOutput
 								{
 									if (timeout < time(NULL))
 									{
-										EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+										EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 										overflow = true;
 										return;
@@ -2462,13 +2462,13 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating teleporters!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating teleporters!"));
 
 							overflow = true;
 							return;
 						}
 
-						if (testTeleporter->IsPendingKill() || testTeleporter == storageTeleporter)
+						if (IsValid(testTeleporter) || testTeleporter == storageTeleporter)
 						{
 							continue;
 						}
@@ -2537,7 +2537,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
@@ -2564,7 +2564,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating restricted items!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
 
 							overflow = true;
 							return;
@@ -2585,7 +2585,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 						overflow = true;
 						return;
@@ -2645,7 +2645,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -2707,7 +2707,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -2740,7 +2740,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
 
 									overflow = true;
 									return;
@@ -2874,7 +2874,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 							overflow = true;
 							return;
@@ -2946,7 +2946,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						{
 							if (timeout < time(NULL))
 							{
-								EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating connectors!"));
+								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
 
 								overflow = true;
 								return;
@@ -2973,7 +2973,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating seen actors!"));
+									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
 
 									overflow = true;
 									return;
@@ -3051,7 +3051,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 							overflow = true;
 							return;
@@ -3121,7 +3121,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating trains!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating trains!"));
 
 						overflow = true;
 						return;
@@ -3165,7 +3165,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -3190,7 +3190,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating train stops!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
 
 							overflow = true;
 							return;
@@ -3221,7 +3221,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							{
 								if (timeout < time(NULL))
 								{
-									EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while traversing platforms!"));
+									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
 
 									overflow = true;
 									return;
@@ -3294,7 +3294,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					if (timeout < time(NULL))
 					{
-						EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating pipe connectors!"));
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating pipe connectors!"));
 
 						overflow = true;
 						return;
@@ -3382,7 +3382,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						if (timeout < time(NULL))
 						{
-							EC_LOG_Error_Condition(TEXT(__FUNCTION__) TEXT(": timeout while iterating injected items!"));
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating injected items!"));
 
 							overflow = true;
 							return;
@@ -3595,7 +3595,7 @@ void AEfficiencyCheckerLogic::DumpInformation(AActor* worldContext, TSubclassOf<
 		EC_LOG_Display(TEXT("    Equipment equip sound = "), *GetPathNameSafe(equipment->mEquipSound));
 		EC_LOG_Display(TEXT("    Equipment unequip sound = "), *GetPathNameSafe(equipment->mUnequipSound));
 		EC_LOG_Display(TEXT("    Equipment widget = "), *GetPathNameSafe(equipment->mEquipmentWidget));
-		EC_LOG_Display(TEXT("    Equipment use default primary fire = "), equipment->CanDoDefaultPrimaryFire() ? TEXT("true") : TEXT("false"));
+		// EC_LOG_Display(TEXT("    Equipment use default primary fire = "), equipment->CanDoDefaultPrimaryFire() ? TEXT("true") : TEXT("false"));
 		EC_LOG_Display(TEXT("    Equipment idle pose animation = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation()));
 		EC_LOG_Display(TEXT("    Equipment idle pose animation 3p = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation3p()));
 		EC_LOG_Display(TEXT("    Equipment crouch pose animation 3p = "), *GetPathNameSafe(equipment->GetCrouchPoseAnimation3p()));

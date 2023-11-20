@@ -67,5 +67,5 @@ public:
 	}
 
 public:
-	FORCEINLINE ~AEfficiencyCheckerEquipment() = default;
+	//FORCEINLINE ~AEfficiencyCheckerEquipment() = default;
 };

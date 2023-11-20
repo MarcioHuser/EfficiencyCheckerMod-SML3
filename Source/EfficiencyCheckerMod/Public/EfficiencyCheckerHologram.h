@@ -26,7 +26,7 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerHologram : public AFGBuildableH
 
 	virtual void CheckValidPlacement() override;
 
-	virtual void GetSupportedScrollModes(TArray<EHologramScrollMode>* out_modes) const override;
+	//virtual void GetSupportedScrollModes(TArray<EHologramScrollMode>* out_modes) const override;
 
 	//virtual int32 GetRotationStep() const override;
 

@@ -20,6 +20,8 @@
 
 #include <map>
 
+#include "Net/UnrealNetwork.h"
+
 #ifndef OPTIMIZE
 #pragma optimize( "", off)
 #endif
@@ -902,7 +904,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
 
 	EC_LOG_Warning_Condition(
-		TEXT(__FUNCTION__) TEXT(": time = "),
+		FUNCTIONSTR TEXT(": time = "),
 		t,
 		TEXT(" / timeout = "),
 		timeout,

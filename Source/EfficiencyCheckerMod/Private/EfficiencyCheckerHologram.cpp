@@ -33,7 +33,7 @@ AEfficiencyCheckerHologram::AEfficiencyCheckerHologram()
 	this->mValidHitClasses.Add(AEfficiencyCheckerBuilding::StaticClass());
 	this->mValidHitClasses.Add(AFGBuildableConveyorBelt::StaticClass());
 	this->mValidHitClasses.Add(AFGBuildablePipeline::StaticClass());
-	this->mScrollMode = EHologramScrollMode::HSM_ROTATE;
+	//this->mScrollMode = EHologramScrollMode::HSM_ROTATE;
 }
 
 // Called when the game starts or when spawned
@@ -557,13 +557,13 @@ void AEfficiencyCheckerHologram::ScrollRotate(int32 delta, int32 step)
 	}
 }
 
-void AEfficiencyCheckerHologram::GetSupportedScrollModes(TArray<EHologramScrollMode>* out_modes) const
-{
-	if (out_modes)
-	{
-		out_modes->Add(EHologramScrollMode::HSM_ROTATE);
-	}
-}
+// void AEfficiencyCheckerHologram::GetSupportedScrollModes(TArray<EHologramScrollMode>* out_modes) const
+// {
+// 	if (out_modes)
+// 	{
+// 		out_modes->Add(EHologramScrollMode::HSM_ROTATE);
+// 	}
+// }
 
 AEfficiencyCheckerBuilding* AEfficiencyCheckerHologram::GetCheckerBuildable() const
 {

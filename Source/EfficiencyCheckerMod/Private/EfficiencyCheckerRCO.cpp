@@ -1,9 +1,13 @@
 ﻿#include "EfficiencyCheckerRCO.h"
 
+#include "Logic/EfficiencyCheckerLogic.h"
 #include "EFficiencyCheckerEquipment.h"
 #include "EfficiencyCheckerBuilding.h"
 #include "FGPlayerController.h"
+#include "Net/UnrealNetwork.h"
 #include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/Logging.h"
+#include "EfficiencyChecker_ConfigStruct.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )

@@ -163,7 +163,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
 
 	EC_LOG_Warning_Condition(
-		TEXT(__FUNCTION__) TEXT(": time = "),
+		__FUNCTION__ TEXT(": time = "),
 		t,
 		TEXT(" / timeout = "),
 		timeout,

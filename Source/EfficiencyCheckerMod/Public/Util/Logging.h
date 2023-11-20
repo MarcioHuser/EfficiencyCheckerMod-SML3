@@ -4,6 +4,9 @@
 
 #include <sstream>
 
+#define FUNCTIONSTR2(x) #x
+#define FUNCTIONSTR TEXT(FUNCTIONSTR2(__FUNCTION__))
+
 class CommaLog
 {
 public:

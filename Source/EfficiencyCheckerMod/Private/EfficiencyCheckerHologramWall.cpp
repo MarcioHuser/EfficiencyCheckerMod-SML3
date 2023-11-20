@@ -19,7 +19,7 @@ AEfficiencyCheckerHologramWall::AEfficiencyCheckerHologramWall()
 	: Super()
 {
 	this->mValidHitClasses.Add(AFGBuildableWall::StaticClass());
-	this->mScrollMode = EHologramScrollMode::HSM_ROTATE;
+	//this->mScrollMode = EHologramScrollMode::HSM_ROTATE;
 }
 
 // Called when the game starts or when spawned

@@ -7,7 +7,6 @@ struct EFFICIENCYCHECKERMOD_API FProductionDetail
 {
 	GENERATED_USTRUCT_BODY()
 public:
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="EfficiencyCheckerLogic|ProductionDetail")
 	TSubclassOf<class UFGItemDescriptor> buildingType;
 
@@ -20,6 +19,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="EfficiencyCheckerLogic|ProductionDetail")
 	int amount = 0;
 
-	public:
-	FORCEINLINE ~FProductionDetail() = default;
+public:
+	// FORCEINLINE ~FProductionDetail() = default;
 };

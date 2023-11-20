@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Configuration/ConfigManager.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "EfficiencyChecker_ConfigStruct.generated.h"
 
 /* Struct generated from Mod Configuration Asset '/EfficiencyCheckerMod/Configuration/EfficiencyChecker_Config' */
@@ -28,11 +29,14 @@ public:
     float updateTimeout;
 
     /* Retrieves active configuration value and returns object of this struct containing it */
-    static FEfficiencyChecker_ConfigStruct GetActiveConfig() {
+    static FEfficiencyChecker_ConfigStruct GetActiveConfig(UObject* WorldContext) {
         FEfficiencyChecker_ConfigStruct ConfigStruct{};
         FConfigId ConfigId{"EfficiencyCheckerMod", ""};
-        UConfigManager* ConfigManager = GEngine->GetEngineSubsystem<UConfigManager>();
-        ConfigManager->FillConfigurationStruct(ConfigId, FDynamicStructInfo{FEfficiencyChecker_ConfigStruct::StaticStruct(), &ConfigStruct});
+        if (const UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull))
+        {
+            UConfigManager* ConfigManager = World->GetGameInstance()->GetSubsystem<UConfigManager>();
+            ConfigManager->FillConfigurationStruct(ConfigId, FDynamicStructInfo{FEfficiencyChecker_ConfigStruct::StaticStruct(), &ConfigStruct});
+        }
         return ConfigStruct;
     }
 };

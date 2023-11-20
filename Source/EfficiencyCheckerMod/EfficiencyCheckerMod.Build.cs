@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
-using Tools.DotNETCommon;
+using EpicGames.Core;
 
 public class EfficiencyCheckerMod : ModuleRules
 {
@@ -27,21 +27,23 @@ public class EfficiencyCheckerMod : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "CoreUObject",
+				"Core",
+				"CoreUObject",
 				"Engine",
 				"InputCore",
-				"OnlineSubsystem", "OnlineSubsystemNull", "OnlineSubsystemEOS", "OnlineSubsystemUtils",
-				"SignificanceManager",
-				"APEX", "ApexDestruction",
-				"AkAudio",
-				"PhysXVehicles",
+				// "OnlineSubsystem",
+				// "OnlineSubsystemNull",
+				// "OnlineSubsystemEOS",
+				// "OnlineSubsystemUtils",
+				// "SignificanceManager",
+				// "ApexDestruction",
+				// "AkAudio",
 				"AssetRegistry",
 				"NavigationSystem",
-				"ReplicationGraph",
+				// "ReplicationGraph",
 				"AIModule",
 				"GameplayTasks",
 				"SlateCore", "Slate", "UMG",
-				"InstancedSplines",
 				"Json",
 				// ... add other public dependencies that you statically link with here ...
 			}
