@@ -9,8 +9,11 @@
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Util/EfficiencyCheckerOptimize.h"
 #include "Util/Logging.h"
+#include "EfficiencyChecker_ConfigStruct.h"
 
 #include <map>
+
+#include "Buildables/FGBuildablePipeline.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
