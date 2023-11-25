@@ -860,7 +860,7 @@ void AEfficiencyCheckerLogic::collectInput
 							return;
 						}
 
-						if (IsValid(testTeleporter) || testTeleporter == storageTeleporter)
+						if (!IsValid(testTeleporter) || testTeleporter == storageTeleporter)
 						{
 							continue;
 						}
@@ -2468,7 +2468,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							return;
 						}
 
-						if (IsValid(testTeleporter) || testTeleporter == storageTeleporter)
+						if (!IsValid(testTeleporter) || testTeleporter == storageTeleporter)
 						{
 							continue;
 						}
