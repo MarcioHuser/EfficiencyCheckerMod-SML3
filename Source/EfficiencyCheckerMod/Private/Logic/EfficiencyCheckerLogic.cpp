@@ -57,6 +57,10 @@
 // FCriticalSection AEfficiencyCheckerLogic::eclCritical;
 
 AEfficiencyCheckerLogic* AEfficiencyCheckerLogic::singleton = nullptr;
+UClass* AEfficiencyCheckerLogic::baseStorageTeleporterClass = nullptr;
+UClass* AEfficiencyCheckerLogic::baseUndergroundSplitterInputClass = nullptr;
+UClass* AEfficiencyCheckerLogic::baseUndergroundSplitterOutputClass = nullptr;
+UClass* AEfficiencyCheckerLogic::baseModularLoadBalancerClass = nullptr;
 FEfficiencyChecker_ConfigStruct AEfficiencyCheckerLogic::configuration;
 
 // TSet<class AEfficiencyCheckerBuilding*> AEfficiencyCheckerLogic::allEfficiencyBuildings;
@@ -108,6 +112,11 @@ void AEfficiencyCheckerLogic::Initialize
 	removeTeleporterDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeTeleporter);
 	removeUndergroundInputBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeUndergroundInputBelt);
 
+	baseStorageTeleporterClass = UClass::TryFindTypeSlow<UClass>(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"));
+	baseUndergroundSplitterInputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"));
+	baseUndergroundSplitterOutputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"));
+	baseModularLoadBalancerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/LoadBalancers.LBBuild_ModularLoadBalancer"));
+
 	auto subsystem = AFGBuildableSubsystem::Get(this);
 
 	if (subsystem)
@@ -133,6 +142,7 @@ void AEfficiencyCheckerLogic::Initialize
 void AEfficiencyCheckerLogic::Terminate()
 {
 	FScopeLock ScopeLock(&eclCritical);
+
 	allEfficiencyBuildings.Empty();
 	allBelts.Empty();
 	allPipes.Empty();
@@ -140,6 +150,11 @@ void AEfficiencyCheckerLogic::Terminate()
 	allUndergroundInputBelts.Empty();
 
 	singleton = nullptr;
+
+	baseStorageTeleporterClass = nullptr;
+	baseUndergroundSplitterInputClass = nullptr;
+	baseUndergroundSplitterOutputClass = nullptr;
+	baseModularLoadBalancerClass = nullptr;
 }
 
 bool AEfficiencyCheckerLogic::containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
@@ -520,12 +535,13 @@ void AEfficiencyCheckerLogic::collectInput
 			AFGBuildableConveyorAttachment* conveyorAttachment = nullptr;
 			AFGBuildableDockingStation* dockingStation = nullptr;
 			AFGBuildableFactory* storageTeleporter = nullptr;
+			AFGBuildableFactory* modularLoadBalancer = nullptr;
 			AFGBuildableStorage* undergroundBelt = nullptr;
 
 			AFGBuildable* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C") ||
-				fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C")))
+			if (!buildable && (baseUndergroundSplitterInputClass && owner->IsA(baseUndergroundSplitterInputClass) ||
+				baseUndergroundSplitterOutputClass && owner->IsA(baseUndergroundSplitterOutputClass)))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -582,9 +598,14 @@ void AEfficiencyCheckerLogic::collectInput
 			}
 
 			if (!configuration.ignoreStorageTeleporter &&
-				!buildable && fullClassName.EndsWith(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C")))
+				!buildable && baseStorageTeleporterClass && owner->IsA(baseStorageTeleporterClass))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
+			}
+
+			if (!buildable && baseModularLoadBalancerClass && owner->IsA(baseModularLoadBalancerClass))
+			{
+				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
 
 			if (buildable)
@@ -842,12 +863,6 @@ void AEfficiencyCheckerLogic::collectInput
 					// Find all others of the same type
 					auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
-					// TArray<AActor*> allTeleporters;
-					// if (IsInGameThread())
-					// {
-					//     UGameplayStatics::GetAllActorsOfClass(storageTeleporter->GetWorld(), storageTeleporter->GetClass(), allTeleporters);
-					// }
-
 					FScopeLock ScopeLock(&singleton->eclCritical);
 
 					for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
@@ -884,6 +899,13 @@ void AEfficiencyCheckerLogic::collectInput
 							}
 						}
 					}
+				}
+
+				if (modularLoadBalancer)
+				{
+					TSet<AActor*> modularLoadBalancers;
+					collectModularLoadBalancerComponents(modularLoadBalancer, components, modularLoadBalancers);
+					seenActors.Append(modularLoadBalancers);
 				}
 
 				if (undergroundBelt)
@@ -2169,12 +2191,13 @@ void AEfficiencyCheckerLogic::collectOutput
 			AFGBuildableConveyorAttachment* conveyorAttachment = nullptr;
 			AFGBuildableDockingStation* dockingStation = nullptr;
 			AFGBuildableFactory* storageTeleporter = nullptr;
+			AFGBuildableFactory* modularLoadBalancer = nullptr;
 			AFGBuildableStorage* undergroundBelt = nullptr;
 
 			AFGBuildable* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C") ||
-				fullClassName.EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C")))
+			if (!buildable && (baseUndergroundSplitterInputClass && owner->IsA(baseUndergroundSplitterInputClass) ||
+				baseUndergroundSplitterOutputClass && owner->IsA(baseUndergroundSplitterOutputClass)))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -2195,9 +2218,14 @@ void AEfficiencyCheckerLogic::collectOutput
 			}
 
 			if (!configuration.ignoreStorageTeleporter &&
-				!buildable && fullClassName.EndsWith(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C")))
+				!buildable && baseStorageTeleporterClass && owner->IsA(baseStorageTeleporterClass))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
+			}
+
+			if (!buildable && baseModularLoadBalancerClass && owner->IsA(baseModularLoadBalancerClass))
+			{
+				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
 
 			if (buildable)
@@ -2450,12 +2478,6 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
-					// TArray<AActor*> allTeleporters;
-					// if (IsInGameThread())
-					// {
-					//     UGameplayStatics::GetAllActorsOfClass(storageTeleporter->GetWorld(), storageTeleporter->GetClass(), allTeleporters);
-					// }
-
 					FScopeLock ScopeLock(&singleton->eclCritical);
 
 					for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
@@ -2492,6 +2514,16 @@ void AEfficiencyCheckerLogic::collectOutput
 									);
 							}
 						}
+					}
+				}
+
+				if (modularLoadBalancer)
+				{
+					TSet<AActor*> modularLoadBalancers;
+					collectModularLoadBalancerComponents(modularLoadBalancer, components, modularLoadBalancers);
+					for (auto modularLoadBalancerActor : modularLoadBalancers)
+					{
+						addAllItemsToActor(seenActors, modularLoadBalancerActor, injectedItems);
 					}
 				}
 
@@ -3472,70 +3504,70 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 	{
 		EC_LOG_Display(*indent, TEXT("Unknown Class "), *GetPathNameSafe(owner->GetClass()));
 
-		for (auto cls = owner->GetClass()->GetSuperClass(); cls && cls != AActor::StaticClass(); cls = cls->GetSuperClass())
-		{
-			EC_LOG_Display(*indent, TEXT("    - Super: "), *GetPathNameSafe(cls));
-		}
-
-		EC_LOG_Display(*indent, TEXT("Properties "), *GetPathNameSafe(owner->GetClass()));
-
-		for (TFieldIterator<FProperty> property(owner->GetClass()); property; ++property)
-		{
-			EC_LOG_Display(
-				*indent,
-				TEXT("        - "),
-				*property->GetName(),
-				TEXT(" ("),
-				*property->GetCPPType(),
-				TEXT(" / Type: "),
-				// *GetPathNameSafe(property->GetClass()->GetName()),
-				*property->GetClass()->GetName(),
-				TEXT(" / From: "),
-				*GetPathNameSafe(property->GetOwnerClass()),
-				TEXT(")")
-				);
-
-			auto floatProperty = CastField<FFloatProperty>(*property);
-			if (floatProperty)
-			{
-				EC_LOG_Display(*indent, TEXT("            = "), floatProperty->GetPropertyValue_InContainer(owner));
-			}
-
-			auto intProperty = CastField<FIntProperty>(*property);
-			if (intProperty)
-			{
-				EC_LOG_Display(*indent, TEXT("            = "), intProperty->GetPropertyValue_InContainer(owner));
-			}
-
-			auto boolProperty = CastField<FBoolProperty>(*property);
-			if (boolProperty)
-			{
-				EC_LOG_Display(*indent, TEXT("            = "), boolProperty->GetPropertyValue_InContainer(owner) ? TEXT("true") : TEXT("false"));
-			}
-
-			auto structProperty = CastField<FStructProperty>(*property);
-			if (structProperty && property->GetName() == TEXT("mFactoryTickFunction"))
-			{
-				auto factoryTick = structProperty->ContainerPtrToValuePtr<FFactoryTickFunction>(owner);
-				if (factoryTick)
-				{
-					EC_LOG_Display(*indent, TEXT("            - Tick Interval = "), factoryTick->TickInterval);
-				}
-			}
-
-			auto strProperty = CastField<FStrProperty>(*property);
-			if (strProperty)
-			{
-				EC_LOG_Display(*indent, TEXT("            = "), *strProperty->GetPropertyValue_InContainer(owner));
-			}
-
-			auto classProperty = CastField<FClassProperty>(*property);
-			if (classProperty)
-			{
-				auto ClassObject = Cast<UClass>(classProperty->GetPropertyValue_InContainer(owner));
-				EC_LOG_Display(*indent, TEXT("            - Class = "), *GetPathNameSafe(ClassObject));
-			}
-		}
+		// for (auto cls = owner->GetClass()->GetSuperClass(); cls && cls != AActor::StaticClass(); cls = cls->GetSuperClass())
+		// {
+		// 	EC_LOG_Display(*indent, TEXT("    - Super: "), *GetPathNameSafe(cls));
+		// }
+		//
+		// EC_LOG_Display(*indent, TEXT("Properties "), *GetPathNameSafe(owner->GetClass()));
+		//
+		// for (TFieldIterator<FProperty> property(owner->GetClass()); property; ++property)
+		// {
+		// 	EC_LOG_Display(
+		// 		*indent,
+		// 		TEXT("        - "),
+		// 		*property->GetName(),
+		// 		TEXT(" ("),
+		// 		*property->GetCPPType(),
+		// 		TEXT(" / Type: "),
+		// 		// *GetPathNameSafe(property->GetClass()->GetName()),
+		// 		*property->GetClass()->GetName(),
+		// 		TEXT(" / From: "),
+		// 		*GetPathNameSafe(property->GetOwnerClass()),
+		// 		TEXT(")")
+		// 		);
+		//
+		// 	auto floatProperty = CastField<FFloatProperty>(*property);
+		// 	if (floatProperty)
+		// 	{
+		// 		EC_LOG_Display(*indent, TEXT("            = "), floatProperty->GetPropertyValue_InContainer(owner));
+		// 	}
+		//
+		// 	auto intProperty = CastField<FIntProperty>(*property);
+		// 	if (intProperty)
+		// 	{
+		// 		EC_LOG_Display(*indent, TEXT("            = "), intProperty->GetPropertyValue_InContainer(owner));
+		// 	}
+		//
+		// 	auto boolProperty = CastField<FBoolProperty>(*property);
+		// 	if (boolProperty)
+		// 	{
+		// 		EC_LOG_Display(*indent, TEXT("            = "), boolProperty->GetPropertyValue_InContainer(owner) ? TEXT("true") : TEXT("false"));
+		// 	}
+		//
+		// 	auto structProperty = CastField<FStructProperty>(*property);
+		// 	if (structProperty && property->GetName() == TEXT("mFactoryTickFunction"))
+		// 	{
+		// 		auto factoryTick = structProperty->ContainerPtrToValuePtr<FFactoryTickFunction>(owner);
+		// 		if (factoryTick)
+		// 		{
+		// 			EC_LOG_Display(*indent, TEXT("            - Tick Interval = "), factoryTick->TickInterval);
+		// 		}
+		// 	}
+		//
+		// 	auto strProperty = CastField<FStrProperty>(*property);
+		// 	if (strProperty)
+		// 	{
+		// 		EC_LOG_Display(*indent, TEXT("            = "), *strProperty->GetPropertyValue_InContainer(owner));
+		// 	}
+		//
+		// 	auto classProperty = CastField<FClassProperty>(*property);
+		// 	if (classProperty)
+		// 	{
+		// 		auto ClassObject = Cast<UClass>(classProperty->GetPropertyValue_InContainer(owner));
+		// 		EC_LOG_Display(*indent, TEXT("            - Class = "), *GetPathNameSafe(ClassObject));
+		// 	}
+		// }
 	}
 }
 
@@ -3655,7 +3687,7 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	{
 		return true;
 	}
-	if (GetPathNameSafe(newBuildable->GetClass()).EndsWith("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"))
+	if (baseUndergroundSplitterInputClass && newBuildable->IsA(baseUndergroundSplitterInputClass))
 	{
 		if (auto underGroundBelt = Cast<AFGBuildableStorage>(newBuildable))
 		{
@@ -3712,10 +3744,12 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	{
 		return true;
 	}
-	if (!configuration.ignoreStorageTeleporter &&
-		GetPathNameSafe(newBuildable->GetClass()).EndsWith(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C")))
+	if (!configuration.ignoreStorageTeleporter && baseStorageTeleporterClass && newBuildable->IsA(baseStorageTeleporterClass))
 	{
-		addTeleporter(newBuildable);
+		if (auto storageTeleporter = Cast<AFGBuildableFactory>(newBuildable))
+		{
+			addTeleporter(storageTeleporter);
+		}
 
 		return true;
 	}
@@ -3771,7 +3805,7 @@ void AEfficiencyCheckerLogic::removePipe(AActor* actor, EEndPlayReason::Type rea
 	actor->OnEndPlay.Remove(removePipeDelegate);
 }
 
-void AEfficiencyCheckerLogic::addTeleporter(AFGBuildable* teleporter)
+void AEfficiencyCheckerLogic::addTeleporter(AFGBuildableFactory* teleporter)
 {
 	FScopeLock ScopeLock(&eclCritical);
 	allTeleporters.Add(teleporter);
@@ -3779,12 +3813,12 @@ void AEfficiencyCheckerLogic::addTeleporter(AFGBuildable* teleporter)
 	teleporter->OnEndPlay.Add(removeTeleporterDelegate);
 }
 
-void AEfficiencyCheckerLogic::removeTeleporter(AActor* actor, EEndPlayReason::Type reason)
+void AEfficiencyCheckerLogic::removeTeleporter(AActor* teleporter, EEndPlayReason::Type reason)
 {
 	FScopeLock ScopeLock(&eclCritical);
-	allTeleporters.Remove(Cast<AFGBuildable>(actor));
+	allTeleporters.Remove(Cast<AFGBuildableFactory>(teleporter));
 
-	actor->OnEndPlay.Remove(removeTeleporterDelegate);
+	teleporter->OnEndPlay.Remove(removeTeleporterDelegate);
 }
 
 void AEfficiencyCheckerLogic::addUndergroundInputBelt(AFGBuildableStorage* undergroundInputBelt)
@@ -3795,12 +3829,12 @@ void AEfficiencyCheckerLogic::addUndergroundInputBelt(AFGBuildableStorage* under
 	undergroundInputBelt->OnEndPlay.Add(removeUndergroundInputBeltDelegate);
 }
 
-void AEfficiencyCheckerLogic::removeUndergroundInputBelt(AActor* actor, EEndPlayReason::Type reason)
+void AEfficiencyCheckerLogic::removeUndergroundInputBelt(AActor* undergroundInputBelt, EEndPlayReason::Type reason)
 {
 	FScopeLock ScopeLock(&eclCritical);
-	allUndergroundInputBelts.Remove(Cast<AFGBuildableStorage>(actor));
+	allUndergroundInputBelts.Remove(Cast<AFGBuildableStorage>(undergroundInputBelt));
 
-	actor->OnEndPlay.Remove(removeUndergroundInputBeltDelegate);
+	undergroundInputBelt->OnEndPlay.Remove(removeUndergroundInputBeltDelegate);
 }
 
 float AEfficiencyCheckerLogic::getPipeSpeed(AFGBuildablePipeline* pipe)
@@ -3978,6 +4012,46 @@ void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
 							)
 						);
 				}
+			}
+		}
+	}
+}
+
+void AEfficiencyCheckerLogic::collectModularLoadBalancerComponents
+(
+	AFGBuildableFactory* modularLoadBalancer,
+	TSet<UFGFactoryConnectionComponent*>& components,
+	TSet<AActor*>& actors
+)
+{
+	auto arrayProperty = CastField<FArrayProperty>(modularLoadBalancer->GetClass()->FindPropertyByName(TEXT("mGroupModules")));
+	if (!arrayProperty)
+	{
+		return;
+	}
+
+	if (arrayProperty)
+	{
+		FScriptArrayHelper arrayHelper(arrayProperty, arrayProperty->ContainerPtrToValuePtr<void>(modularLoadBalancer));
+
+		auto arrayWeakObjectProperty = CastField<FWeakObjectProperty>(arrayProperty->Inner);
+
+		for (auto x = 0; x < arrayHelper.Num(); x++)
+		{
+			void* ObjectContainer = arrayHelper.GetRawPtr(x);
+			auto loadBalancerModule = Cast<AFGBuildableFactory>(arrayWeakObjectProperty->GetObjectPropertyValue(ObjectContainer));
+			if (loadBalancerModule)
+			{
+				actors.Add(loadBalancerModule);
+
+				components.Append(
+					loadBalancerModule->GetConnectionComponents().FilterByPredicate(
+						[&components](UFGFactoryConnectionComponent* connection)
+						{
+							return !components.Contains(connection); // Not in use already
+						}
+						)
+					);
 			}
 		}
 	}

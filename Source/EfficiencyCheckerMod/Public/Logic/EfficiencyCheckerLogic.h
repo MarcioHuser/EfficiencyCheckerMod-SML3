@@ -101,11 +101,15 @@ public:
 
 	static AEfficiencyCheckerLogic* singleton;
 	static FEfficiencyChecker_ConfigStruct configuration;
+	static UClass* baseStorageTeleporterClass;
+	static UClass* baseUndergroundSplitterInputClass;
+	static UClass* baseUndergroundSplitterOutputClass;
+	static UClass* baseModularLoadBalancerClass;
 
 	TSet<class AEfficiencyCheckerBuilding*> allEfficiencyBuildings;
 	TSet<class AFGBuildableConveyorBelt*> allBelts;
 	TSet<class AFGBuildablePipeline*> allPipes;
-	TSet<class AFGBuildable*> allTeleporters;
+	TSet<class AFGBuildableFactory*> allTeleporters;
 	TSet<class AFGBuildableStorage*> allUndergroundInputBelts;
 
 	FActorEndPlaySignature::FDelegate removeEffiencyBuildingDelegate;
@@ -117,7 +121,7 @@ public:
 	virtual void addEfficiencyBuilding(class AEfficiencyCheckerBuilding* actor);
 	virtual void addBelt(class AFGBuildableConveyorBelt* actor);
 	virtual void addPipe(class AFGBuildablePipeline* actor);
-	virtual void addTeleporter(class AFGBuildable* actor);
+	virtual void addTeleporter(class AFGBuildableFactory* actor);
 	virtual void addUndergroundInputBelt(class AFGBuildableStorage* actor);
 
 	UFUNCTION()
@@ -127,9 +131,9 @@ public:
 	UFUNCTION()
 	virtual void removePipe(AActor* actor, EEndPlayReason::Type reason);
 	UFUNCTION()
-	virtual void removeTeleporter(AActor* actor, EEndPlayReason::Type reason);
+	virtual void removeTeleporter(AActor* teleporter, EEndPlayReason::Type reason);
 	UFUNCTION()
-	virtual void removeUndergroundInputBelt(AActor* actor, EEndPlayReason::Type reason);
+	virtual void removeUndergroundInputBelt(AActor* undergroundInputBelt, EEndPlayReason::Type reason);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
 	static bool IsAutoUpdateEnabled();
@@ -145,5 +149,17 @@ public:
 
 	static EPipeConnectionType GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
 
-	static void collectUndergroundBeltsComponents(class AFGBuildableStorage* undergroundBelt, TSet<class UFGFactoryConnectionComponent*>& components, TSet<AActor*>& actors);
+	static void collectUndergroundBeltsComponents
+	(
+		class AFGBuildableStorage* undergroundBelt,
+		TSet<class UFGFactoryConnectionComponent*>& components,
+		TSet<AActor*>& actors
+	);
+
+	static void collectModularLoadBalancerComponents
+	(
+		AFGBuildableFactory* modularLoadBalancer,
+		TSet<UFGFactoryConnectionComponent*>& components,
+		TSet<AActor*>& actors
+	);
 };
