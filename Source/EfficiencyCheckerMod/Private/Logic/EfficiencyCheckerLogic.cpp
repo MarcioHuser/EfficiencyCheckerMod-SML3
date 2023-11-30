@@ -5,6 +5,7 @@
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Util/EfficiencyCheckerOptimize.h"
 #include "Util/Logging.h"
+#include "Util/Helpers.h"
 
 #include "AkAudioEvent.h"
 #include "Animation/AnimSequence.h"
@@ -43,6 +44,8 @@
 #include "EfficiencyCheckerBuilding.h"
 #include "Buildables/FGBuildableManufacturer.h"
 #include "Buildables/FGBuildablePipeline.h"
+#include "Logic/EfficiencyCheckerLogic2.h"
+#include "Util/EfficiencyCheckerConfiguration.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
@@ -56,33 +59,10 @@
 //
 // FCriticalSection AEfficiencyCheckerLogic::eclCritical;
 
+const FRegexPattern AEfficiencyCheckerLogic::indexPattern(TEXT("(\\d+)$"));
 AEfficiencyCheckerLogic* AEfficiencyCheckerLogic::singleton = nullptr;
-UClass* AEfficiencyCheckerLogic::baseStorageTeleporterClass = nullptr;
-UClass* AEfficiencyCheckerLogic::baseUndergroundSplitterInputClass = nullptr;
-UClass* AEfficiencyCheckerLogic::baseUndergroundSplitterOutputClass = nullptr;
-UClass* AEfficiencyCheckerLogic::baseModularLoadBalancerClass = nullptr;
-FEfficiencyChecker_ConfigStruct AEfficiencyCheckerLogic::configuration;
 
 // TSet<class AEfficiencyCheckerBuilding*> AEfficiencyCheckerLogic::allEfficiencyBuildings;
-
-inline FString getEnumItemName(const TCHAR* name, int value)
-{
-	FString valueStr;
-
-	auto MyEnum = FindObject<UEnum>(ANY_PACKAGE, name);
-	if (MyEnum)
-	{
-		MyEnum->AddToRoot();
-
-		valueStr = MyEnum->GetDisplayNameTextByValue(value).ToString();
-	}
-	else
-	{
-		valueStr = TEXT("(Unknown)");
-	}
-
-	return FString::Printf(TEXT("%s (%d)"), *valueStr, value);
-}
 
 void AEfficiencyCheckerLogic::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
@@ -114,8 +94,9 @@ void AEfficiencyCheckerLogic::Initialize
 
 	baseStorageTeleporterClass = UClass::TryFindTypeSlow<UClass>(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"));
 	baseUndergroundSplitterInputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"));
-	baseUndergroundSplitterOutputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"));
+	baseUndergroundSplitterOutputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C"));
 	baseModularLoadBalancerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/LoadBalancers.LBBuild_ModularLoadBalancer"));
+	baseBuildableFactorySimpleProducerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/FactoryGame.FGBuildableFactorySimpleProducer"));
 
 	auto subsystem = AFGBuildableSubsystem::Get(this);
 
@@ -137,6 +118,10 @@ void AEfficiencyCheckerLogic::Initialize
 		// 	gameMode->RegisterRemoteCallObjectClass(UEfficiencyCheckerRCO::StaticClass());
 		// }
 	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnParameters.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
 }
 
 void AEfficiencyCheckerLogic::Terminate()
@@ -155,32 +140,33 @@ void AEfficiencyCheckerLogic::Terminate()
 	baseUndergroundSplitterInputClass = nullptr;
 	baseUndergroundSplitterOutputClass = nullptr;
 	baseModularLoadBalancerClass = nullptr;
+	baseBuildableFactorySimpleProducerClass = nullptr;
 }
 
-bool AEfficiencyCheckerLogic::containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
+bool AEfficiencyCheckerLogic::containsActor(const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
 {
-	return seenActors.find(actor) != seenActors.end();
+	return seenActors.Contains(actor);
 }
 
 bool AEfficiencyCheckerLogic::actorContainsItem
 (
-	const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	AActor* actor,
 	const TSubclassOf<UFGItemDescriptor>& item
 )
 {
-	auto it = seenActors.find(actor);
-	if (it == seenActors.end())
+	auto value = seenActors.Find(actor);
+	if (value == nullptr)
 	{
 		return false;
 	}
 
-	return it->second.Contains(item);
+	return value->Contains(item);
 }
 
 void AEfficiencyCheckerLogic::addAllItemsToActor
 (
-	std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	AActor* actor,
 	const TSet<TSubclassOf<UFGItemDescriptor>>& items
 )
@@ -201,7 +187,7 @@ void AEfficiencyCheckerLogic::collectInput
 	class UFGConnectionComponent* connector,
 	float& out_injectedInput,
 	float& out_limitedThroughput,
-	TSet<AActor*>& seenActors,
+	TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	TSet<class AFGBuildable*>& connected,
 	TSet<TSubclassOf<UFGItemDescriptor>>& out_injectedItems,
 	const TSet<TSubclassOf<UFGItemDescriptor>>& in_restrictItems,
@@ -494,31 +480,7 @@ void AEfficiencyCheckerLogic::collectInput
 			const auto conveyor = Cast<AFGBuildableConveyorBase>(owner);
 			if (conveyor)
 			{
-				// The innitial limit for a belt is its own speed
-				// out_limitedThroughput = conveyor->GetSpeed() / 2;
-
-				// const auto conveyorInput = conveyor->GetConnection0();
-				// if (conveyorInput && conveyorInput->IsConnected())
-				// {
-				//     float previousLimit = out_limitedThroughput;
-				//     collectInput(
-				//         resourceForm,
-				//         customInjectedInput,
-				//         conveyorInput->GetConnection(),
-				//         out_injectedInput,
-				//         previousLimit,
-				//         seenActors,
-				//         connected,
-				//         out_injectedItems,
-				//         restrictItems,
-				//         buildableSubsystem,
-				//         level + 1,
-				//         indent + TEXT("    ")
-				//         );
-				//
-				//     out_limitedThroughput = FMath::Min(out_limitedThroughput, previousLimit);
-				// }
-
+				// The initial limit for a belt is its own speed
 				connected.Add(conveyor);
 
 				connector = conveyor->GetConnection0()->GetConnection();
@@ -540,8 +502,8 @@ void AEfficiencyCheckerLogic::collectInput
 
 			AFGBuildable* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (baseUndergroundSplitterInputClass && owner->IsA(baseUndergroundSplitterInputClass) ||
-				baseUndergroundSplitterOutputClass && owner->IsA(baseUndergroundSplitterOutputClass)))
+			if (!buildable && (singleton->baseUndergroundSplitterInputClass && owner->IsA(singleton->baseUndergroundSplitterInputClass) ||
+				singleton->baseUndergroundSplitterOutputClass && owner->IsA(singleton->baseUndergroundSplitterOutputClass)))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -597,13 +559,13 @@ void AEfficiencyCheckerLogic::collectInput
 				}
 			}
 
-			if (!configuration.ignoreStorageTeleporter &&
-				!buildable && baseStorageTeleporterClass && owner->IsA(baseStorageTeleporterClass))
+			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
+				!buildable && singleton->baseStorageTeleporterClass && owner->IsA(singleton->baseStorageTeleporterClass))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
 
-			if (!buildable && baseModularLoadBalancerClass && owner->IsA(baseModularLoadBalancerClass))
+			if (!buildable && singleton->baseModularLoadBalancerClass && owner->IsA(singleton->baseModularLoadBalancerClass))
 			{
 				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
@@ -865,7 +827,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					FScopeLock ScopeLock(&singleton->eclCritical);
 
-					for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
+					for (auto testTeleporter : singleton->allTeleporters)
 					{
 						if (timeout < time(NULL))
 						{
@@ -905,14 +867,20 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					TSet<AActor*> modularLoadBalancers;
 					collectModularLoadBalancerComponents(modularLoadBalancer, components, modularLoadBalancers);
-					seenActors.Append(modularLoadBalancers);
+					for (auto building : modularLoadBalancers)
+					{
+						seenActors.Add(building);
+					}
 				}
 
 				if (undergroundBelt)
 				{
 					TSet<AActor*> undergroundActors;
 					collectUndergroundBeltsComponents(undergroundBelt, components, undergroundActors);
-					seenActors.Append(undergroundActors);
+					for (auto building : undergroundActors)
+					{
+						seenActors.Add(building);
+					}
 				}
 
 				int currentOutputIndex = -1;
@@ -920,6 +888,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 				// Filter items
 				auto smartSplitter = Cast<AFGBuildableSplitterSmart>(buildable);
+
 				if (smartSplitter)
 				{
 					for (auto connection : components)
@@ -1179,7 +1148,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						float previousLimit = 0;
 						float discountedInput = 0;
-						std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
+						TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
 
 						auto tempInjectedItems = out_injectedItems;
 
@@ -1198,7 +1167,7 @@ void AEfficiencyCheckerLogic::collectInput
 								return;
 							}
 
-							seenActorsCopy[actor] = out_injectedItems;
+							seenActorsCopy[actor.Key] = out_injectedItems;
 						}
 
 						collectOutput(
@@ -1477,7 +1446,7 @@ void AEfficiencyCheckerLogic::collectInput
 							float previousLimit = 0;
 							float discountedInput = 0;
 
-							std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
+							TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
 
 							for (auto actor : seenActors)
 							{
@@ -1489,7 +1458,7 @@ void AEfficiencyCheckerLogic::collectInput
 									return;
 								}
 
-								seenActorsCopy[actor] = out_injectedItems;
+								seenActorsCopy[actor.Key] = out_injectedItems;
 							}
 
 							collectOutput(
@@ -1875,7 +1844,7 @@ void AEfficiencyCheckerLogic::collectInput
 					float previousLimit = 0;
 					float discountedInput = 0;
 
-					std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
+					TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
 
 					for (auto actor : seenActors)
 					{
@@ -1887,7 +1856,7 @@ void AEfficiencyCheckerLogic::collectInput
 							return;
 						}
 
-						seenActorsCopy[actor] = out_injectedItems;
+						seenActorsCopy[actor.Key] = out_injectedItems;
 					}
 
 					collectOutput(
@@ -1949,7 +1918,7 @@ void AEfficiencyCheckerLogic::collectInput
 			}
 		}
 
-		if (inheritsFrom(owner, TEXT("/Script/FactoryGame.FGBuildableFactorySimpleProducer")))
+		if (singleton->baseBuildableFactorySimpleProducerClass && owner->IsA(singleton->baseBuildableFactorySimpleProducerClass))
 		{
 			TSubclassOf<UFGItemDescriptor> itemType = FReflectionHelper::GetObjectPropertyValue<UClass>(owner, TEXT("mItemType"));
 			auto timeToProduceItem = FReflectionHelper::GetPropertyValue<FFloatProperty>(owner, TEXT("mTimeToProduceItem"));
@@ -1983,7 +1952,7 @@ void AEfficiencyCheckerLogic::collectOutput
 	class UFGConnectionComponent* connector,
 	float& out_requiredOutput,
 	float& out_limitedThroughput,
-	std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	TSet<AFGBuildable*>& connected,
 	const TSet<TSubclassOf<UFGItemDescriptor>>& in_injectedItems,
 	class AFGBuildableSubsystem* buildableSubsystem,
@@ -2152,29 +2121,6 @@ void AEfficiencyCheckerLogic::collectOutput
 			{
 				addAllItemsToActor(seenActors, conveyor, injectedItems);
 
-				// // The innitial limit for a belt is its own speed
-				// out_limitedThroughput = conveyor->GetSpeed() / 2;
-				//
-				// const auto conveyorInput = conveyor->GetConnection1();
-				// if (conveyorInput && conveyorInput->IsConnected())
-				// {
-				//     float previousLimit = out_limitedThroughput;
-				//     collectOutput(
-				//         resourceForm,
-				//         conveyorInput->GetConnection(),
-				//         out_requiredOutput,
-				//         previousLimit,
-				//         seenActors,
-				//         connected,
-				//         injectedItems,
-				//         buildableSubsystem,
-				//         level + 1,
-				//         indent + TEXT("    ")
-				//         );
-				//
-				//     out_limitedThroughput = FMath::Min(out_limitedThroughput, previousLimit);
-				// }
-
 				connected.Add(conveyor);
 
 				connector = conveyor->GetConnection1()->GetConnection();
@@ -2196,8 +2142,8 @@ void AEfficiencyCheckerLogic::collectOutput
 
 			AFGBuildable* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (baseUndergroundSplitterInputClass && owner->IsA(baseUndergroundSplitterInputClass) ||
-				baseUndergroundSplitterOutputClass && owner->IsA(baseUndergroundSplitterOutputClass)))
+			if (!buildable && (singleton->baseUndergroundSplitterInputClass && owner->IsA(singleton->baseUndergroundSplitterInputClass) ||
+				singleton->baseUndergroundSplitterOutputClass && owner->IsA(singleton->baseUndergroundSplitterOutputClass)))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -2217,13 +2163,13 @@ void AEfficiencyCheckerLogic::collectOutput
 				buildable = dockingStation = Cast<AFGBuildableDockingStation>(owner);
 			}
 
-			if (!configuration.ignoreStorageTeleporter &&
-				!buildable && baseStorageTeleporterClass && owner->IsA(baseStorageTeleporterClass))
+			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
+				!buildable && singleton->baseStorageTeleporterClass && owner->IsA(singleton->baseStorageTeleporterClass))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
 
-			if (!buildable && baseModularLoadBalancerClass && owner->IsA(baseModularLoadBalancerClass))
+			if (!buildable && singleton->baseModularLoadBalancerClass && owner->IsA(singleton->baseModularLoadBalancerClass))
 			{
 				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
@@ -2611,7 +2557,6 @@ void AEfficiencyCheckerLogic::collectOutput
 					}
 				}
 
-
 				TArray<UFGFactoryConnectionComponent*> connectedInputs, connectedOutputs;
 				for (auto connection : components)
 				{
@@ -2664,7 +2609,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				if (connectedOutputs.Num() == 0)
 				{
 					// Nothing is being outputed. Bail
-					EC_LOG_Error_Condition(*indent, *buildable->GetName(), TEXT(" has no input"));
+					EC_LOG_Error_Condition(*indent, *buildable->GetName(), TEXT(" has no output"));
 				}
 				else
 				{
@@ -2764,22 +2709,9 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							float previousLimit = 0;
 							float discountedOutput = 0;
-							TSet<AActor*> seenActorsCopy;
+							auto seenActorsCopy = seenActors;
 
 							auto tempInjectedItems = injectedItems;
-
-							for (auto actor : seenActors)
-							{
-								if (timeout < time(NULL))
-								{
-									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
-
-									overflow = true;
-									return;
-								}
-
-								seenActorsCopy.Add(actor.first);
-							}
 
 							collectInput(
 								resourceForm,
@@ -2848,7 +2780,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				}
 
 				auto otherConnections =
-					seenActors.size() == 1
+					seenActors.Num() == 1
 						? components
 						: components.FilterByPredicate(
 							[connector, seenActors](UFGPipeConnectionComponent* pipeConnection)
@@ -2900,7 +2832,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					bool firstConnection = true;
 					float limitedThroughput = out_limitedThroughput;
 
-					bool firstActor = seenActors.size() == 1;
+					bool firstActor = seenActors.Num() == 1;
 
 					for (auto connection : (firstActor ? components : otherConnections))
 					{
@@ -2997,22 +2929,22 @@ void AEfficiencyCheckerLogic::collectOutput
 							float previousLimit = 0;
 							float discountedOutput = 0;
 
-							TSet<AActor*> seenActorsCopy;
+							auto seenActorsCopy = seenActors;
 
 							auto tempInjectedItems = injectedItems;
 
-							for (auto actor : seenActors)
-							{
-								if (timeout < time(NULL))
-								{
-									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
-
-									overflow = true;
-									return;
-								}
-
-								seenActorsCopy.Add(actor.first);
-							}
+							// for (auto actor : seenActors)
+							// {
+							// 	if (timeout < time(NULL))
+							// 	{
+							// 		EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating seen actors!"));
+							//
+							// 		overflow = true;
+							// 		return;
+							// 	}
+							//
+							// 	seenActorsCopy.Add(actor.Key);
+							// }
 
 							collectInput(
 								resourceForm,
@@ -3744,7 +3676,7 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	{
 		return true;
 	}
-	if (!configuration.ignoreStorageTeleporter && baseStorageTeleporterClass && newBuildable->IsA(baseStorageTeleporterClass))
+	if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter && baseStorageTeleporterClass && newBuildable->IsA(baseStorageTeleporterClass))
 	{
 		if (auto storageTeleporter = Cast<AFGBuildableFactory>(newBuildable))
 		{
@@ -3845,89 +3777,6 @@ float AEfficiencyCheckerLogic::getPipeSpeed(AFGBuildablePipeline* pipe)
 	}
 
 	return UFGBlueprintFunctionLibrary::RoundFloatWithPrecision(pipe->GetFlowLimit() * 60, 4);
-}
-
-void AEfficiencyCheckerLogic::setConfiguration(const FEfficiencyChecker_ConfigStruct& in_configuration)
-{
-	configuration = in_configuration;
-
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-	EC_LOG_Display(TEXT("StartupModule"));
-
-	if (configuration.updateTimeout <= 0)
-	{
-		configuration.updateTimeout = 15;
-	}
-
-	EC_LOG_Display(TEXT("autoUpdate = "), configuration.autoUpdate ? TEXT("true") : TEXT("false"));
-	EC_LOG_Display(TEXT("autoUpdateTimeout = "), configuration.autoUpdateTimeout);
-	EC_LOG_Display(TEXT("autoUpdateDistance = "), configuration.autoUpdateDistance);
-	EC_LOG_Display(TEXT("logLevel = "), configuration.logLevel);
-	EC_LOG_Display(TEXT("ignoreStorageTeleporter = "), configuration.ignoreStorageTeleporter ? TEXT("true") : TEXT("false"));
-	EC_LOG_Display(TEXT("updateTimeout = "), configuration.updateTimeout);
-
-	if (configuration.autoUpdate)
-	{
-		EC_LOG_Display(TEXT("Hooking AFGBuildableFactory::SetPendingPotential"));
-
-		{
-			void* ObjectInstance = GetMutableDefault<AFGBuildableFactory>();
-
-			SUBSCRIBE_METHOD_VIRTUAL_AFTER(
-				AFGBuildableFactory::SetPendingPotential,
-				ObjectInstance,
-				[](AFGBuildableFactory * factory, float potential) {
-				AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
-				}
-				);
-		}
-
-		{
-			void* ObjectInstance = GetMutableDefault<AFGBuildableFrackingActivator>();
-
-			SUBSCRIBE_METHOD_VIRTUAL_AFTER(
-				AFGBuildableFrackingActivator::SetPendingPotential,
-				ObjectInstance,
-				[](AFGBuildableFrackingActivator * factory, float potential) {
-				AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
-				}
-				);
-		}
-
-		{
-			void* ObjectInstance = GetMutableDefault<AFGBuildableGeneratorFuel>();
-
-			SUBSCRIBE_METHOD_VIRTUAL_AFTER(
-				AFGBuildableGeneratorFuel::SetPendingPotential,
-				ObjectInstance,
-				[](AFGBuildableGeneratorFuel * factory, float potential) {
-				AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
-				}
-				);
-		}
-	}
-
-	EC_LOG_Display(TEXT("==="));
-}
-
-bool AEfficiencyCheckerLogic::IsAutoUpdateEnabled()
-{
-	return configuration.autoUpdate;
-}
-
-int AEfficiencyCheckerLogic::GetLogLevelECM()
-{
-	return configuration.logLevel;
-}
-
-float AEfficiencyCheckerLogic::GetAutoUpdateTimeout()
-{
-	return configuration.autoUpdateTimeout;
-}
-
-float AEfficiencyCheckerLogic::GetAutoUpdateDistance()
-{
-	return configuration.autoUpdateDistance;
 }
 
 EPipeConnectionType AEfficiencyCheckerLogic::GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component)
@@ -4057,6 +3906,205 @@ void AEfficiencyCheckerLogic::collectModularLoadBalancerComponents
 	}
 }
 
+void AEfficiencyCheckerLogic::collectSmartSplitterComponents
+(
+	class UFGConnectionComponent* connector,
+	const FComponentFilter& currentFilter,
+	class AFGBuildableSplitterSmart* smartSplitter,
+	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& connectedInputs,
+	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& componentOutputs,
+	EFactoryConnectionDirection direction,
+	const FString& indent,
+	const time_t& timeout,
+	bool& overflow
+)
+{
+	TArray<UFGFactoryConnectionComponent*> tempComponents;
+	smartSplitter->GetComponents(tempComponents);
+
+	TMap<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
+	TMap<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
+
+	typedef TMap<UFGFactoryConnectionComponent*, FComponentFilter>::ElementType mapEntryType;
+
+	TMap<int, UFGFactoryConnectionComponent*> outputComponentsMapByIndex;
+
+	// Collect inputs and outputs
+	for (auto connection : tempComponents)
+	{
+		if (timeout < time(NULL))
+		{
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating smart splitters connectors!"));
+
+			overflow = true;
+			return;
+		}
+
+		if (!connection->IsConnected())
+		{
+			// It is not connected. Ignore it
+			continue;
+		}
+
+		if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
+		{
+			// It is not a belt type. Ignore it
+			continue;
+		}
+
+		FRegexMatcher m(indexPattern, connection->GetName());
+		if (m.FindNext())
+		{
+			if (connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
+			{
+				// It is an input connector
+				auto index = FCString::Atoi(*m.GetCaptureGroup(1));
+
+				tempInputComponents[connection].allowedFiltered = false;
+				tempInputComponents[connection].index = index;
+			}
+			else if (connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
+			{
+				// It is an output connector
+				auto index = FCString::Atoi(*m.GetCaptureGroup(1));
+
+				tempOutputComponents[connection].allowedFiltered = false;
+				tempOutputComponents[connection].index = index;
+
+				outputComponentsMapByIndex[index] = connection;
+			}
+		}
+	}
+
+	// Already restricted. Restrict further
+	for (int x = 0; x < smartSplitter->GetNumSortRules(); ++x)
+	{
+		auto rule = smartSplitter->GetSortRuleAt(x);
+
+		EC_LOG_Display_Condition(
+			/**getTimeStamp(),*/
+			*indent,
+			TEXT("Rule "),
+			x,
+			TEXT(" / output index = "),
+			rule.OutputIndex,
+			TEXT(" / item = "),
+			*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
+			TEXT(" / class = "),
+			*GetPathNameSafe(rule.ItemClass)
+			);
+
+		if (!outputComponentsMapByIndex.Contains(rule.OutputIndex))
+		{
+			// The connector is not connect or is not valid
+			continue;
+		}
+
+		auto connection = outputComponentsMapByIndex[rule.OutputIndex];
+		if (!tempOutputComponents.Contains(connection))
+		{
+			// Invalid connector index
+			continue;
+		}
+
+		auto& componentFilter = tempOutputComponents[connection];
+
+		componentFilter.allowedFiltered = true;
+		componentFilter.allowedItems.Add(rule.ItemClass);
+	}
+
+	TSet<TSubclassOf<UFGItemDescriptor>> definedItems;
+
+	// First pass
+	for (auto it = tempOutputComponents.begin(); it != tempOutputComponents.end(); ++it)
+	{
+		if (timeout < time(NULL))
+		{
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
+
+			overflow = true;
+			return;
+		}
+
+		if (singleton->noneItemDescriptors.Intersect(it->Value.allowedItems).Num())
+		{
+			// No item is valid. Empty it all
+			it->Value.allowedItems.Empty();
+		}
+		else if (singleton->wildCardItemDescriptors.Intersect(it->Value.allowedItems).Num() || singleton->overflowItemDescriptors.Intersect(it->Value.allowedItems).Num())
+		{
+			// Add all current restrictItems as valid items
+			it->Value.allowedItems.Empty();
+			it->Value.allowedFiltered = false;
+		}
+
+		if (direction == EFactoryConnectionDirection::FCD_INPUT && it->Value.allowedFiltered ||
+			direction == EFactoryConnectionDirection::FCD_OUTPUT && it->Value.allowedFiltered && it->Key == connector)
+		{
+			it->Value.allowedItems = it->Value.allowedItems.Intersect(currentFilter.allowedItems);
+		}
+
+		definedItems.Append(it->Value.allowedItems);
+	}
+
+	// Second pass
+	for (auto it = tempOutputComponents.begin(); it != tempOutputComponents.end(); ++it)
+	{
+		if (timeout < time(NULL))
+		{
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
+
+			overflow = true;
+			return;
+		}
+
+		if (singleton->anyUndefinedItemDescriptors.Intersect(it->Value.allowedItems).Num())
+		{
+			it->Value.deniedFiltered = true;
+			it->Value.deniedItems.Append(definedItems);
+		}
+
+		if (it->Key == connector && !it->Value.allowedItems.Num())
+		{
+			// Can't go further. Return
+			return;
+		}
+	}
+
+	if (direction == EFactoryConnectionDirection::FCD_INPUT &&
+		!tempOutputComponents.FilterByPredicate(
+			[](const mapEntryType& entry)
+			{
+				return !entry.Value.allowedFiltered || entry.Value.allowedItems.Num();
+			}
+			).Num())
+	{
+		// Nothing will flow through. Return
+		return;
+	}
+
+	for (auto it : tempInputComponents)
+	{
+		it.Value.allowedItems = it.Value.allowedItems.Intersect(currentFilter.allowedItems).Intersect(definedItems);
+
+		if (it.Value.allowedFiltered && !it.Value.allowedItems.Num())
+		{
+			continue;
+		}
+
+		connectedInputs[it.Key] = it.Value;
+	}
+
+	for (auto it : tempOutputComponents)
+	{
+		if (it.Value.allowedFiltered && !it.Value.allowedItems.Num())
+		{
+			continue;
+		}
+
+		componentOutputs[it.Key] = it.Value;
+	}
+}
 
 #ifndef OPTIMIZE
 #pragma optimize( "", on)

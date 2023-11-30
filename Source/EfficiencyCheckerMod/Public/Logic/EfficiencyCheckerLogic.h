@@ -2,8 +2,10 @@
 
 #include <map>
 
+#include "ComponentFilter.h"
+#include "FGFactoryConnectionComponent.h"
 #include "FGPipeConnectionComponent.h"
-#include "MachineStatusIncludeType.h"
+#include "Internationalization/Regex.h"
 #include "Resources/FGItemDescriptor.h"
 
 #include "EfficiencyCheckerLogic.generated.h"
@@ -14,6 +16,8 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerLogic : public AActor
 	GENERATED_BODY()
 
 public:
+	static const FRegexPattern indexPattern;
+
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
@@ -35,9 +39,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
 	virtual bool IsValidBuildable(class AFGBuildable* newBuildable);
 
-	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
-	static void setConfiguration(const struct FEfficiencyChecker_ConfigStruct& in_configuration);
-
 	static void collectInput
 	(
 		EResourceForm resourceForm,
@@ -45,7 +46,7 @@ public:
 		class UFGConnectionComponent* connector,
 		float& out_injectedInput,
 		float& out_limitedThroughput,
-		TSet<AActor*>& seenActors,
+		TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 		TSet<class AFGBuildable*>& connected,
 		TSet<TSubclassOf<UFGItemDescriptor>>& out_injectedItems,
 		const TSet<TSubclassOf<UFGItemDescriptor>>& restrictItems,
@@ -63,7 +64,7 @@ public:
 		class UFGConnectionComponent* connector,
 		float& out_requiredOutput,
 		float& out_limitedThroughput,
-		std::map<AActor*, TSet<TSubclassOf<class UFGItemDescriptor>>>& seenActors,
+		TMap<AActor*, TSet<TSubclassOf<class UFGItemDescriptor>>>& seenActors,
 		TSet<AFGBuildable*>& connected,
 		const TSet<TSubclassOf<class UFGItemDescriptor>>& in_injectedItems,
 		class AFGBuildableSubsystem* buildableSubsystem,
@@ -74,20 +75,12 @@ public:
 		int32 machineStatusIncludeType
 	);
 
-	static bool containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
-	static bool actorContainsItem(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
-	static void addAllItemsToActor(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
+	static bool containsActor(const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
+	static bool actorContainsItem(const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
+	static void addAllItemsToActor(TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
 
 	static bool inheritsFrom(AActor* owner, const FString& className);
 	static void dumpUnknownClass(const FString& indent, AActor* owner);
-
-	// inline static FString
-	// getTimeStamp()
-	// {
-	//     const auto now = FDateTime::Now();
-	//
-	//     return FString::Printf(TEXT("%02d:%02d:%02d"), now.GetHour(), now.GetMinute(), now.GetSecond());
-	// }
 
 	static float getPipeSpeed(class AFGBuildablePipeline* pipe);
 
@@ -100,11 +93,11 @@ public:
 	FCriticalSection eclCritical;
 
 	static AEfficiencyCheckerLogic* singleton;
-	static FEfficiencyChecker_ConfigStruct configuration;
-	static UClass* baseStorageTeleporterClass;
-	static UClass* baseUndergroundSplitterInputClass;
-	static UClass* baseUndergroundSplitterOutputClass;
-	static UClass* baseModularLoadBalancerClass;
+	UClass* baseStorageTeleporterClass = nullptr;
+	UClass* baseUndergroundSplitterInputClass = nullptr;
+	UClass* baseUndergroundSplitterOutputClass = nullptr;
+	UClass* baseModularLoadBalancerClass = nullptr;
+	UClass* baseBuildableFactorySimpleProducerClass = nullptr;
 
 	TSet<class AEfficiencyCheckerBuilding*> allEfficiencyBuildings;
 	TSet<class AFGBuildableConveyorBelt*> allBelts;
@@ -135,18 +128,6 @@ public:
 	UFUNCTION()
 	virtual void removeUndergroundInputBelt(AActor* undergroundInputBelt, EEndPlayReason::Type reason);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static bool IsAutoUpdateEnabled();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static int GetLogLevelECM();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static float GetAutoUpdateTimeout();
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "EfficiencyChecker")
-	static float GetAutoUpdateDistance();
-
 	static EPipeConnectionType GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
 
 	static void collectUndergroundBeltsComponents
@@ -161,5 +142,18 @@ public:
 		AFGBuildableFactory* modularLoadBalancer,
 		TSet<UFGFactoryConnectionComponent*>& components,
 		TSet<AActor*>& actors
+	);
+
+	static void collectSmartSplitterComponents
+	(
+		class UFGConnectionComponent* connector,
+		const FComponentFilter& currentFilter,
+		class AFGBuildableSplitterSmart* smartSplitter,
+		TMap<UFGFactoryConnectionComponent*, FComponentFilter>& connectedInputs,
+		TMap<UFGFactoryConnectionComponent*, FComponentFilter>& componentOutputs,
+		EFactoryConnectionDirection direction,
+		const FString& indent,
+		const time_t& timeout,
+		bool& overflow
 	);
 };

@@ -14,6 +14,10 @@
 #include <map>
 
 #include "Buildables/FGBuildablePipeline.h"
+#include "Logic/CollectSettings.h"
+#include "Logic/EfficiencyCheckerLogic2.h"
+#include "Resources/FGNoneDescriptor.h"
+#include "Util/EfficiencyCheckerConfiguration.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
@@ -71,23 +75,28 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 		return;
 	}
 
-	float injectedInput = 0;
-	float requiredOutput = 0;
+	CollectSettings collectSettings;
+	collectSettings.SetMachineStatusIncludeType(machineStatusIncludeType);
+
+	// float injectedInput = 0;
+	// float requiredOutput = 0;
 
 	UFGConnectionComponent* inputConnector = nullptr;
 	UFGConnectionComponent* outputConnector = nullptr;
 
-	TSet<TSubclassOf<UFGItemDescriptor>> restrictedItems;
+	// TSet<TSubclassOf<UFGItemDescriptor>> restrictedItems;
 
-	auto resourceForm = EResourceForm::RF_INVALID;
+	// auto resourceForm = EResourceForm::RF_INVALID;
 
-	TSet<AFGBuildable*> connected;
-	const auto buildableSubsystem = AFGBuildableSubsystem::Get(GetWorld());
-	const FString indent(TEXT("    "));
-	TSet<TSubclassOf<UFGItemDescriptor>> injectedItemsSet;
+	// TSet<AFGBuildable*> connected;
+	//const auto buildableSubsystem = AFGBuildableSubsystem::Get(GetWorld());
+	collectSettings.SetBuildableSubsystem(AFGBuildableSubsystem::Get(GetWorld()));
+	//const FString indent(TEXT("    "));
+	collectSettings.SetIndent(TEXT("    "));
+	//TSet<TSubclassOf<UFGItemDescriptor>> injectedItemsSet;
 
 	float initialThroughtputLimit = 0;
-	bool overflow = false;
+	//bool overflow = false;
 
 	if (targetBuildable)
 	{
@@ -99,7 +108,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 			initialThroughtputLimit = conveyor->GetSpeed() / 2;
 
-			resourceForm = EResourceForm::RF_SOLID;
+			collectSettings.SetResourceForm(EResourceForm::RF_SOLID);
 
 			TArray<TSubclassOf<UFGItemDescriptor>> allItems;
 			UFGBlueprintFunctionLibrary::Cheat_GetAllDescriptors(allItems);
@@ -118,7 +127,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 					continue;;
 				}
 
-				restrictedItems.Add(item);
+				collectSettings.GetCurrentFilter().allowedFiltered = true;
+				collectSettings.GetCurrentFilter().allowedItems.Add(item);
 			}
 		}
 		else
@@ -147,10 +157,12 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 				if (fluidItem)
 				{
-					restrictedItems.Add(fluidItem);
-					injectedItemsSet.Add(fluidItem);
+					collectSettings.GetCurrentFilter().allowedFiltered = true;
+					collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
 
-					resourceForm = UFGItemDescriptor::GetForm(fluidItem);
+					collectSettings.GetInjectedItems().Add(fluidItem);
+
+					collectSettings.SetResourceForm(UFGItemDescriptor::GetForm(fluidItem));
 				}
 			}
 			else
@@ -161,68 +173,126 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	}
 
 	float limitedThroughputIn = initialThroughtputLimit;
+	float limitedThroughputOut = initialThroughtputLimit;
 
 	time_t t = time(NULL);
-	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
+	// time_t timeout = t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout;
+
+	collectSettings.SetTimeout(t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout);
 
 	EC_LOG_Warning_Condition(
 		__FUNCTION__ TEXT(": time = "),
 		t,
 		TEXT(" / timeout = "),
-		timeout,
+		collectSettings.GetTimeout(),
 		TEXT(" / updateTimeout = "),
-		AEfficiencyCheckerLogic::configuration.updateTimeout
+		AEfficiencyCheckerConfiguration::configuration.updateTimeout
 		);
 
-	if (inputConnector)
-	{
-		TSet<AActor*> seenActors;
+	collectSettings.SetConnector(inputConnector);
 
-		AEfficiencyCheckerLogic::collectInput(
-			resourceForm,
-			false,
-			inputConnector,
-			injectedInput,
-			limitedThroughputIn,
-			seenActors,
-			connected,
-			injectedItemsSet,
-			restrictedItems,
-			buildableSubsystem,
-			0,
-			overflow,
-			indent,
-			timeout,
-			machineStatusIncludeType
-			);
+	if (AEfficiencyCheckerConfiguration::configuration.logicVersion >= 2)
+	{
+		if (inputConnector)
+		{
+			collectSettings.SetConnector(inputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputIn);
+
+			AEfficiencyCheckerLogic2::collectInput(collectSettings);
+
+			limitedThroughputIn = collectSettings.GetLimitedThroughput();
+		}
+
+		if (outputConnector && !collectSettings.GetOverflow())
+		{
+			collectSettings.SetConnector(outputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputOut);
+
+			AEfficiencyCheckerLogic2::collectInput(collectSettings);
+
+			limitedThroughputOut = collectSettings.GetLimitedThroughput();
+		}
 	}
-
-	float limitedThroughputOut = initialThroughtputLimit;
-
-	if (outputConnector && !overflow)
+	else
 	{
-		std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
+		if (inputConnector)
+		{
+			TSet<AActor*> seenActors;
 
-		AEfficiencyCheckerLogic::collectOutput(
-			resourceForm,
-			outputConnector,
-			requiredOutput,
-			limitedThroughputOut,
-			seenActors,
-			connected,
-			injectedItemsSet,
-			buildableSubsystem,
-			0,
-			overflow,
-			indent,
-			timeout,
-			machineStatusIncludeType
-			);
+			collectSettings.SetConnector(inputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputIn);
+
+			float injectedInput = 0;
+
+			AEfficiencyCheckerLogic::collectInput(
+				collectSettings.GetResourceForm(),
+				collectSettings.GetCustomInjectedInput(),
+				inputConnector,
+				injectedInput,
+				collectSettings.GetLimitedThroughput(),
+				collectSettings.GetSeenActors(),
+				collectSettings.GetConnected(),
+				collectSettings.GetInjectedItems(),
+				collectSettings.GetCurrentFilter().allowedItems,
+				collectSettings.GetBuildableSubsystem(),
+				collectSettings.GetLevel(),
+				collectSettings.GetOverflow(),
+				collectSettings.GetIndent(),
+				collectSettings.GetTimeout(),
+				collectSettings.GetMachineStatusIncludeType()
+				);
+
+			limitedThroughputIn = collectSettings.GetLimitedThroughput();
+
+			if (collectSettings.GetInjectedItems().Num())
+			{
+				collectSettings.GetInjectedInput()[*collectSettings.GetInjectedItems().begin()] = injectedInput;
+			}
+		}
+
+		if (outputConnector && !collectSettings.GetOverflow())
+		{
+			collectSettings.GetSeenActors().Empty();
+
+			float requiredOutput = 0;
+
+			collectSettings.SetConnector(outputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputOut);
+
+			AEfficiencyCheckerLogic::collectOutput(
+				collectSettings.GetResourceForm(),
+				collectSettings.GetConnector(),
+				requiredOutput,
+				collectSettings.GetLimitedThroughput(),
+				collectSettings.GetSeenActors(),
+				collectSettings.GetConnected(),
+				collectSettings.GetInjectedItems(),
+				collectSettings.GetBuildableSubsystem(),
+				collectSettings.GetLevel(),
+				collectSettings.GetOverflow(),
+				collectSettings.GetIndent(),
+				collectSettings.GetTimeout(),
+				collectSettings.GetMachineStatusIncludeType()
+				);
+
+			limitedThroughputOut = collectSettings.GetLimitedThroughput();
+
+			if (collectSettings.GetInjectedItems().Num())
+			{
+				collectSettings.GetRequiredOutput()[*collectSettings.GetInjectedItems().begin()] = requiredOutput;
+			}
+		}
 	}
 
 	if (inputConnector || outputConnector)
 	{
-		ShowStatsWidget(injectedInput, FMath::Min(limitedThroughputIn, limitedThroughputOut), requiredOutput, injectedItemsSet.Array(), overflow);
+		ShowStatsWidget(
+			collectSettings.GetInjectedInputTotal(),
+			FMath::Min(limitedThroughputIn, limitedThroughputOut),
+			collectSettings.GetRequiredOutputTotal(),
+			collectSettings.GetInjectedItems().Array(),
+			collectSettings.GetOverflow()
+			);
 	}
 }
 

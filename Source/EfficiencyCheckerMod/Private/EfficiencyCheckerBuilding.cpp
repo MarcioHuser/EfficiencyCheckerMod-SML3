@@ -21,6 +21,7 @@
 #include <map>
 
 #include "Net/UnrealNetwork.h"
+#include "Util/EfficiencyCheckerConfiguration.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off)
@@ -128,13 +129,13 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 
 		pipelineToSplit = nullptr;
 
-		if (AEfficiencyCheckerLogic::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
+		if (AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
 			autoUpdateMode == EAutoUpdateType::AUT_ENABLED)
 		{
 			lastUpdated = GetWorld()->GetTimeSeconds();
-			updateRequested = lastUpdated + AEfficiencyCheckerLogic::configuration.autoUpdateTimeout; // Give a timeout
+			updateRequested = lastUpdated + AEfficiencyCheckerConfiguration::configuration.autoUpdateTimeout; // Give a timeout
 			SetActorTickEnabled(true);
-			SetActorTickInterval(AEfficiencyCheckerLogic::configuration.autoUpdateTimeout);
+			SetActorTickInterval(AEfficiencyCheckerConfiguration::configuration.autoUpdateTimeout);
 			// mFactoryTickFunction.SetTickFunctionEnable(true);
 			// mFactoryTickFunction.TickInterval = autoUpdateTimeout;
 
@@ -274,9 +275,9 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 				{
 					auto playerTranslation = pawn->GetActorLocation();
 
-					if (!(AEfficiencyCheckerLogic::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
+					if (!(AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
 							autoUpdateMode == EAutoUpdateType::AUT_ENABLED) ||
-						FVector::Dist(playerTranslation, GetActorLocation()) <= AEfficiencyCheckerLogic::configuration.autoUpdateDistance)
+						FVector::Dist(playerTranslation, GetActorLocation()) <= AEfficiencyCheckerConfiguration::configuration.autoUpdateDistance)
 					{
 						EC_LOG_Display_Condition(*getTagName(), TEXT("Last Tick"));
 						// EC_LOG_Display_Condition(*getTagName(), TEXT("Player Pawn"));
@@ -527,13 +528,13 @@ void AEfficiencyCheckerBuilding::Server_UpdateBuilding(AFGBuildable* newBuildabl
 		}
 
 		// Trigger specific building
-		updateRequested = GetWorld()->GetRealTimeSeconds() + AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
+		updateRequested = GetWorld()->GetRealTimeSeconds() + AEfficiencyCheckerConfiguration::configuration.autoUpdateTimeout;
 		// Give a 5 seconds timeout
 
 		EC_LOG_Display_Condition(TEXT("    Updating "), *GetName());
 
 		SetActorTickEnabled(true);
-		SetActorTickInterval(AEfficiencyCheckerLogic::configuration.autoUpdateTimeout);
+		SetActorTickInterval(AEfficiencyCheckerConfiguration::configuration.autoUpdateTimeout);
 		// mFactoryTickFunction.SetTickFunctionEnable(true);
 		// mFactoryTickFunction.TickInterval = autoUpdateTimeout;
 
@@ -692,7 +693,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		{
 			auto conveyor = Cast<AFGBuildableConveyorBelt>(conveyorActor);
 
-			if (conveyor->IsPendingKill() || currentConveyor && conveyor->GetBuildTime() < currentConveyor->GetBuildTime())
+			if (!IsValid(conveyor) || currentConveyor && conveyor->GetBuildTime() < currentConveyor->GetBuildTime())
 			{
 				EC_LOG_Display_Condition(*getTagName(), TEXT("Conveyor "), *conveyor->GetName(), anchorPoint.X, TEXT(" was skipped"));
 
@@ -831,7 +832,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		{
 			auto pipe = Cast<AFGBuildablePipeline>(pipeActor);
 
-			if (pipe->IsPendingKill() || currentPipe && pipe->GetBuildTime() < currentPipe->GetBuildTime())
+			if (!IsValid(pipe) || currentPipe && pipe->GetBuildTime() < currentPipe->GetBuildTime())
 			{
 				EC_LOG_Display_Condition(*getTagName(), TEXT("Pipe "), *pipe->GetName(), anchorPoint.X, TEXT(" was skipped"));
 
@@ -899,9 +900,10 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	}
 
 	float limitedThroughputIn = customInjectedInput ? injectedInput : initialThroughtputLimit;
+	float limitedThroughputOut = customRequiredOutput ? requiredOutput : initialThroughtputLimit;
 
 	time_t t = time(NULL);
-	time_t timeout = t + (time_t)AEfficiencyCheckerLogic::configuration.updateTimeout;
+	time_t timeout = t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout;
 
 	EC_LOG_Warning_Condition(
 		FUNCTIONSTR TEXT(": time = "),
@@ -909,57 +911,57 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		TEXT(" / timeout = "),
 		timeout,
 		TEXT(" / updateTimeout = "),
-		AEfficiencyCheckerLogic::configuration.updateTimeout
+		AEfficiencyCheckerConfiguration::configuration.updateTimeout
 		);
 
-	if (inputConnector)
+	if (AEfficiencyCheckerConfiguration::configuration.logicVersion >= 2)
 	{
-		TSet<AActor*> seenActors;
-
-		AEfficiencyCheckerLogic::collectInput(
-			resourceForm,
-			customInjectedInput,
-			inputConnector,
-			out_injectedInput,
-			limitedThroughputIn,
-			seenActors,
-			connected,
-			out_injectedItems,
-			restrictedItems,
-			buildableSubsystem,
-			0,
-			in_overflow,
-			indent,
-			timeout,
-			machineStatusIncludeType
-			);
-	}
-
-	float limitedThroughputOut = initialThroughtputLimit;
-
-	if (outputConnector && !customRequiredOutput && !in_overflow)
-	{
-		std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
-
-		AEfficiencyCheckerLogic::collectOutput(
-			resourceForm,
-			outputConnector,
-			out_requiredOutput,
-			limitedThroughputOut,
-			seenActors,
-			connected,
-			out_injectedItems,
-			buildableSubsystem,
-			0,
-			in_overflow,
-			indent,
-			timeout,
-			machineStatusIncludeType
-			);
 	}
 	else
 	{
-		limitedThroughputOut = requiredOutput;
+		if (inputConnector)
+		{
+			TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
+
+			AEfficiencyCheckerLogic::singleton->collectInput(
+				resourceForm,
+				customInjectedInput,
+				inputConnector,
+				out_injectedInput,
+				limitedThroughputIn,
+				seenActors,
+				connected,
+				out_injectedItems,
+				restrictedItems,
+				buildableSubsystem,
+				0,
+				in_overflow,
+				indent,
+				timeout,
+				machineStatusIncludeType
+				);
+		}
+
+		if (outputConnector && !customRequiredOutput && !in_overflow)
+		{
+			TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
+
+			AEfficiencyCheckerLogic::singleton->collectOutput(
+				resourceForm,
+				outputConnector,
+				out_requiredOutput,
+				limitedThroughputOut,
+				seenActors,
+				connected,
+				out_injectedItems,
+				buildableSubsystem,
+				0,
+				in_overflow,
+				indent,
+				timeout,
+				machineStatusIncludeType
+				);
+		}
 	}
 
 	if (IS_EC_LOG_LEVEL(ELogVerbosity::Log) && !inputConnector && !outputConnector)
@@ -1122,7 +1124,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 		SetActorTickEnabled(false);
 		//mFactoryTickFunction.SetTickFunctionEnable(false);
 
-		if (AEfficiencyCheckerLogic::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
+		if (AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
 			autoUpdateMode == EAutoUpdateType::AUT_ENABLED)
 		{
 			// Remove bindings for all that are on connectionsToUnbind but not on connectedBuildables
@@ -1239,16 +1241,6 @@ void AEfficiencyCheckerBuilding::Server_RemoveBuilding(AFGBuildable* buildable)
 	}
 }
 
-void AEfficiencyCheckerBuilding::GetEfficiencyCheckerSettings(bool& out_autoUpdate, int& out_logLevel, float& out_autoUpdateTimeout, float& out_autoUpdateDistance)
-{
-	EC_LOG_Display_Condition(TEXT("EfficiencyCheckerBuilding: GetEfficiencyCheckerSettings"));
-
-	out_autoUpdate = AEfficiencyCheckerLogic::configuration.autoUpdate;
-	out_logLevel = AEfficiencyCheckerLogic::configuration.logLevel;
-	out_autoUpdateTimeout = AEfficiencyCheckerLogic::configuration.autoUpdateTimeout;
-	out_autoUpdateDistance = AEfficiencyCheckerLogic::configuration.autoUpdateDistance;
-}
-
 void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential)
 {
 	if (!AEfficiencyCheckerLogic::singleton)
@@ -1294,6 +1286,8 @@ void AEfficiencyCheckerBuilding::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 	DOREPLIFETIME(AEfficiencyCheckerBuilding, autoUpdateMode);
 
 	DOREPLIFETIME(AEfficiencyCheckerBuilding, machineStatusIncludeType);
+
+	DOREPLIFETIME(AEfficiencyCheckerBuilding, innerPipelineAttachment);
 
 	// DOREPLIFETIME(AEfficiencyCheckerBuilding, connectedBuildables);
 

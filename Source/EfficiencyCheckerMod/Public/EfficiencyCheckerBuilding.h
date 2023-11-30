@@ -185,15 +185,6 @@ public:
 	//UPROPERTY(BlueprintReadOnly, SaveGame)
 	float updateRequested = 0;
 
-	UFUNCTION(BlueprintCallable)
-	static void GetEfficiencyCheckerSettings
-	(
-		UPARAM(DisplayName = "Auto Update") bool& out_autoUpdate,
-		UPARAM(DisplayName = "Log Level") int& out_logLevel,
-		UPARAM(DisplayName = "Auto Update Timeout") float& out_autoUpdateTimeout,
-		UPARAM(DisplayName = "Auto Updat Distance") float& out_autoUpdateDistance
-	);
-
 	UPROPERTY(BlueprintReadOnly, SaveGame, Replicated)
 	TArray<TSubclassOf<UFGItemDescriptor>> injectedItems;
 

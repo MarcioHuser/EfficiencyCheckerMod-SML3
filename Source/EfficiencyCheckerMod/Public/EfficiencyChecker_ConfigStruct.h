@@ -2,7 +2,6 @@
 #include "CoreMinimal.h"
 #include "Configuration/ConfigManager.h"
 #include "Engine/Engine.h"
-#include "Engine/GameInstance.h"
 #include "EfficiencyChecker_ConfigStruct.generated.h"
 
 /* Struct generated from Mod Configuration Asset '/EfficiencyCheckerMod/Configuration/EfficiencyChecker_Config' */
@@ -11,29 +10,31 @@ struct FEfficiencyChecker_ConfigStruct {
     GENERATED_BODY()
 public:
     UPROPERTY(BlueprintReadWrite)
-    bool autoUpdate;
+    bool autoUpdate{};
 
     UPROPERTY(BlueprintReadWrite)
-    float autoUpdateTimeout;
+    float autoUpdateTimeout{};
 
     UPROPERTY(BlueprintReadWrite)
-    float autoUpdateDistance;
+    float autoUpdateDistance{};
 
     UPROPERTY(BlueprintReadWrite)
-    int32 logLevel;
+    int32 logLevel{};
 
     UPROPERTY(BlueprintReadWrite)
-    bool ignoreStorageTeleporter;
+    bool ignoreStorageTeleporter{};
 
     UPROPERTY(BlueprintReadWrite)
-    float updateTimeout;
+    float updateTimeout{};
+
+    UPROPERTY(BlueprintReadWrite)
+    int32 logicVersion{};
 
     /* Retrieves active configuration value and returns object of this struct containing it */
     static FEfficiencyChecker_ConfigStruct GetActiveConfig(UObject* WorldContext) {
         FEfficiencyChecker_ConfigStruct ConfigStruct{};
         FConfigId ConfigId{"EfficiencyCheckerMod", ""};
-        if (const UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull))
-        {
+        if (const UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull)) {
             UConfigManager* ConfigManager = World->GetGameInstance()->GetSubsystem<UConfigManager>();
             ConfigManager->FillConfigurationStruct(ConfigId, FDynamicStructInfo{FEfficiencyChecker_ConfigStruct::StaticStruct(), &ConfigStruct});
         }

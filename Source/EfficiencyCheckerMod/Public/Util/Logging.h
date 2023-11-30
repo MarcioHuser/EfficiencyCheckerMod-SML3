@@ -52,7 +52,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEfficiencyChecker, Log, All)
 #define EC_LOG_Warning(first, ...) EC_LOG_Verbosity(Warning, first, ##__VA_ARGS__)
 #define EC_LOG_Error(first, ...) EC_LOG_Verbosity(Error, first, ##__VA_ARGS__)
 
-#define IS_EC_LOG_LEVEL(level) (AEfficiencyCheckerLogic::configuration.logLevel > 0 && AEfficiencyCheckerLogic::configuration.logLevel >= static_cast<uint8>(level))
+#define IS_EC_LOG_LEVEL(level) (AEfficiencyCheckerConfiguration::configuration.logLevel > 0 && AEfficiencyCheckerConfiguration::configuration.logLevel >= static_cast<uint8>(level))
 
 #define EC_LOG_Log_Condition(first, ...) if(IS_EC_LOG_LEVEL(ELogVerbosity::Log)) EC_LOG_Log(first, ##__VA_ARGS__)
 #define EC_LOG_Display_Condition(first, ...) if(IS_EC_LOG_LEVEL(ELogVerbosity::Display)) EC_LOG_Display(first, ##__VA_ARGS__)
