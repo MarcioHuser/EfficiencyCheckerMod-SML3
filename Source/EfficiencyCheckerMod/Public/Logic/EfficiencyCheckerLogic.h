@@ -46,7 +46,7 @@ public:
 		class UFGConnectionComponent* connector,
 		float& out_injectedInput,
 		float& out_limitedThroughput,
-		TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+		std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 		TSet<class AFGBuildable*>& connected,
 		TSet<TSubclassOf<UFGItemDescriptor>>& out_injectedItems,
 		const TSet<TSubclassOf<UFGItemDescriptor>>& restrictItems,
@@ -64,7 +64,7 @@ public:
 		class UFGConnectionComponent* connector,
 		float& out_requiredOutput,
 		float& out_limitedThroughput,
-		TMap<AActor*, TSet<TSubclassOf<class UFGItemDescriptor>>>& seenActors,
+		std::map<AActor*, TSet<TSubclassOf<class UFGItemDescriptor>>>& seenActors,
 		TSet<AFGBuildable*>& connected,
 		const TSet<TSubclassOf<class UFGItemDescriptor>>& in_injectedItems,
 		class AFGBuildableSubsystem* buildableSubsystem,
@@ -75,9 +75,9 @@ public:
 		int32 machineStatusIncludeType
 	);
 
-	static bool containsActor(const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
-	static bool actorContainsItem(const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
-	static void addAllItemsToActor(TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
+	static bool containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
+	static bool actorContainsItem(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
+	static void addAllItemsToActor(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
 
 	static bool inheritsFrom(AActor* owner, const FString& className);
 	static void dumpUnknownClass(const FString& indent, AActor* owner);
@@ -128,7 +128,7 @@ public:
 	UFUNCTION()
 	virtual void removeUndergroundInputBelt(AActor* undergroundInputBelt, EEndPlayReason::Type reason);
 
-	static EPipeConnectionType GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
+	static EPipeConnectionType getConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
 
 	static void collectUndergroundBeltsComponents
 	(
@@ -149,8 +149,8 @@ public:
 		class UFGConnectionComponent* connector,
 		const FComponentFilter& currentFilter,
 		class AFGBuildableSplitterSmart* smartSplitter,
-		TMap<UFGFactoryConnectionComponent*, FComponentFilter>& connectedInputs,
-		TMap<UFGFactoryConnectionComponent*, FComponentFilter>& componentOutputs,
+		std::map<UFGFactoryConnectionComponent*, FComponentFilter>& connectedInputs,
+		std::map<UFGFactoryConnectionComponent*, FComponentFilter>& componentOutputs,
 		EFactoryConnectionDirection direction,
 		const FString& indent,
 		const time_t& timeout,

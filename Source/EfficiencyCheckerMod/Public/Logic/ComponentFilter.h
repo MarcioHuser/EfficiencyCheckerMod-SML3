@@ -25,8 +25,5 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ComponentFilter|ProductionDetail")
 	bool deniedFiltered = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ComponentFilter|ProductionDetail")
-	int index = -1;
 public:
 };

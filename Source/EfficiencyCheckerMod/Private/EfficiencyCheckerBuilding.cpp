@@ -20,6 +20,8 @@
 
 #include <map>
 
+#include "Logic/CollectSettings.h"
+#include "Logic/EfficiencyCheckerLogic2.h"
 #include "Net/UnrealNetwork.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
@@ -599,17 +601,28 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 {
 	EC_LOG_Display_Condition(*getTagName(), *getTagName(), TEXT("GetConnectedProduction"));
 
-	const FString indent(TEXT("    "));
+	CollectSettings collectSettings;
+	collectSettings.SetLimitedThroughputPtr(&out_limitedThroughput);
+	collectSettings.SetInjectedItemsPtr(&out_injectedItems);
+	collectSettings.SetConnectedPtr(&connected);
+	collectSettings.SetMachineStatusIncludeType(machineStatusIncludeType);
+	collectSettings.SetResourceForm(resourceForm);
+	collectSettings.SetOverflowPtr(&in_overflow);
 
-	const auto buildableSubsystem = AFGBuildableSubsystem::Get(GetWorld());
+	//const FString indent(TEXT("    "));
+	collectSettings.SetIndent(TEXT("    "));
+
+	//const auto buildableSubsystem = AFGBuildableSubsystem::Get(GetWorld());
+	collectSettings.SetBuildableSubsystem(AFGBuildableSubsystem::Get(GetWorld()));
 
 	UFGConnectionComponent* inputConnector = nullptr;
 	UFGConnectionComponent* outputConnector = nullptr;
 
-	TSet<TSubclassOf<UFGItemDescriptor>> restrictedItems;
+	// TSet<TSubclassOf<UFGItemDescriptor>> restrictedItems;
 
 	float initialThroughtputLimit = 0;
-	in_overflow = false;
+	// in_overflow = false;
+	collectSettings.SetOverflow(false);
 
 	if (innerPipelineAttachment)
 	{
@@ -659,8 +672,10 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 		if (fluidItem)
 		{
-			restrictedItems.Add(fluidItem);
-			out_injectedItems.Add(fluidItem);
+			collectSettings.GetCurrentFilter().allowedFiltered = true;
+			collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
+
+			collectSettings.GetInjectedItems().Add(fluidItem);
 		}
 	}
 	else if (resourceForm == EResourceForm::RF_SOLID)
@@ -808,7 +823,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 					continue;;
 				}
 
-				restrictedItems.Add(item);
+				collectSettings.GetCurrentFilter().allowedFiltered = true;
+				collectSettings.GetCurrentFilter().allowedItems.Add(item);
 			}
 		}
 	}
@@ -888,8 +904,10 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 				if (fluidItem)
 				{
-					restrictedItems.Add(fluidItem);
-					out_injectedItems.Add(fluidItem);
+					collectSettings.GetCurrentFilter().allowedFiltered = true;
+					collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
+
+					collectSettings.GetInjectedItems().Add(fluidItem);
 				}
 
 				initialThroughtputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
@@ -903,64 +921,115 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	float limitedThroughputOut = customRequiredOutput ? requiredOutput : initialThroughtputLimit;
 
 	time_t t = time(NULL);
-	time_t timeout = t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout;
+	// time_t timeout = t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout;
+	collectSettings.SetTimeout(t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout);
 
 	EC_LOG_Warning_Condition(
 		FUNCTIONSTR TEXT(": time = "),
 		t,
 		TEXT(" / timeout = "),
-		timeout,
+		collectSettings.GetTimeout(),
 		TEXT(" / updateTimeout = "),
 		AEfficiencyCheckerConfiguration::configuration.updateTimeout
 		);
 
 	if (AEfficiencyCheckerConfiguration::configuration.logicVersion >= 2)
 	{
+		if (inputConnector)
+		{
+			collectSettings.SetConnector(inputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputIn);
+
+			AEfficiencyCheckerLogic2::collectInput(collectSettings);
+
+			limitedThroughputIn = collectSettings.GetLimitedThroughput();
+			out_injectedInput = collectSettings.GetInjectedInputTotal();
+		}
+
+		if (outputConnector && !collectSettings.GetOverflow())
+		{
+			collectSettings.GetSeenActors().clear();
+
+			collectSettings.SetConnector(outputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputOut);
+
+			AEfficiencyCheckerLogic2::collectOutput(collectSettings);
+
+			limitedThroughputOut = collectSettings.GetLimitedThroughput();
+			out_requiredOutput = collectSettings.GetRequiredOutputTotal();
+
+			if (collectSettings.GetInjectedInput().empty())
+			{
+				for (auto entry : collectSettings.GetRequiredOutput())
+				{
+					collectSettings.GetInjectedItems().Add(entry.first);
+					collectSettings.GetInjectedInput()[entry.first];
+				}
+			}
+		}
 	}
 	else
 	{
 		if (inputConnector)
 		{
-			TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
+			collectSettings.SetConnector(inputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputIn);
 
 			AEfficiencyCheckerLogic::singleton->collectInput(
-				resourceForm,
-				customInjectedInput,
+				collectSettings.GetResourceForm(),
+				collectSettings.GetCustomInjectedInput(),
 				inputConnector,
 				out_injectedInput,
-				limitedThroughputIn,
-				seenActors,
-				connected,
-				out_injectedItems,
-				restrictedItems,
-				buildableSubsystem,
-				0,
-				in_overflow,
-				indent,
-				timeout,
-				machineStatusIncludeType
+				collectSettings.GetLimitedThroughput(),
+				collectSettings.GetSeenActors(),
+				collectSettings.GetConnected(),
+				collectSettings.GetInjectedItems(),
+				collectSettings.GetCurrentFilter().allowedItems,
+				collectSettings.GetBuildableSubsystem(),
+				collectSettings.GetLevel(),
+				collectSettings.GetOverflow(),
+				collectSettings.GetIndent(),
+				collectSettings.GetTimeout(),
+				collectSettings.GetMachineStatusIncludeType()
 				);
+
+			limitedThroughputIn = collectSettings.GetLimitedThroughput();
+
+			if (collectSettings.GetInjectedItems().Num())
+			{
+				collectSettings.GetInjectedInput()[*collectSettings.GetInjectedItems().begin()] = injectedInput;
+			}
 		}
 
-		if (outputConnector && !customRequiredOutput && !in_overflow)
+		if (outputConnector && !customRequiredOutput && !collectSettings.GetOverflow())
 		{
-			TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActors;
+			collectSettings.GetSeenActors().clear();
+
+			collectSettings.SetConnector(outputConnector);
+			collectSettings.SetLimitedThroughput(limitedThroughputOut);
 
 			AEfficiencyCheckerLogic::singleton->collectOutput(
-				resourceForm,
-				outputConnector,
+				collectSettings.GetResourceForm(),
+				collectSettings.GetConnector(),
 				out_requiredOutput,
-				limitedThroughputOut,
-				seenActors,
-				connected,
-				out_injectedItems,
-				buildableSubsystem,
-				0,
-				in_overflow,
-				indent,
-				timeout,
-				machineStatusIncludeType
+				collectSettings.GetLimitedThroughput(),
+				collectSettings.GetSeenActors(),
+				collectSettings.GetConnected(),
+				collectSettings.GetInjectedItems(),
+				collectSettings.GetBuildableSubsystem(),
+				collectSettings.GetLevel(),
+				collectSettings.GetOverflow(),
+				collectSettings.GetIndent(),
+				collectSettings.GetTimeout(),
+				collectSettings.GetMachineStatusIncludeType()
 				);
+
+			limitedThroughputOut = collectSettings.GetLimitedThroughput();
+
+			if (collectSettings.GetInjectedItems().Num())
+			{
+				collectSettings.GetRequiredOutput()[*collectSettings.GetInjectedItems().begin()] = requiredOutput;
+			}
 		}
 	}
 

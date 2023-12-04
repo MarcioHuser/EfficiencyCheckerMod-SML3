@@ -5,11 +5,11 @@
 #pragma optimize( "", off )
 #endif
 
-CollectSettingsWrapper::CollectSettingsWrapper()
+CollectSettings::CollectSettings()
 {
 }
 
-CollectSettingsWrapper::CollectSettingsWrapper(ICollectSettings& baseCollectSettings)
+CollectSettings::CollectSettings(CollectSettings& baseCollectSettings)
 {
 	resourceFormPtr = &baseCollectSettings.GetResourceForm();
 

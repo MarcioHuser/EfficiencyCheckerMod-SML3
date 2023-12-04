@@ -7,7 +7,6 @@
 #include "FGFactoryConnectionComponent.h"
 #include "FGPipeConnectionComponent.h"
 #include "Buildables/FGBuildableResourceExtractor.h"
-#include "Internationalization/Regex.h"
 
 #include "EfficiencyCheckerLogic2.generated.h"
 
@@ -20,78 +19,127 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerLogic2 : public AActor
 public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	static void collectInput(class ICollectSettings& collectSettings);
+	static void collectInput(class CollectSettings& collectSettings);
 
-	static void collectOutput(class ICollectSettings& collectSettings);
+	static void collectOutput(class CollectSettings& collectSettings);
+
+	static bool (*containsActor)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
+	static bool (*actorContainsItem)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
+	static void (*addAllItemsToActor)(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
+
+	static float (*getPipeSpeed)(class AFGBuildablePipeline* pipe);
+	static EPipeConnectionType (*getConnectedPipeConnectionType)(class UFGPipeConnectionComponent* component);
 
 	static void handleManufacturer
 	(
 		class AFGBuildableManufacturer* const manufacturer,
-		class ICollectSettings& collectSettings,
-		bool collectInjectedInput,
-		bool collectRequiredOutput
+		class CollectSettings& collectSettings,
+		bool collectForInput
 	);
 
-	static void handleExtractor(AFGBuildableResourceExtractor* extractor, class ICollectSettings& collectSettings);
+	static void handleExtractor(class AFGBuildableResourceExtractor* extractor, class CollectSettings& collectSettings);
 
-	static void handleFactoryComponents
+	static void handleGeneratorFuel(class AFGBuildableGeneratorFuel* generatorFuel, CollectSettings& collectSettings);
+
+	static void getFactoryConnectionComponents
 	(
 		class AFGBuildable* buildable,
-		EFactoryConnectionConnector connectorType,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
 		const std::function<bool (class UFGFactoryConnectionComponent*)>& filter = [](class UFGFactoryConnectionComponent*) { return true; }
+	);
+
+	static void getPipeConnectionComponents
+	(
+		class AFGBuildable* buildable,
+		TSet<class UFGPipeConnectionComponent*>& anyDirectionComponents,
+		TSet<class UFGPipeConnectionComponent*>& inputComponents,
+		TSet<class UFGPipeConnectionComponent*>& outputComponents,
+		const std::function<bool (class UFGPipeConnectionComponent*)>& filter = [](class UFGPipeConnectionComponent*) { return true; }
 	);
 
 	static void handleUndergroundBeltsComponents
 	(
 		class AFGBuildableStorage* undergroundBelt,
-		class ICollectSettings& collectSettings,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
 	);
 
 	static void handleContainerComponents
 	(
 		class AFGBuildable* buildable,
-		EFactoryConnectionConnector connectorType,
 		class UFGInventoryComponent* inventory,
-		class ICollectSettings& collectSettings,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
 		const std::function<bool (class UFGFactoryConnectionComponent*)>& filter = [](class UFGFactoryConnectionComponent*) { return true; }
 	);
 
-	static void handleTrainPlatformCargo
+	static void handleTrainPlatformCargoBelt
 	(
 		class AFGBuildableTrainPlatformCargo* trainPlatformCargo,
-		EFactoryConnectionConnector connectorType,
-		class ICollectSettings& collectSettings,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		bool collectForInput
+	);
+
+	static void handleTrainPlatformCargoPipe
+	(
+		class AFGBuildableTrainPlatformCargo* trainPlatformCargo,
+		class CollectSettings& collectSettings,
+		TSet<class UFGPipeConnectionComponent*>& inputComponents,
+		TSet<class UFGPipeConnectionComponent*>& outputComponents,
+		bool collectForInput
 	);
 
 	static void handleStorageTeleporter
 	(
 		class AFGBuildable* storageTeleporter,
-		class ICollectSettings& collectSettings,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		bool collectForInput
 	);
 
 	static void handleModularLoadBalancerComponents
 	(
-		AFGBuildableFactory* modularLoadBalancer,
-		class ICollectSettings& collectSettings,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+		AFGBuildableFactory* modularLoadBalancerGroupLeader,
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		bool collectForInput
 	);
 
-	static void hanbleSmartSplitterComponents
+	static void handleSmartSplitterComponents
 	(
 		class AFGBuildableSplitterSmart* smartSplitter,
-		class ICollectSettings& collectSettings,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-		TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		bool collectForInput
 	);
+
+	static void handleFluidIntegrant
+	(
+		class IFGFluidIntegrantInterface* fluidIntegrant,
+		class CollectSettings& collectSettings,
+		TSet<class UFGPipeConnectionComponent*>& anyDirectionComponents,
+		TSet<class UFGPipeConnectionComponent*>& inputComponents,
+		TSet<class UFGPipeConnectionComponent*>& outputComponents
+	);
+
+	static UFGPipeConnectionComponent*
+	getFirstItem(const TSet<UFGPipeConnectionComponent*>& connections)
+	{
+		UFGPipeConnectionComponent* firstItem = nullptr;
+
+		if (!connections.IsEmpty())
+		{
+			firstItem = connections[connections.begin().GetId()];
+		}
+
+		return firstItem;
+	}
 };

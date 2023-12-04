@@ -98,6 +98,13 @@ void AEfficiencyCheckerLogic::Initialize
 	baseModularLoadBalancerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/LoadBalancers.LBBuild_ModularLoadBalancer"));
 	baseBuildableFactorySimpleProducerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/FactoryGame.FGBuildableFactorySimpleProducer"));
 
+	// /LoadBalancers/Buildable/FilterModule/Build_ModularLoadBalancer_Filtered.Build_ModularLoadBalancer_Filtered_C
+	// /LoadBalancers/Buildable/FilterModule/OutputOnly/Build_ModularLoadBalancer_Filtered_Output.Build_ModularLoadBalancer_Filtered_Output_C
+	// /LoadBalancers/Buildable/OverflowModule/Build_ModularLoadBalancer_Overflow.Build_ModularLoadBalancer_Overflow_C
+	// /LoadBalancers/Buildable/OverflowModule/OutputOnly/Build_ModularLoadBalancer_Overflow_Output.Build_ModularLoadBalancer_Overflow_Output_C
+	// /LoadBalancers/Buildable/ProgrammableModule/Build_ModularLoadBalancer_Programmable.Build_ModularLoadBalancer_Programmable_C
+	// /LoadBalancers/Buildable/ProgrammableModule/OutputOnly/Build_ModularLoadBalancer_Programmable_Output.Build_ModularLoadBalancer_Programmable_Output_C
+
 	auto subsystem = AFGBuildableSubsystem::Get(this);
 
 	if (subsystem)
@@ -143,30 +150,26 @@ void AEfficiencyCheckerLogic::Terminate()
 	baseBuildableFactorySimpleProducerClass = nullptr;
 }
 
-bool AEfficiencyCheckerLogic::containsActor(const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
+bool AEfficiencyCheckerLogic::containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
 {
-	return seenActors.Contains(actor);
+	return seenActors.contains(actor);
 }
 
 bool AEfficiencyCheckerLogic::actorContainsItem
 (
-	const TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	AActor* actor,
 	const TSubclassOf<UFGItemDescriptor>& item
 )
 {
-	auto value = seenActors.Find(actor);
-	if (value == nullptr)
-	{
-		return false;
-	}
+	auto it = seenActors.find(actor);
 
-	return value->Contains(item);
+	return it != seenActors.end() && it->second.Contains(item);
 }
 
 void AEfficiencyCheckerLogic::addAllItemsToActor
 (
-	TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	AActor* actor,
 	const TSet<TSubclassOf<UFGItemDescriptor>>& items
 )
@@ -187,7 +190,7 @@ void AEfficiencyCheckerLogic::collectInput
 	class UFGConnectionComponent* connector,
 	float& out_injectedInput,
 	float& out_limitedThroughput,
-	TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	TSet<class AFGBuildable*>& connected,
 	TSet<TSubclassOf<UFGItemDescriptor>>& out_injectedItems,
 	const TSet<TSubclassOf<UFGItemDescriptor>>& in_restrictItems,
@@ -210,7 +213,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 		auto owner = connector->GetOwner();
 
-		if (!owner || seenActors.Contains(owner))
+		if (!owner || seenActors.contains(owner))
 		{
 			return;
 		}
@@ -252,7 +255,7 @@ void AEfficiencyCheckerLogic::collectInput
 			*fullClassName
 			);
 
-		seenActors.Add(owner);
+		seenActors[owner];
 
 		{
 			const auto manufacturer = Cast<AFGBuildableManufacturer>(owner);
@@ -803,7 +806,7 @@ void AEfficiencyCheckerLogic::collectInput
 										continue;
 									}
 
-									seenActors.Add(stopCargo);
+									seenActors[stopCargo];
 
 									components.Append(
 										stopCargo->GetConnectionComponents().FilterByPredicate(
@@ -845,7 +848,7 @@ void AEfficiencyCheckerLogic::collectInput
 						auto storageID = FReflectionHelper::GetPropertyValue<FStrProperty>(testTeleporter, TEXT("StorageID"));
 						if (storageID == currentStorageID)
 						{
-							seenActors.Add(testTeleporter);
+							seenActors[testTeleporter];
 
 							auto factory = Cast<AFGBuildableFactory>(testTeleporter);
 							if (factory)
@@ -869,7 +872,7 @@ void AEfficiencyCheckerLogic::collectInput
 					collectModularLoadBalancerComponents(modularLoadBalancer, components, modularLoadBalancers);
 					for (auto building : modularLoadBalancers)
 					{
-						seenActors.Add(building);
+						seenActors[building];
 					}
 				}
 
@@ -879,7 +882,7 @@ void AEfficiencyCheckerLogic::collectInput
 					collectUndergroundBeltsComponents(undergroundBelt, components, undergroundActors);
 					for (auto building : undergroundActors)
 					{
-						seenActors.Add(building);
+						seenActors[building];
 					}
 				}
 
@@ -899,11 +902,6 @@ void AEfficiencyCheckerLogic::collectInput
 
 							overflow = true;
 							return;
-						}
-
-						if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
-						{
-							continue;
 						}
 
 						if (connection->GetDirection() != EFactoryConnectionDirection::FCD_OUTPUT)
@@ -1009,11 +1007,6 @@ void AEfficiencyCheckerLogic::collectInput
 						continue;
 					}
 
-					if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
-					{
-						continue;
-					}
-
 					if (connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
 					{
 						connectedInputs.Add(connection);
@@ -1063,11 +1056,6 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 
 						if (!connection->IsConnected())
-						{
-							continue;
-						}
-
-						if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
 						{
 							continue;
 						}
@@ -1148,7 +1136,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						float previousLimit = 0;
 						float discountedInput = 0;
-						TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
+						std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
 
 						auto tempInjectedItems = out_injectedItems;
 
@@ -1167,7 +1155,7 @@ void AEfficiencyCheckerLogic::collectInput
 								return;
 							}
 
-							seenActorsCopy[actor.Key] = out_injectedItems;
+							seenActorsCopy[actor.first] = out_injectedItems;
 						}
 
 						collectOutput(
@@ -1295,10 +1283,10 @@ void AEfficiencyCheckerLogic::collectInput
 					out_limitedThroughput = FMath::Min(out_limitedThroughput, getPipeSpeed(pipeline));
 				}
 
-				auto otherConnections = seenActors.Num() == 1
+				auto otherConnections = seenActors.size() == 1
 					                        ? components
 					                        : components.FilterByPredicate(
-						                        [connector, seenActors](UFGPipeConnectionComponent* pipeConnection)
+						                        [connector](UFGPipeConnectionComponent* pipeConnection)
 						                        {
 							                        return
 								                        pipeConnection != connector && pipeConnection->IsConnected();
@@ -1330,7 +1318,7 @@ void AEfficiencyCheckerLogic::collectInput
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
 						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
-						GetConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
+						getConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
 						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
 						otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER))
 				{
@@ -1347,7 +1335,7 @@ void AEfficiencyCheckerLogic::collectInput
 					bool firstConnection = true;
 					float limitedThroughput = 0;
 
-					bool firstActor = seenActors.Num() == 1;
+					bool firstActor = seenActors.size() == 1;
 
 					for (auto connection : components)
 					{
@@ -1370,7 +1358,7 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 
 						if (connection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER ||
-							GetConnectedPipeConnectionType(connection) == EPipeConnectionType::PCT_CONSUMER)
+							getConnectedPipeConnectionType(connection) == EPipeConnectionType::PCT_CONSUMER)
 						{
 							continue;
 						}
@@ -1410,7 +1398,7 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 						else
 						{
-							limitedThroughput += limitedThroughput;
+							limitedThroughput += previousLimit;
 						}
 					}
 
@@ -1446,7 +1434,7 @@ void AEfficiencyCheckerLogic::collectInput
 							float previousLimit = 0;
 							float discountedInput = 0;
 
-							TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
+							std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
 
 							for (auto actor : seenActors)
 							{
@@ -1458,7 +1446,7 @@ void AEfficiencyCheckerLogic::collectInput
 									return;
 								}
 
-								seenActorsCopy[actor.Key] = out_injectedItems;
+								seenActorsCopy[actor.first] = out_injectedItems;
 							}
 
 							collectOutput(
@@ -1731,7 +1719,7 @@ void AEfficiencyCheckerLogic::collectInput
 									continue;
 								}
 
-								seenActors.Add(stopCargo);
+								seenActors[stopCargo];
 
 								TArray<UFGPipeConnectionComponent*> cargoPipeConnections;
 								stopCargo->GetComponents(cargoPipeConnections);
@@ -1844,7 +1832,7 @@ void AEfficiencyCheckerLogic::collectInput
 					float previousLimit = 0;
 					float discountedInput = 0;
 
-					TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
+					std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>> seenActorsCopy;
 
 					for (auto actor : seenActors)
 					{
@@ -1856,7 +1844,7 @@ void AEfficiencyCheckerLogic::collectInput
 							return;
 						}
 
-						seenActorsCopy[actor.Key] = out_injectedItems;
+						seenActorsCopy[actor.first] = out_injectedItems;
 					}
 
 					collectOutput(
@@ -1893,7 +1881,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 				EC_LOG_Display_Condition(*indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
-				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
+				connected.Add(Cast<AFGBuildable>(cargoPlatform));
 
 				return;
 			}
@@ -1952,7 +1940,7 @@ void AEfficiencyCheckerLogic::collectOutput
 	class UFGConnectionComponent* connector,
 	float& out_requiredOutput,
 	float& out_limitedThroughput,
-	TMap<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
+	std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors,
 	TSet<AFGBuildable*>& connected,
 	const TSet<TSubclassOf<UFGItemDescriptor>>& in_injectedItems,
 	class AFGBuildableSubsystem* buildableSubsystem,
@@ -2065,7 +2053,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							continue;
 						}
 
-						if (!injectedItems.Contains(item.ItemClass) || seenActors[manufacturer].Contains(item.ItemClass))
+						if (!injectedItems.Contains(item.ItemClass) || seenActors.contains(manufacturer) && seenActors[manufacturer].Contains(item.ItemClass))
 						{
 							continue;
 						}
@@ -2573,11 +2561,6 @@ void AEfficiencyCheckerLogic::collectOutput
 						continue;
 					}
 
-					if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
-					{
-						continue;
-					}
-
 					if (connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
 					{
 						connectedInputs.Add(connection);
@@ -2629,11 +2612,6 @@ void AEfficiencyCheckerLogic::collectOutput
 							}
 
 							if (!connection->IsConnected())
-							{
-								continue;
-							}
-
-							if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
 							{
 								continue;
 							}
@@ -2780,7 +2758,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				}
 
 				auto otherConnections =
-					seenActors.Num() == 1
+					seenActors.size() == 1
 						? components
 						: components.FilterByPredicate(
 							[connector, seenActors](UFGPipeConnectionComponent* pipeConnection)
@@ -2814,7 +2792,7 @@ void AEfficiencyCheckerLogic::collectOutput
 				else if (otherConnections.Num() == 1 &&
 					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
 						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
-						GetConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
+						getConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
 						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
 						otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER))
 				{
@@ -2832,7 +2810,7 @@ void AEfficiencyCheckerLogic::collectOutput
 					bool firstConnection = true;
 					float limitedThroughput = out_limitedThroughput;
 
-					bool firstActor = seenActors.Num() == 1;
+					bool firstActor = seenActors.size() == 1;
 
 					for (auto connection : (firstActor ? components : otherConnections))
 					{
@@ -2855,7 +2833,7 @@ void AEfficiencyCheckerLogic::collectOutput
 						}
 
 						if (connection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER ||
-							GetConnectedPipeConnectionType(connection) == EPipeConnectionType::PCT_PRODUCER)
+							getConnectedPipeConnectionType(connection) == EPipeConnectionType::PCT_PRODUCER)
 						{
 							continue;
 						}
@@ -3307,7 +3285,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				EC_LOG_Display_Condition(*indent, *owner->GetName(), TEXT(" limited at "), out_limitedThroughput, TEXT(" m³/minute"));
 
-				connected.Add(Cast<AFGBuildable>(fluidIntegrant));
+				connected.Add(Cast<AFGBuildable>(cargoPlatform));
 
 				return;
 			}
@@ -3779,13 +3757,13 @@ float AEfficiencyCheckerLogic::getPipeSpeed(AFGBuildablePipeline* pipe)
 	return UFGBlueprintFunctionLibrary::RoundFloatWithPrecision(pipe->GetFlowLimit() * 60, 4);
 }
 
-EPipeConnectionType AEfficiencyCheckerLogic::GetConnectedPipeConnectionType(class UFGPipeConnectionComponent* component)
+EPipeConnectionType AEfficiencyCheckerLogic::getConnectedPipeConnectionType(class UFGPipeConnectionComponent* component)
 {
 	auto connectionType = EPipeConnectionType::PCT_ANY;
 
 	if (component)
 	{
-		connectionType = component->GetPipeConnectionType();
+		// connectionType = component->GetPipeConnectionType();
 
 		if (connectionType == EPipeConnectionType::PCT_ANY && component->IsConnected() && component->GetConnection())
 		{
@@ -3911,8 +3889,8 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 	class UFGConnectionComponent* connector,
 	const FComponentFilter& currentFilter,
 	class AFGBuildableSplitterSmart* smartSplitter,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& connectedInputs,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& componentOutputs,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& connectedInputs,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& componentOutputs,
 	EFactoryConnectionDirection direction,
 	const FString& indent,
 	const time_t& timeout,
@@ -3922,12 +3900,10 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 	TArray<UFGFactoryConnectionComponent*> tempComponents;
 	smartSplitter->GetComponents(tempComponents);
 
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
 
-	typedef TMap<UFGFactoryConnectionComponent*, FComponentFilter>::ElementType mapEntryType;
-
-	TMap<int, UFGFactoryConnectionComponent*> outputComponentsMapByIndex;
+	std::map<int, UFGFactoryConnectionComponent*> outputComponentsMapByIndex;
 
 	// Collect inputs and outputs
 	for (auto connection : tempComponents)
@@ -3946,12 +3922,6 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			continue;
 		}
 
-		if (connection->GetConnector() != EFactoryConnectionConnector::FCC_CONVEYOR)
-		{
-			// It is not a belt type. Ignore it
-			continue;
-		}
-
 		FRegexMatcher m(indexPattern, connection->GetName());
 		if (m.FindNext())
 		{
@@ -3961,7 +3931,6 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 				auto index = FCString::Atoi(*m.GetCaptureGroup(1));
 
 				tempInputComponents[connection].allowedFiltered = false;
-				tempInputComponents[connection].index = index;
 			}
 			else if (connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
 			{
@@ -3969,7 +3938,6 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 				auto index = FCString::Atoi(*m.GetCaptureGroup(1));
 
 				tempOutputComponents[connection].allowedFiltered = false;
-				tempOutputComponents[connection].index = index;
 
 				outputComponentsMapByIndex[index] = connection;
 			}
@@ -3994,14 +3962,14 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			*GetPathNameSafe(rule.ItemClass)
 			);
 
-		if (!outputComponentsMapByIndex.Contains(rule.OutputIndex))
+		if (!outputComponentsMapByIndex.contains(rule.OutputIndex))
 		{
 			// The connector is not connect or is not valid
 			continue;
 		}
 
 		auto connection = outputComponentsMapByIndex[rule.OutputIndex];
-		if (!tempOutputComponents.Contains(connection))
+		if (!tempOutputComponents.contains(connection))
 		{
 			// Invalid connector index
 			continue;
@@ -4026,25 +3994,25 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			return;
 		}
 
-		if (singleton->noneItemDescriptors.Intersect(it->Value.allowedItems).Num())
+		if (singleton->noneItemDescriptors.Intersect(it->second.allowedItems).Num())
 		{
 			// No item is valid. Empty it all
-			it->Value.allowedItems.Empty();
+			it->second.allowedItems.Empty();
 		}
-		else if (singleton->wildCardItemDescriptors.Intersect(it->Value.allowedItems).Num() || singleton->overflowItemDescriptors.Intersect(it->Value.allowedItems).Num())
+		else if (singleton->wildCardItemDescriptors.Intersect(it->second.allowedItems).Num() || singleton->overflowItemDescriptors.Intersect(it->second.allowedItems).Num())
 		{
 			// Add all current restrictItems as valid items
-			it->Value.allowedItems.Empty();
-			it->Value.allowedFiltered = false;
+			it->second.allowedItems.Empty();
+			it->second.allowedFiltered = false;
 		}
 
-		if (direction == EFactoryConnectionDirection::FCD_INPUT && it->Value.allowedFiltered ||
-			direction == EFactoryConnectionDirection::FCD_OUTPUT && it->Value.allowedFiltered && it->Key == connector)
+		if (direction == EFactoryConnectionDirection::FCD_INPUT && it->second.allowedFiltered ||
+			direction == EFactoryConnectionDirection::FCD_OUTPUT && it->second.allowedFiltered && it->first == connector)
 		{
-			it->Value.allowedItems = it->Value.allowedItems.Intersect(currentFilter.allowedItems);
+			it->second.allowedItems = it->second.allowedItems.Intersect(currentFilter.allowedItems);
 		}
 
-		definedItems.Append(it->Value.allowedItems);
+		definedItems.Append(it->second.allowedItems);
 	}
 
 	// Second pass
@@ -4058,13 +4026,13 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			return;
 		}
 
-		if (singleton->anyUndefinedItemDescriptors.Intersect(it->Value.allowedItems).Num())
+		if (singleton->anyUndefinedItemDescriptors.Intersect(it->second.allowedItems).Num())
 		{
-			it->Value.deniedFiltered = true;
-			it->Value.deniedItems.Append(definedItems);
+			it->second.deniedFiltered = true;
+			it->second.deniedItems.Append(definedItems);
 		}
 
-		if (it->Key == connector && !it->Value.allowedItems.Num())
+		if (it->first == connector && !it->second.allowedItems.Num())
 		{
 			// Can't go further. Return
 			return;
@@ -4072,12 +4040,14 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 	}
 
 	if (direction == EFactoryConnectionDirection::FCD_INPUT &&
-		!tempOutputComponents.FilterByPredicate(
-			[](const mapEntryType& entry)
+		std::find_if(
+			tempOutputComponents.begin(),
+			tempOutputComponents.end(),
+			[](const auto& entry)
 			{
-				return !entry.Value.allowedFiltered || entry.Value.allowedItems.Num();
+				return !entry.second.allowedFiltered || entry.second.allowedItems.Num();
 			}
-			).Num())
+			) != tempOutputComponents.end())
 	{
 		// Nothing will flow through. Return
 		return;
@@ -4085,24 +4055,24 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 
 	for (auto it : tempInputComponents)
 	{
-		it.Value.allowedItems = it.Value.allowedItems.Intersect(currentFilter.allowedItems).Intersect(definedItems);
+		it.second.allowedItems = it.second.allowedItems.Intersect(currentFilter.allowedItems).Intersect(definedItems);
 
-		if (it.Value.allowedFiltered && !it.Value.allowedItems.Num())
+		if (it.second.allowedFiltered && !it.second.allowedItems.Num())
 		{
 			continue;
 		}
 
-		connectedInputs[it.Key] = it.Value;
+		connectedInputs[it.first] = it.second;
 	}
 
 	for (auto it : tempOutputComponents)
 	{
-		if (it.Value.allowedFiltered && !it.Value.allowedItems.Num())
+		if (it.second.allowedFiltered && !it.second.allowedItems.Num())
 		{
 			continue;
 		}
 
-		componentOutputs[it.Key] = it.Value;
+		componentOutputs[it.first] = it.second;
 	}
 }
 

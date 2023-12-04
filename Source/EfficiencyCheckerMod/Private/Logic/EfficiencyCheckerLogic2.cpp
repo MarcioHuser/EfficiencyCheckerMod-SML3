@@ -28,20 +28,35 @@
 #include "Patching/NativeHookManager.h"
 #include "Resources/FGEquipmentDescriptor.h"
 #include "Util/Logging.h"
-#include "Util/Helpers.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
 #include <set>
+
+#include "Buildables/FGBuildablePipelinePump.h"
+#include "Buildables/FGBuildableSplitterSmart.h"
+#include "Reflection/BlueprintReflectionLibrary.h"
 
 #ifndef OPTIMIZE
 #pragma optimize( "", off )
 #endif
 
+bool (*AEfficiencyCheckerLogic2::containsActor)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor) = &AEfficiencyCheckerLogic::containsActor;
+bool (*AEfficiencyCheckerLogic2::actorContainsItem)
+	(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item) = &
+	AEfficiencyCheckerLogic::actorContainsItem;
+void (*AEfficiencyCheckerLogic2::addAllItemsToActor)
+	(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items) = &
+	AEfficiencyCheckerLogic::addAllItemsToActor;
+
+float (*AEfficiencyCheckerLogic2::getPipeSpeed)(class AFGBuildablePipeline* pipe) = &AEfficiencyCheckerLogic::getPipeSpeed;
+EPipeConnectionType (*AEfficiencyCheckerLogic2::getConnectedPipeConnectionType)
+	(class UFGPipeConnectionComponent* component) = &AEfficiencyCheckerLogic::getConnectedPipeConnectionType;
+
 void AEfficiencyCheckerLogic2::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 }
 
-void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
+void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 {
 	for (;;)
 	{
@@ -52,7 +67,7 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 
 		auto owner = collectSettings.GetConnector()->GetOwner();
 
-		if (!owner || collectSettings.GetSeenActors().Contains(owner))
+		if (!owner || collectSettings.GetSeenActors().contains(owner))
 		{
 			return;
 		}
@@ -94,7 +109,7 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 			*fullClassName
 			);
 
-		collectSettings.GetSeenActors().Add(owner);
+		collectSettings.GetSeenActors()[owner];
 
 		{
 			const auto manufacturer = Cast<AFGBuildableManufacturer>(owner);
@@ -104,8 +119,7 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 				handleManufacturer(
 					manufacturer,
 					collectSettings,
-					true,
-					false
+					true
 					);
 
 				return;
@@ -144,17 +158,16 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 
 			AFGBuildable* buildable = nullptr;
 
-			TMap<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
+			std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
 
 			if (!buildable &&
 				(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass) ||
 					AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass)))
 			{
-				auto undergroundBelt = Cast<AFGBuildableStorage>(owner);
-				buildable = undergroundBelt;
-
-				if (undergroundBelt)
+				if (auto undergroundBelt = Cast<AFGBuildableStorage>(owner))
 				{
+					buildable = undergroundBelt;
+
 					handleUndergroundBeltsComponents(undergroundBelt, collectSettings, inputComponents, outputComponents);
 				}
 			}
@@ -162,23 +175,31 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
 				!buildable && AEfficiencyCheckerLogic::singleton->baseStorageTeleporterClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseStorageTeleporterClass))
 			{
-				auto storageTeleporter = Cast<AFGBuildableFactory>(owner);
-				buildable = storageTeleporter;
-
-				if (storageTeleporter)
+				if (auto storageTeleporter = Cast<AFGBuildableFactory>(owner))
 				{
-					handleStorageTeleporter(storageTeleporter, collectSettings, inputComponents, outputComponents);
+					buildable = storageTeleporter;
+
+					handleStorageTeleporter(storageTeleporter, collectSettings, inputComponents, outputComponents, true);
 				}
 			}
 
 			if (!buildable && AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass))
 			{
-				auto modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
-				buildable = modularLoadBalancer;
-
-				if (modularLoadBalancer)
+				if (auto modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader")))
 				{
-					handleModularLoadBalancerComponents(modularLoadBalancer, collectSettings, inputComponents, outputComponents);
+					buildable = modularLoadBalancer;
+
+					handleModularLoadBalancerComponents(modularLoadBalancer, collectSettings, inputComponents, outputComponents, true);
+				}
+			}
+
+			if (!buildable)
+			{
+				if (auto splitterSmart = Cast<AFGBuildableSplitterSmart>(owner))
+				{
+					buildable = splitterSmart;
+
+					handleSmartSplitterComponents(splitterSmart, collectSettings, inputComponents, outputComponents, true);
 				}
 			}
 
@@ -187,20 +208,18 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 				buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 				if (buildable)
 				{
-					handleFactoryComponents(buildable, EFactoryConnectionConnector::FCC_CONVEYOR, inputComponents, outputComponents);
+					getFactoryConnectionComponents(buildable, inputComponents, outputComponents);
 				}
 			}
 
 			if (!buildable)
 			{
-				auto storageContainer = Cast<AFGBuildableStorage>(owner);
-				buildable = storageContainer;
-
-				if (storageContainer)
+				if (auto storageContainer = Cast<AFGBuildableStorage>(owner))
 				{
+					buildable = storageContainer;
+
 					handleContainerComponents(
 						storageContainer,
-						EFactoryConnectionConnector::FCC_CONVEYOR,
 						storageContainer->GetStorageInventory(),
 						collectSettings,
 						inputComponents,
@@ -211,25 +230,22 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 
 			if (!buildable)
 			{
-				auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(owner);
-				buildable = cargoPlatform;
-
-				if (cargoPlatform)
+				if (auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(owner))
 				{
-					handleTrainPlatformCargo(cargoPlatform, EFactoryConnectionConnector::FCC_CONVEYOR, collectSettings, inputComponents, outputComponents);
+					buildable = cargoPlatform;
+
+					handleTrainPlatformCargoBelt(cargoPlatform, collectSettings, inputComponents, outputComponents, true);
 				}
 			}
 
 			if (!buildable)
 			{
-				auto dockingStation = Cast<AFGBuildableDockingStation>(owner);
-				buildable = dockingStation;
-
-				if (dockingStation)
+				if (auto dockingStation = Cast<AFGBuildableDockingStation>(owner))
 				{
+					buildable = dockingStation;
+
 					handleContainerComponents(
 						dockingStation,
-						EFactoryConnectionConnector::FCC_CONVEYOR,
 						dockingStation->GetInventory(),
 						collectSettings,
 						inputComponents,
@@ -244,15 +260,23 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 
 			if (buildable)
 			{
-				if (inputComponents.Num() == 1 && outputComponents.Num() == 1)
+				// Update filter
+				collectSettings.SetCurrentFilter(
+					FComponentFilter::combineFilters(
+						collectSettings.GetCurrentFilter(),
+						outputComponents[Cast<UFGFactoryConnectionComponent>(collectSettings.GetConnector())]
+						)
+					);
+
+				if (inputComponents.size() == 1 && outputComponents.size() == 1)
 				{
 					collectSettings.GetConnected().Add(buildable);
 
-					collectSettings.SetConnector(inputComponents.begin().Key()->GetConnection());
+					collectSettings.SetConnector(inputComponents.begin()->first->GetConnection());
 
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" skipped"));
 
-					collectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), inputComponents.begin().Value()));
+					collectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), inputComponents.begin()->second));
 
 					// Check if anything can still POSSIBLY flow through
 					if (collectSettings.GetCurrentFilter().allowedFiltered && !collectSettings.GetCurrentFilter().allowedItems.Num())
@@ -264,7 +288,7 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 					continue;
 				}
 
-				if (inputComponents.Num() == 0)
+				if (inputComponents.size() == 0)
 				{
 					// Nothing is being inputed. Bail
 					EC_LOG_Error_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" has no input"));
@@ -284,7 +308,12 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 							return;
 						}
 
-						auto connection = connectionEntry.Key;
+						auto connection = connectionEntry.first;
+
+						if (connection == collectSettings.GetConnector())
+						{
+							continue;
+						}
 
 						if (!connection->IsConnected())
 						{
@@ -296,18 +325,12 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 						// 	continue;
 						// }
 
-						auto previousLimit = collectSettings.GetLimitedThroughput();
-						auto newIndent = collectSettings.GetIndent() + TEXT("    ");
-						auto newLevel = collectSettings.GetLevel() + 1;
-
-						FComponentFilter tempComponentFilter = FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.Value);
-
-						CollectSettingsWrapper tempCollectSettings(collectSettings);
-						tempCollectSettings.SetConnector(connection->GetConnection());
-						tempCollectSettings.SetLimitedThroughputPtr(&previousLimit);
-						tempCollectSettings.SetIndentPtr(&newIndent);
-						tempCollectSettings.SetLevelPtr(&newLevel);
-						tempCollectSettings.SetCurrentFilterPtr(&tempComponentFilter);
+						CollectSettings tempCollectSettings(collectSettings);
+						tempCollectSettings.SetConnector(connection->GetConnection(), true);
+						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
+						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 
 						collectInput(tempCollectSettings);
 
@@ -318,12 +341,12 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 
 						if (firstConnection)
 						{
-							limitedThroughput = previousLimit;
+							limitedThroughput = tempCollectSettings.GetLimitedThroughput();
 							firstConnection = false;
 						}
 						else
 						{
-							limitedThroughput += previousLimit;
+							limitedThroughput += tempCollectSettings.GetLimitedThroughput();
 						}
 					}
 
@@ -339,15 +362,50 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 							return;
 						}
 
-						auto connection = connectionEntry.Key;
+						auto connection = connectionEntry.first;
+
+						if (connection == collectSettings.GetConnector())
+						{
+							continue;
+						}
 
 						if (!connection->IsConnected())
 						{
 							continue;
 						}
 
-						float previousLimit = 0;
-						float discountedInput = 0;
+						CollectSettings tempCollectSettings(collectSettings);
+						tempCollectSettings.SetConnector(connection->GetConnection(), true);
+						tempCollectSettings.SetLimitedThroughput(0, true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
+						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
+						tempCollectSettings.SetInjectedInputPtr(nullptr);
+						tempCollectSettings.SetRequiredOutputPtr(nullptr);
+						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
+						tempCollectSettings.SetInjectedItems(tempCollectSettings.GetCurrentFilter().allowedItems, true);
+
+						collectOutput(tempCollectSettings);
+
+						if (collectSettings.GetOverflow())
+						{
+							return;
+						}
+
+						if (tempCollectSettings.GetRequiredOutputTotal() > 0)
+						{
+							EC_LOG_Display_Condition(*tempCollectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetRequiredOutputTotal(), TEXT(" items/minute"));
+
+							for (auto entry : tempCollectSettings.GetRequiredOutput())
+							{
+								if (!collectSettings.GetCurrentFilter().itemIsAllowed(entry.first))
+								{
+									continue;
+								}
+
+								collectSettings.GetInjectedInput()[entry.first] -= entry.second;
+							}
+						}
 					}
 				}
 
@@ -357,6 +415,175 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 
 		if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
 		{
+			TSet<class UFGPipeConnectionComponent*> anyDirectionComponents, inputComponents, outputComponents;
+
+			auto pipeline = Cast<AFGBuildablePipeline>(owner);
+			auto pipeConnection = Cast<UFGPipeConnectionComponent>(collectSettings.GetConnector());
+
+			AFGBuildable* buildable = nullptr;
+
+			{
+				if (auto fluidIntegrant = Cast<IFGFluidIntegrantInterface>(owner))
+				{
+					buildable = Cast<AFGBuildable>(fluidIntegrant);
+
+					handleFluidIntegrant(
+						fluidIntegrant,
+						collectSettings,
+						anyDirectionComponents,
+						inputComponents,
+						outputComponents
+						);
+				}
+			}
+
+			if (!buildable)
+			{
+				if (auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(owner))
+				{
+					buildable = cargoPlatform;
+
+					handleTrainPlatformCargoPipe(
+						cargoPlatform,
+						collectSettings,
+						inputComponents,
+						outputComponents,
+						true
+						);
+				}
+			}
+
+			if (buildable)
+			{
+				auto allConnections = anyDirectionComponents.Union(inputComponents).Union(outputComponents);
+				auto firstAnyDirection = getFirstItem(allConnections);
+
+				if (allConnections.IsEmpty())
+				{
+					// No more connections. Bail
+					EC_LOG_Error_Condition(*collectSettings.GetIndent(), *owner->GetName(), TEXT(" has no other connection"));
+				}
+				else if (allConnections.Num() == 1 &&
+					(!anyDirectionComponents.IsEmpty() ||
+						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
+						firstAnyDirection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER)
+					)
+				{
+					// Just pass-through
+					collectSettings.GetConnected().Add(buildable);
+
+					collectSettings.SetConnector(firstAnyDirection->GetConnection());
+
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" skipped"));
+
+					continue;
+				}
+				else
+				{
+					bool firstConnection = true;
+					float limitedThroughput = 0;
+
+					auto firstActor = collectSettings.GetSeenActors().size() == 1;
+
+					for (auto connection : anyDirectionComponents.Union(inputComponents))
+					{
+						if (collectSettings.GetTimeout() < time(NULL))
+						{
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
+
+							collectSettings.SetOverflow(true);
+							return;
+						}
+
+						if (connection == pipeConnection && !firstActor)
+						{
+							continue;
+						}
+
+						CollectSettings tempCollectSettings(collectSettings);
+						tempCollectSettings.SetConnector(connection->GetConnection(), true);
+						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
+
+						collectInput(tempCollectSettings);
+
+						if (collectSettings.GetOverflow())
+						{
+							return;
+						}
+
+						if (pipeline)
+						{
+							collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), tempCollectSettings.GetLimitedThroughput()));
+						}
+						else if (firstConnection)
+						{
+							limitedThroughput = tempCollectSettings.GetLimitedThroughput();
+							firstConnection = false;
+						}
+						else
+						{
+							limitedThroughput += tempCollectSettings.GetLimitedThroughput();
+						}
+					}
+
+					if (!pipeline && !firstConnection)
+					{
+						collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), limitedThroughput));
+					}
+
+					for (auto connection : outputComponents)
+					{
+						if (collectSettings.GetTimeout() < time(NULL))
+						{
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
+
+							collectSettings.SetOverflow(true);
+							return;
+						}
+
+						if (connection->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER)
+						{
+							continue;
+						}
+
+						CollectSettings tempCollectSettings(collectSettings);
+						tempCollectSettings.SetConnector(connection->GetConnection(), true);
+						tempCollectSettings.SetLimitedThroughput(0, true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
+						tempCollectSettings.SetInjectedInputPtr(nullptr);
+						tempCollectSettings.SetRequiredOutputPtr(nullptr);
+						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
+
+						collectOutput(tempCollectSettings);
+
+						if (collectSettings.GetOverflow())
+						{
+							return;
+						}
+
+						if (tempCollectSettings.GetInjectedInputTotal() > 0)
+						{
+							EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetInjectedInputTotal(), TEXT(" m³/minute"));
+
+							if (!collectSettings.GetCustomInjectedInput() && !collectSettings.GetInjectedItems().IsEmpty())
+							{
+								auto item = *collectSettings.GetInjectedItems().begin();
+
+								collectSettings.GetInjectedInput()[item] -= tempCollectSettings.GetInjectedInput()[item];
+							}
+						}
+					}
+
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *owner->GetName(), TEXT(" limited at "), collectSettings.GetLimitedThroughput(), TEXT(" m³/minute"));
+				}
+
+				collectSettings.GetConnected().Add(buildable);
+
+				return;
+			}
 		}
 
 		{
@@ -369,7 +596,7 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 				{
 					collectSettings.GetInjectedItems().Add(item);
 
-					collectSettings.GetInjectedInput().FindOrAdd(item) += 0.2;
+					collectSettings.GetInjectedInput()[item] += 0.2;
 				}
 
 				collectSettings.GetConnected().Add(nuclearGenerator);
@@ -388,17 +615,19 @@ void AEfficiencyCheckerLogic2::collectInput(ICollectSettings& collectSettings)
 			{
 				collectSettings.GetInjectedItems().Add(itemType);
 
-				collectSettings.GetInjectedInput().FindOrAdd(itemType) += 60 / timeToProduceItem;
+				collectSettings.GetInjectedInput()[itemType] += 60 / timeToProduceItem;
 			}
 
 			collectSettings.GetConnected().Add(Cast<AFGBuildable>(owner));
 
 			return;
 		}
+
+		return;
 	}
 }
 
-void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
+void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 {
 	TSet<TSubclassOf<UFGItemDescriptor>> injectedItems = collectSettings.GetInjectedItems();
 
@@ -448,7 +677,7 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 
 			for (auto item : injectedItems)
 			{
-				if (!AEfficiencyCheckerLogic::actorContainsItem(collectSettings.GetSeenActors(), owner, item))
+				if (!actorContainsItem(collectSettings.GetSeenActors(), owner, item))
 				{
 					unusedItems = true;
 					break;
@@ -462,7 +691,7 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 		}
 		else
 		{
-			if (AEfficiencyCheckerLogic::containsActor(collectSettings.GetSeenActors(), owner))
+			if (containsActor(collectSettings.GetSeenActors(), owner))
 			{
 				return;
 			}
@@ -487,8 +716,7 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 				handleManufacturer(
 					manufacturer,
 					collectSettings,
-					false,
-					true
+					false
 					);
 
 				return;
@@ -500,7 +728,7 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 			const auto conveyor = Cast<AFGBuildableConveyorBase>(owner);
 			if (conveyor)
 			{
-				AEfficiencyCheckerLogic::addAllItemsToActor(collectSettings.GetSeenActors(), conveyor, injectedItems);
+				addAllItemsToActor(collectSettings.GetSeenActors(), conveyor, injectedItems);
 
 				collectSettings.GetConnected().Add(conveyor);
 
@@ -515,17 +743,16 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 
 			AFGBuildable* buildable = nullptr;
 
-			TMap<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
+			std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
 
 			if (!buildable &&
 				(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass) ||
 					AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass)))
 			{
-				auto undergroundBelt = Cast<AFGBuildableStorage>(owner);
-				buildable = undergroundBelt;
-
-				if (undergroundBelt)
+				if (auto undergroundBelt = Cast<AFGBuildableStorage>(owner))
 				{
+					buildable = undergroundBelt;
+
 					handleUndergroundBeltsComponents(undergroundBelt, collectSettings, inputComponents, outputComponents);
 				}
 			}
@@ -538,18 +765,27 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 
 				if (storageTeleporter)
 				{
-					handleStorageTeleporter(storageTeleporter, collectSettings, inputComponents, outputComponents);
+					handleStorageTeleporter(storageTeleporter, collectSettings, inputComponents, outputComponents, false);
 				}
 			}
 
 			if (!buildable && AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass))
 			{
-				auto modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
-				buildable = modularLoadBalancer;
-
-				if (modularLoadBalancer)
+				if (auto modularLoadBalancerGroupLeader = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader")))
 				{
-					handleModularLoadBalancerComponents(modularLoadBalancer, collectSettings, inputComponents, outputComponents);
+					buildable = modularLoadBalancerGroupLeader;
+
+					handleModularLoadBalancerComponents(modularLoadBalancerGroupLeader, collectSettings, inputComponents, outputComponents, false);
+				}
+			}
+
+			if (!buildable)
+			{
+				if (auto splitterSmart = Cast<AFGBuildableSplitterSmart>(owner))
+				{
+					buildable = splitterSmart;
+
+					handleSmartSplitterComponents(splitterSmart, collectSettings, inputComponents, outputComponents, false);
 				}
 			}
 
@@ -558,20 +794,18 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 				buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 				if (buildable)
 				{
-					handleFactoryComponents(buildable, EFactoryConnectionConnector::FCC_CONVEYOR, inputComponents, outputComponents);
+					getFactoryConnectionComponents(buildable, inputComponents, outputComponents);
 				}
 			}
 
 			if (!buildable)
 			{
-				auto storageContainer = Cast<AFGBuildableStorage>(owner);
-				buildable = storageContainer;
-
-				if (storageContainer)
+				if (auto storageContainer = Cast<AFGBuildableStorage>(owner))
 				{
+					buildable = storageContainer;
+
 					handleContainerComponents(
 						storageContainer,
-						EFactoryConnectionConnector::FCC_CONVEYOR,
 						storageContainer->GetStorageInventory(),
 						collectSettings,
 						inputComponents,
@@ -582,25 +816,22 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 
 			if (!buildable)
 			{
-				auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(owner);
-				buildable = cargoPlatform;
-
-				if (cargoPlatform)
+				if (auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(owner))
 				{
-					handleTrainPlatformCargo(cargoPlatform, EFactoryConnectionConnector::FCC_CONVEYOR, collectSettings, inputComponents, outputComponents);
+					buildable = cargoPlatform;
+
+					handleTrainPlatformCargoBelt(cargoPlatform, collectSettings, inputComponents, outputComponents, false);
 				}
 			}
 
 			if (!buildable)
 			{
-				auto dockingStation = Cast<AFGBuildableDockingStation>(owner);
-				buildable = dockingStation;
-
-				if (dockingStation)
+				if (auto dockingStation = Cast<AFGBuildableDockingStation>(owner))
 				{
+					buildable = dockingStation;
+
 					handleContainerComponents(
 						dockingStation,
-						EFactoryConnectionConnector::FCC_CONVEYOR,
 						dockingStation->GetInventory(),
 						collectSettings,
 						inputComponents,
@@ -615,17 +846,19 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 
 			if (buildable)
 			{
-				if (inputComponents.Num() == 1 && outputComponents.Num() == 1)
+				addAllItemsToActor(collectSettings.GetSeenActors(), buildable, injectedItems);
+
+				if (inputComponents.size() == 1 && outputComponents.size() == 1)
 				{
 					collectSettings.GetConnected().Add(buildable);
 
-					collectSettings.SetConnector(outputComponents.begin().Key()->GetConnection());
+					collectSettings.SetConnector(outputComponents.begin()->first->GetConnection());
 
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" skipped"));
 
-					injectedItems = outputComponents.begin().Value().filterItems(injectedItems);
+					injectedItems = outputComponents.begin()->second.filterItems(injectedItems);
 
-					collectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), outputComponents.begin().Value()));
+					collectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), outputComponents.begin()->second));
 
 					// Check if anything can still POSSIBLY flow through
 					if (!injectedItems.Num())
@@ -637,7 +870,7 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 					continue;
 				}
 
-				if (outputComponents.Num() == 0)
+				if (outputComponents.size() == 0)
 				{
 					// Nothing is being outputed. Bail
 					EC_LOG_Error_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" has no output"));
@@ -657,22 +890,27 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 							return;
 						}
 
-						auto connection = connectionEntry.Key;
+						auto connection = connectionEntry.first;
+
+						if (connection == collectSettings.GetConnector())
+						{
+							continue;
+						}
 
 						if (!connection->IsConnected())
 						{
 							continue;
 						}
 
-						CollectSettingsWrapper tempCollectSettings(collectSettings);
+						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
 						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
-						tempCollectSettings.SetCurrentFilter(connectionEntry.Value);
+						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 
 						collectOutput(tempCollectSettings);
-						
+
 						if (collectSettings.GetOverflow())
 						{
 							return;
@@ -680,12 +918,12 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 
 						if (firstConnection)
 						{
-							collectSettings.GetLimitedThroughput() = tempCollectSettings.GetLimitedThroughput();
+							limitedThroughput = tempCollectSettings.GetLimitedThroughput();
 							firstConnection = false;
 						}
 						else
 						{
-							collectSettings.GetLimitedThroughput() += tempCollectSettings.GetLimitedThroughput();
+							limitedThroughput += tempCollectSettings.GetLimitedThroughput();
 						}
 					}
 
@@ -701,22 +939,26 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 							return;
 						}
 
-						auto connection = connectionEntry.Key;
+						auto connection = connectionEntry.first;
+
+						if (connection == collectSettings.GetConnector())
+						{
+							continue;
+						}
 
 						if (!connection->IsConnected())
 						{
 							continue;
 						}
 
-						FComponentFilter tempComponentFilter = FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.Value);
-
-						CollectSettingsWrapper tempCollectSettings(collectSettings);
+						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(0, true);
 						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
-						tempCollectSettings.SetCurrentFilterPtr(&tempComponentFilter);
-						tempCollectSettings.SetRequiredOutput(TMAP_ITEM_INT32(), true);
+						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
+						tempCollectSettings.SetInjectedInputPtr(nullptr);
+						tempCollectSettings.SetRequiredOutputPtr(nullptr);
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
 						tempCollectSettings.SetInjectedItems(injectedItems, true);
 
@@ -727,28 +969,226 @@ void AEfficiencyCheckerLogic2::collectOutput(ICollectSettings& collectSettings)
 							return;
 						}
 
-						if (tempCollectSettings.GetRequiredOutputTotal() > 0)
+						if (tempCollectSettings.GetInjectedInputTotal() > 0)
 						{
-							EC_LOG_Display_Condition(*tempCollectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetRequiredOutputTotal(), TEXT(" items/minute"));
+							EC_LOG_Display_Condition(*tempCollectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetInjectedInputTotal(), TEXT(" items/minute"));
 
-							for (auto entry : tempCollectSettings.GetRequiredOutput())
+							for (auto entry : tempCollectSettings.GetInjectedInput())
 							{
-								collectSettings.GetRequiredOutput().FindOrAdd(entry.Key) -= entry.Value;
+								if (!collectSettings.GetCurrentFilter().itemIsAllowed(entry.first))
+								{
+									continue;
+								}
+
+								collectSettings.GetRequiredOutput()[entry.first] -= entry.second;
 							}
 						}
 					}
 				}
 			}
 		}
+
+		if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
+		{
+			TSet<class UFGPipeConnectionComponent*> anyDirectionComponents, inputComponents, outputComponents;
+
+			auto pipeline = Cast<AFGBuildablePipeline>(owner);
+			auto pipeConnection = Cast<UFGPipeConnectionComponent>(collectSettings.GetConnector());
+
+			AFGBuildable* buildable = nullptr;
+
+			{
+				if (auto fluidIntegrant = Cast<IFGFluidIntegrantInterface>(owner))
+				{
+					buildable = Cast<AFGBuildable>(fluidIntegrant);
+
+					addAllItemsToActor(collectSettings.GetSeenActors(), buildable, injectedItems);
+
+					handleFluidIntegrant(
+						fluidIntegrant,
+						collectSettings,
+						anyDirectionComponents,
+						inputComponents,
+						outputComponents
+						);
+				}
+			}
+
+			if (!buildable)
+			{
+				if (auto cargoPlatform = Cast<AFGBuildableTrainPlatformCargo>(owner))
+				{
+					buildable = cargoPlatform;
+
+					addAllItemsToActor(collectSettings.GetSeenActors(), buildable, injectedItems);
+
+					handleTrainPlatformCargoPipe(
+						cargoPlatform,
+						collectSettings,
+						inputComponents,
+						outputComponents,
+						false
+						);
+				}
+			}
+
+			if (buildable)
+			{
+				auto allConnections = anyDirectionComponents.Union(inputComponents).Union(outputComponents);
+				auto firstAnyDirection = getFirstItem(allConnections);
+
+				if (allConnections.IsEmpty())
+				{
+					// No more connections. Bail
+					EC_LOG_Error_Condition(*collectSettings.GetIndent(), *owner->GetName(), TEXT(" has no other connection"));
+				}
+				else if (allConnections.Num() == 1 &&
+					(!anyDirectionComponents.IsEmpty() ||
+						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
+						firstAnyDirection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER)
+					)
+				{
+					// Just pass-through
+					collectSettings.GetConnected().Add(buildable);
+
+					collectSettings.SetConnector(firstAnyDirection->GetConnection());
+
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" skipped"));
+
+					continue;
+				}
+				else
+				{
+					bool firstConnection = true;
+					float limitedThroughput = 0;
+
+					auto firstActor = collectSettings.GetSeenActors().size() == 1;
+
+					for (auto connection : anyDirectionComponents.Union(outputComponents))
+					{
+						if (collectSettings.GetTimeout() < time(NULL))
+						{
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
+
+							collectSettings.SetOverflow(true);
+							return;
+						}
+
+						if (connection == pipeConnection && !firstActor)
+						{
+							continue;
+						}
+
+						CollectSettings tempCollectSettings(collectSettings);
+						tempCollectSettings.SetConnector(connection->GetConnection(), true);
+						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
+
+						collectOutput(tempCollectSettings);
+
+						if (collectSettings.GetOverflow())
+						{
+							return;
+						}
+
+						if (pipeline)
+						{
+							collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), tempCollectSettings.GetLimitedThroughput()));
+						}
+						else if (firstConnection)
+						{
+							limitedThroughput = tempCollectSettings.GetLimitedThroughput();
+							firstConnection = false;
+						}
+						else
+						{
+							limitedThroughput += tempCollectSettings.GetLimitedThroughput();
+						}
+					}
+
+					if (!pipeline && !firstConnection)
+					{
+						collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), limitedThroughput));
+					}
+
+					for (auto connection : inputComponents)
+					{
+						if (collectSettings.GetTimeout() < time(NULL))
+						{
+							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating connectors!"));
+
+							collectSettings.SetOverflow(true);
+							return;
+						}
+
+						if (connection->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER)
+						{
+							continue;
+						}
+
+						CollectSettings tempCollectSettings(collectSettings);
+						tempCollectSettings.SetConnector(connection->GetConnection(), true);
+						tempCollectSettings.SetLimitedThroughput(0, true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
+						tempCollectSettings.SetInjectedInputPtr(nullptr);
+						tempCollectSettings.SetRequiredOutputPtr(nullptr);
+						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
+
+						collectInput(tempCollectSettings);
+
+						if (collectSettings.GetOverflow())
+						{
+							return;
+						}
+
+						if (tempCollectSettings.GetRequiredOutputTotal() > 0)
+						{
+							EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetRequiredOutputTotal(), TEXT(" m³/minute"));
+
+							if (!collectSettings.GetCustomRequiredOutput() && !collectSettings.GetInjectedItems().IsEmpty())
+							{
+								auto item = *collectSettings.GetInjectedItems().begin();
+
+								collectSettings.GetRequiredOutput()[item] -= tempCollectSettings.GetRequiredOutput()[item];
+							}
+						}
+					}
+
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *owner->GetName(), TEXT(" limited at "), collectSettings.GetLimitedThroughput(), TEXT(" m³/minute"));
+				}
+
+				collectSettings.GetConnected().Add(buildable);
+
+				return;
+			}
+		}
+
+		{
+			const auto generator = Cast<AFGBuildableGeneratorFuel>(owner);
+			if (generator)
+			{
+				handleGeneratorFuel(generator, collectSettings);
+			}
+		}
+
+		addAllItemsToActor(collectSettings.GetSeenActors(), owner, injectedItems);
+
+		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+		{
+			AEfficiencyCheckerLogic::dumpUnknownClass(collectSettings.GetIndent(), owner);
+		}
+
+		return;
 	}
 }
 
 void AEfficiencyCheckerLogic2::handleManufacturer
 (
 	class AFGBuildableManufacturer* const manufacturer,
-	ICollectSettings& collectSettings,
-	bool collectInjectedInput,
-	bool collectRequiredOutput
+	CollectSettings& collectSettings,
+	bool collectForInput
 )
 {
 	if ((manufacturer->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
@@ -760,7 +1200,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 
 		if (recipeClass)
 		{
-			if (collectInjectedInput)
+			if (collectForInput)
 			{
 				auto products = UFGRecipe::GetProducts(recipeClass)
 					.FilterByPredicate(
@@ -848,15 +1288,15 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						return;
 					}
 
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Item amount = "), item.Amount);
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Current potential = "), manufacturer->GetCurrentPotential());
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Pending potential = "), manufacturer->GetPendingPotential());
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Item amount = "), item.Amount);
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Current potential = "), manufacturer->GetCurrentPotential());
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Pending potential = "), manufacturer->GetPendingPotential());
 					EC_LOG_Display_Condition(
 						*collectSettings.GetIndent(),
-						TEXT("Production cycle time = "),
+						TEXT("    Production cycle time = "),
 						manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential())
 						);
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 
 					float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60 /
 						manufacturer->GetDefaultProductionCycleTime();
@@ -869,6 +1309,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 					EC_LOG_Display_Condition(
 						/**getTimeStamp(),*/
 						*collectSettings.GetIndent(),
+						TEXT("    "),
 						*manufacturer->GetName(),
 						TEXT(" produces "),
 						itemAmountPerMinute,
@@ -881,12 +1322,11 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 
 					if (!collectSettings.GetCustomInjectedInput())
 					{
-						collectSettings.GetInjectedInput().FindOrAdd(item.ItemClass) += itemAmountPerMinute;
+						collectSettings.GetInjectedInput()[item.ItemClass] += itemAmountPerMinute;
 					}
 				}
 			}
-
-			if (collectRequiredOutput)
+			else
 			{
 				auto ingredients = UFGRecipe::GetIngredients(recipeClass);
 
@@ -901,23 +1341,23 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						continue;
 					}
 
-					if (!collectSettings.GetInjectedItems().Contains(item.ItemClass) ||
-						collectSettings.GetSeenActors().Contains(manufacturer) && collectSettings.GetSeenActors()[manufacturer].Contains(item.ItemClass))
+					if (!collectSettings.GetCurrentFilter().itemIsAllowed(item.ItemClass) ||
+						actorContainsItem(collectSettings.GetSeenActors(), manufacturer, item.ItemClass))
 					{
 						continue;
 					}
 
 					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 					{
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Item amount = "), item.Amount);
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Current potential = "), manufacturer->GetCurrentPotential());
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Pending potential = "), manufacturer->GetPendingPotential());
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Item amount = "), item.Amount);
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Current potential = "), manufacturer->GetCurrentPotential());
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Pending potential = "), manufacturer->GetPendingPotential());
 						EC_LOG_Display(
 							*collectSettings.GetIndent(),
-							TEXT("Production cycle time = "),
+							TEXT("    Production cycle time = "),
 							manufacturer->CalcProductionCycleTimeForPotential(manufacturer->GetPendingPotential())
 							);
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 					}
 
 					float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60
@@ -931,6 +1371,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 					EC_LOG_Display_Condition(
 						/**getTimeStamp(),*/
 						*collectSettings.GetIndent(),
+						TEXT("    "),
 						*manufacturer->GetName(),
 						TEXT(" consumes "),
 						itemAmountPerMinute,
@@ -941,17 +1382,17 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 
 					if (!collectSettings.GetCustomRequiredOutput())
 					{
-						collectSettings.GetRequiredOutput().FindOrAdd(item.ItemClass) += itemAmountPerMinute;
+						collectSettings.GetRequiredOutput()[item.ItemClass] += itemAmountPerMinute;
 					}
 
-					collectSettings.GetSeenActors().FindOrAdd(manufacturer).Add(item.ItemClass);
+					collectSettings.GetSeenActors()[manufacturer].Add(item.ItemClass);
 				}
 			}
 		}
 	}
 }
 
-void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* extractor, ICollectSettings& collectSettings)
+void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* extractor, CollectSettings& collectSettings)
 {
 	if ((extractor->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
 		(!extractor->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
@@ -965,7 +1406,7 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 		EC_LOG_Display_Condition(
 			/**getTimeStamp(),*/
 			*collectSettings.GetIndent(),
-			TEXT("Extraction Speed Multiplier = "),
+			TEXT("    Extraction Speed Multiplier = "),
 			speedMultiplier
 			);
 
@@ -995,23 +1436,23 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 			return;
 		}
 
-		EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
+		EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
 		collectSettings.GetInjectedItems().Add(item);
 
 		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 		{
-			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Current potential = "), extractor->GetCurrentPotential());
-			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Pending potential = "), extractor->GetPendingPotential());
-			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Default cycle time = "), extractor->GetDefaultExtractCycleTime());
-			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Production cycle time = "), extractor->GetProductionCycleTime());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Current potential = "), extractor->GetCurrentPotential());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Pending potential = "), extractor->GetPendingPotential());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Default cycle time = "), extractor->GetDefaultExtractCycleTime());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Production cycle time = "), extractor->GetProductionCycleTime());
 			EC_LOG_Display(
 				*collectSettings.GetIndent(),
-				TEXT("Production cycle time for potential = "),
+				TEXT("    Production cycle time for potential = "),
 				extractor->CalcProductionCycleTimeForPotential(extractor->GetPendingPotential())
 				);
-			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Items per cycle converted = "), extractor->GetNumExtractedItemsPerCycleConverted());
-			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Items per cycle = "), extractor->GetNumExtractedItemsPerCycle());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Items per cycle converted = "), extractor->GetNumExtractedItemsPerCycleConverted());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Items per cycle = "), extractor->GetNumExtractedItemsPerCycle());
 		}
 
 		float itemAmountPerMinute;
@@ -1050,19 +1491,108 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 
 		if (!collectSettings.GetCustomInjectedInput())
 		{
-			collectSettings.GetInjectedInput().FindOrAdd(item) += itemAmountPerMinute;
+			collectSettings.GetInjectedInput()[item] += itemAmountPerMinute;
 		}
 
 		collectSettings.GetConnected().Add(extractor);
 	}
 }
 
-void AEfficiencyCheckerLogic2::handleFactoryComponents
+void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* generatorFuel, CollectSettings& collectSettings)
+{
+	if ((generatorFuel->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
+		(!generatorFuel->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
+	{
+		if (collectSettings.GetInjectedItems().Contains(generatorFuel->GetSupplementalResourceClass()) &&
+			!collectSettings.GetSeenActors()[generatorFuel].Contains(generatorFuel->GetSupplementalResourceClass()))
+		{
+			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+			{
+				EC_LOG_Display(
+					/**getTimeStamp(),*/
+					*collectSettings.GetIndent(),
+					TEXT("Supplemental item = "),
+					*UFGItemDescriptor::GetItemName(generatorFuel->GetSupplementalResourceClass()).ToString()
+					);
+				EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Supplemental amount = "), generatorFuel->GetSupplementalConsumptionRateMaximum());
+			}
+
+			collectSettings.GetRequiredOutput()[generatorFuel->GetSupplementalResourceClass()] += generatorFuel->GetSupplementalConsumptionRateMaximum() * (
+				(UFGItemDescriptor::GetForm(generatorFuel->GetSupplementalResourceClass()) == EResourceForm::RF_LIQUID ||
+					UFGItemDescriptor::GetForm(generatorFuel->GetSupplementalResourceClass()) == EResourceForm::RF_GAS)
+					? 60
+					: 1);
+
+			collectSettings.GetSeenActors()[generatorFuel].Add(generatorFuel->GetSupplementalResourceClass());
+		}
+		else
+		{
+			for (auto item : collectSettings.GetInjectedItems())
+			{
+				if (collectSettings.GetTimeout() < time(NULL))
+				{
+					EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating injected items!"));
+
+					collectSettings.SetOverflow(true);
+					return;
+				}
+
+				if (generatorFuel->IsValidFuel(item) && !collectSettings.GetSeenActors()[generatorFuel].Contains(item))
+				{
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
+
+					float energy = UFGItemDescriptor::GetEnergyValue(item);
+
+					// if (UFGItemDescriptor::GetForm(out_injectedItem) == EResourceForm::RF_LIQUID)
+					// {
+					//     energy *= 1000;
+					// }
+
+					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+					{
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Energy = "), energy);
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Current potential = "), generatorFuel->GetCurrentPotential());
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Pending potential = "), generatorFuel->GetPendingPotential());
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Power production capacity = "), generatorFuel->GetPowerProductionCapacity());
+						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Default power production capacity = "), generatorFuel->GetDefaultPowerProductionCapacity());
+					}
+
+					float itemAmountPerMinute = 60 / (energy / generatorFuel->GetPowerProductionCapacity());
+
+					if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
+					{
+						itemAmountPerMinute /= 1000;
+					}
+
+					EC_LOG_Display_Condition(
+						/**getTimeStamp(),*/
+						*collectSettings.GetIndent(),
+						*generatorFuel->GetName(),
+						TEXT(" consumes "),
+						itemAmountPerMinute,
+						TEXT(" "),
+						*UFGItemDescriptor::GetItemName(item).ToString(),
+						TEXT("/minute")
+						);
+
+					collectSettings.GetSeenActors()[generatorFuel].Add(item);
+
+					collectSettings.GetRequiredOutput()[item] += itemAmountPerMinute;
+
+					break;
+				}
+			}
+		}
+
+		collectSettings.GetConnected().Add(generatorFuel);
+	}
+}
+
+void AEfficiencyCheckerLogic2::getFactoryConnectionComponents
 (
 	class AFGBuildable* buildable,
-	EFactoryConnectionConnector connectorType,
-	TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-	TMap<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
 	const std::function<bool (class UFGFactoryConnectionComponent*)>& filter
 )
 {
@@ -1070,18 +1600,58 @@ void AEfficiencyCheckerLogic2::handleFactoryComponents
 	buildable->GetComponents(tempComponents);
 
 	for (auto component : tempComponents.FilterByPredicate(
-		     [connectorType,filter](UFGFactoryConnectionComponent* connection)
+		     [&filter](UFGFactoryConnectionComponent* connection)
 		     {
-			     return connection->IsConnected() && connection->GetConnector() == connectorType && filter(connection);
+			     return connection->IsConnected() && filter(connection);
 		     }
 		     )
 		)
 	{
-		if (!inputComponents.Contains(component) && component->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
+		if (!inputComponents.contains(component) && component->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
+		{
+			inputComponents[component];
+		}
+		else if (!outputComponents.contains(component) && component->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
+		{
+			outputComponents[component];
+		}
+	}
+}
+
+void AEfficiencyCheckerLogic2::getPipeConnectionComponents
+(
+	class AFGBuildable* buildable,
+	TSet<class UFGPipeConnectionComponent*>& anyDirectionComponents,
+	TSet<class UFGPipeConnectionComponent*>& inputComponents,
+	TSet<class UFGPipeConnectionComponent*>& outputComponents,
+	const std::function<bool (class UFGPipeConnectionComponent*)>& filter
+)
+{
+	TArray<UFGPipeConnectionComponent*> tempComponents;
+	buildable->GetComponents(tempComponents);
+
+	for (auto component : tempComponents.FilterByPredicate(
+		     [&filter](UFGPipeConnectionComponent* connection)
+		     {
+			     return connection->IsConnected() && filter(connection);
+		     }
+		     )
+		)
+	{
+		auto connectionType = component->GetPipeConnectionType();
+		auto otherConnectionType = getConnectedPipeConnectionType(component);
+
+		if (connectionType == EPipeConnectionType::PCT_ANY && otherConnectionType == EPipeConnectionType::PCT_ANY)
+		{
+			anyDirectionComponents.Add(component);
+		}
+		else if ((connectionType == EPipeConnectionType::PCT_ANY || connectionType == EPipeConnectionType::PCT_CONSUMER) &&
+			(otherConnectionType == EPipeConnectionType::PCT_ANY || otherConnectionType == EPipeConnectionType::PCT_PRODUCER))
 		{
 			inputComponents.Add(component);
 		}
-		else if (!outputComponents.Contains(component) && component->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
+		else if ((connectionType == EPipeConnectionType::PCT_ANY || connectionType == EPipeConnectionType::PCT_PRODUCER) &&
+			(otherConnectionType == EPipeConnectionType::PCT_ANY || otherConnectionType == EPipeConnectionType::PCT_CONSUMER))
 		{
 			outputComponents.Add(component);
 		}
@@ -1091,12 +1661,12 @@ void AEfficiencyCheckerLogic2::handleFactoryComponents
 void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 (
 	AFGBuildableStorage* undergroundBelt,
-	ICollectSettings& collectSettings,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
 )
 {
-	handleFactoryComponents(undergroundBelt, EFactoryConnectionConnector::FCC_CONVEYOR, inputComponents, outputComponents);
+	getFactoryConnectionComponents(undergroundBelt, inputComponents, outputComponents);
 
 	if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass &&
 		undergroundBelt->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass))
@@ -1117,17 +1687,16 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 
 			if (outputUndergroundBelt)
 			{
-				collectSettings.GetSeenActors().Add(outputUndergroundBelt);
+				collectSettings.GetSeenActors()[outputUndergroundBelt];
 				collectSettings.GetConnected().Add(outputUndergroundBelt);
 
-				handleFactoryComponents(
+				getFactoryConnectionComponents(
 					outputUndergroundBelt,
-					EFactoryConnectionConnector::FCC_CONVEYOR,
 					inputComponents,
 					outputComponents,
 					[outputComponents](UFGFactoryConnectionComponent* connection)
 					{
-						return !outputComponents.Contains(connection) && connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT;
+						return !outputComponents.contains(connection) && connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT;
 						// Is output connection
 					}
 					);
@@ -1161,18 +1730,17 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 				continue;
 			}
 
-			collectSettings.GetSeenActors().Add(inputUndergroundBelt);
+			addAllItemsToActor(collectSettings.GetSeenActors(), inputUndergroundBelt, collectSettings.GetInjectedItems());
 			collectSettings.GetConnected().Add(inputUndergroundBelt);
 
-			handleFactoryComponents(
+			getFactoryConnectionComponents(
 				inputUndergroundBelt,
-				EFactoryConnectionConnector::FCC_CONVEYOR,
 				inputComponents,
 				outputComponents,
 				[outputComponents](UFGFactoryConnectionComponent* connection)
 				{
-					return !outputComponents.Contains(connection) && connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT;
-					// Is output connection
+					return !outputComponents.contains(connection) && connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT;
+					// Is input connection
 				}
 				);
 		}
@@ -1182,15 +1750,14 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 void AEfficiencyCheckerLogic2::handleContainerComponents
 (
 	AFGBuildable* buildable,
-	EFactoryConnectionConnector connectorType,
 	UFGInventoryComponent* inventory,
-	ICollectSettings& collectSettings,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
 	const std::function<bool (class UFGFactoryConnectionComponent*)>& filter
 )
 {
-	handleFactoryComponents(buildable, connectorType, inputComponents, outputComponents, filter);
+	getFactoryConnectionComponents(buildable, inputComponents, outputComponents, filter);
 
 	TArray<FInventoryStack> stacks;
 
@@ -1207,20 +1774,29 @@ void AEfficiencyCheckerLogic2::handleContainerComponents
 	}
 }
 
-void AEfficiencyCheckerLogic2::handleTrainPlatformCargo
+void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 (
-	AFGBuildableTrainPlatformCargo* cargoPlatform,
-	EFactoryConnectionConnector connectorType,
-	ICollectSettings& collectSettings,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+	AFGBuildableTrainPlatformCargo* trainPlatformCargo,
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	bool collectForInput
 )
 {
-	handleContainerComponents(cargoPlatform, connectorType, cargoPlatform->GetInventory(), collectSettings, inputComponents, outputComponents);
+	handleContainerComponents(trainPlatformCargo, trainPlatformCargo->GetInventory(), collectSettings, inputComponents, outputComponents);
 
-	auto trackId = cargoPlatform->GetTrackGraphID();
+	if (collectForInput)
+	{
+		collectSettings.GetSeenActors()[trainPlatformCargo];
+	}
+	else
+	{
+		addAllItemsToActor(collectSettings.GetSeenActors(), trainPlatformCargo, collectSettings.GetInjectedItems());
+	}
 
-	auto railroadSubsystem = AFGRailroadSubsystem::Get(cargoPlatform->GetWorld());
+	auto trackId = trainPlatformCargo->GetTrackGraphID();
+
+	auto railroadSubsystem = AFGRailroadSubsystem::Get(trainPlatformCargo->GetWorld());
 
 	// Determine offsets from all the connected stations
 	std::set<int> stationOffsets;
@@ -1232,7 +1808,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargo
 
 		TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-		for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
+		for (auto connectedPlatform = trainPlatformCargo->GetConnectedPlatformInDirectionOf(i);
 		     connectedPlatform;
 		     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
 		     ++offsetDistance)
@@ -1424,7 +2000,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargo
 					}
 
 					auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
-					if (!stopCargo || stopCargo == cargoPlatform)
+					if (!stopCargo || stopCargo == trainPlatformCargo)
 					{
 						// Not a cargo or the same as the current one. Skip
 						continue;
@@ -1443,20 +2019,328 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargo
 						continue;
 					}
 
-					collectSettings.GetSeenActors().Add(stopCargo);
 					collectSettings.GetConnected().Add(stopCargo);
 
-					for (auto component : stopCargo->GetConnectionComponents())
+					if (collectForInput)
 					{
-						if (component->GetDirection() == EFactoryConnectionDirection::FCD_INPUT && stopCargo->GetIsInLoadMode())
-						{
-							inputComponents.Add(component);
-						}
-						if (component->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT && !stopCargo->GetIsInLoadMode())
-						{
-							outputComponents.Add(component);
-						}
+						collectSettings.GetSeenActors()[stopCargo];
 					}
+					else
+					{
+						addAllItemsToActor(collectSettings.GetSeenActors(), stopCargo, collectSettings.GetInjectedItems());
+					}
+
+					getFactoryConnectionComponents(
+						stopCargo,
+						inputComponents,
+						outputComponents,
+						[stopCargo, collectForInput](UFGFactoryConnectionComponent* connection)
+						{
+							if (collectForInput)
+							{
+								// It is for input collection
+
+								// When in loading mode, include all connections. Also include if it is a producer, regardless of loading mode
+								return stopCargo->GetIsInLoadMode() || connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT;
+							}
+							else
+							{
+								// It is for output collection
+
+								// When in unloading mode, include all connections. Also include if it is a consumer, regardless of loading mode
+								return !stopCargo->GetIsInLoadMode() || connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT;
+							}
+						}
+						);
+				}
+			}
+		}
+	}
+}
+
+void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
+(
+	class AFGBuildableTrainPlatformCargo* trainPlatformCargo,
+	class CollectSettings& collectSettings,
+	TSet<class UFGPipeConnectionComponent*>& inputComponents,
+	TSet<class UFGPipeConnectionComponent*>& outputComponents,
+	bool collectForInput
+)
+{
+	if (collectForInput)
+	{
+		collectSettings.GetSeenActors()[trainPlatformCargo];
+	}
+	else
+	{
+		addAllItemsToActor(collectSettings.GetSeenActors(), trainPlatformCargo, collectSettings.GetInjectedItems());
+	}
+
+	// Add all local pipes
+	TSet<class UFGPipeConnectionComponent*> anyDirection;
+
+	getPipeConnectionComponents(
+		trainPlatformCargo,
+		anyDirection,
+		inputComponents,
+		outputComponents
+		);
+
+	auto trackId = trainPlatformCargo->GetTrackGraphID();
+
+	auto railroadSubsystem = AFGRailroadSubsystem::Get(trainPlatformCargo->GetWorld());
+
+	// Determine offsets from all the connected stations
+	std::set<int> stationOffsets;
+	TSet<AFGBuildableRailroadStation*> destinationStations;
+
+	for (auto i = 0; i <= 1; i++)
+	{
+		auto offsetDistance = 1;
+
+		TSet<AFGBuildableTrainPlatform*> seenPlatforms;
+
+		for (auto connectedPlatform = trainPlatformCargo->GetConnectedPlatformInDirectionOf(i);
+		     connectedPlatform;
+		     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+		     ++offsetDistance)
+		{
+			if (collectSettings.GetTimeout() < time(NULL))
+			{
+				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
+
+				collectSettings.SetOverflow(true);
+				return;
+			}
+
+			if (seenPlatforms.Contains(connectedPlatform))
+			{
+				// Loop detected
+				break;
+			}
+
+			EC_LOG_Display_Condition(
+				/**getTimeStamp(),*/
+				*collectSettings.GetIndent(),
+				*connectedPlatform->GetName(),
+				TEXT(" direction = "),
+				i,
+				TEXT(" / orientation reversed = "),
+				connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
+				);
+
+			auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
+			if (station)
+			{
+				destinationStations.Add(station);
+
+				EC_LOG_Display_Condition(
+					/**getTimeStamp(),*/
+					*collectSettings.GetIndent(),
+					TEXT("    Station = "),
+					*station->GetStationIdentifier()->GetStationName().ToString()
+					);
+
+				if (i == 0 && connectedPlatform->IsOrientationReversed() ||
+					i == 1 && !connectedPlatform->IsOrientationReversed())
+				{
+					stationOffsets.insert(offsetDistance);
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
+				}
+				else
+				{
+					stationOffsets.insert(-offsetDistance);
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), -offsetDistance);
+				}
+			}
+
+			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+			{
+				auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
+				if (cargo)
+				{
+					EC_LOG_Display(
+						/**getTimeStamp(),*/
+						*collectSettings.GetIndent(),
+						TEXT("    Load mode = "),
+						cargo->GetIsInLoadMode() ? TEXT("true") : TEXT("false")
+						);
+				}
+			}
+		}
+	}
+
+	TArray<AFGTrain*> trains;
+	railroadSubsystem->GetTrains(trackId, trains);
+
+	for (auto train : trains)
+	{
+		if (collectSettings.GetTimeout() < time(NULL))
+		{
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating trains!"));
+
+			collectSettings.SetOverflow(true);
+			return;
+		}
+
+		if (!train->HasTimeTable())
+		{
+			continue;
+		}
+
+		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+		{
+			if (!train->GetTrainName().IsEmpty())
+			{
+				EC_LOG_Display(
+					/**getTimeStamp(),*/
+					*collectSettings.GetIndent(),
+					TEXT("Train = "),
+					*train->GetTrainName().ToString()
+					);
+			}
+			else
+			{
+				EC_LOG_Display(
+					/**getTimeStamp(),*/
+					*collectSettings.GetIndent(),
+					TEXT("Anonymous Train")
+					);
+			}
+		}
+
+		// Get train stations
+		auto timeTable = train->GetTimeTable();
+
+		TArray<FTimeTableStop> stops;
+		timeTable->GetStops(stops);
+
+		bool stopAtStations = false;
+
+		for (auto stop : stops)
+		{
+			if (collectSettings.GetTimeout() < time(NULL))
+			{
+				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
+
+				collectSettings.SetOverflow(true);
+				return;
+			}
+
+			if (!stop.Station || !stop.Station->GetStation() || !destinationStations.Contains(stop.Station->GetStation()))
+			{
+				continue;
+			}
+
+			stopAtStations = true;
+
+			break;
+		}
+
+		if (!stopAtStations)
+		{
+			continue;
+		}
+
+		for (auto stop : stops)
+		{
+			if (collectSettings.GetTimeout() < time(NULL))
+			{
+				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
+
+				collectSettings.SetOverflow(true);
+				return;
+			}
+
+			if (!stop.Station || !stop.Station->GetStation())
+			{
+				continue;
+			}
+
+			EC_LOG_Display_Condition(
+				/**getTimeStamp(),*/
+				*collectSettings.GetIndent(),
+				TEXT("    Stop = "),
+				*stop.Station->GetStationName().ToString()
+				);
+
+			for (auto i = 0; i <= 1; i++)
+			{
+				auto offsetDistance = 1;
+
+				TSet<AFGBuildableTrainPlatform*> seenPlatforms;
+
+				for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
+				     connectedPlatform;
+				     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+				     ++offsetDistance)
+				{
+					if (collectSettings.GetTimeout() < time(NULL))
+					{
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
+
+						collectSettings.SetOverflow(true);
+						return;
+					}
+
+					if (seenPlatforms.Contains(connectedPlatform))
+					{
+						// Loop detected
+						break;
+					}
+
+					auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
+					if (!stopCargo || stopCargo == trainPlatformCargo)
+					{
+						// Not a cargo or the same as the current one. Skip
+						continue;
+					}
+
+					auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
+					                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+						                              ? offsetDistance
+						                              : -offsetDistance;
+
+					if (stationOffsets.find(adjustedOffsetDistance) == stationOffsets.end())
+					{
+						// Not on a valid offset. Skip
+						continue;
+					}
+
+					collectSettings.GetConnected().Add(stopCargo);
+
+					if (collectForInput)
+					{
+						collectSettings.GetSeenActors()[stopCargo];
+					}
+					else
+					{
+						addAllItemsToActor(collectSettings.GetSeenActors(), stopCargo, collectSettings.GetInjectedItems());
+					}
+
+					getPipeConnectionComponents(
+						stopCargo,
+						anyDirection,
+						inputComponents,
+						outputComponents,
+						[stopCargo, collectForInput](UFGPipeConnectionComponent* connection)
+						{
+							if (collectForInput)
+							{
+								// It is for input collection
+
+								// When in loading mode, include all connections. Also include if it is a producer, regardless of loading mode
+								return stopCargo->GetIsInLoadMode() || connection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER;
+							}
+							else
+							{
+								// It is for output collection
+
+								// When in unloading mode, include all connections. Also include if it is a consumer, regardless of loading mode
+								return !stopCargo->GetIsInLoadMode() || connection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER;
+							}
+						}
+						);
 				}
 			}
 		}
@@ -1466,15 +2350,16 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargo
 void AEfficiencyCheckerLogic2::handleStorageTeleporter
 (
 	AFGBuildable* storageTeleporter,
-	ICollectSettings& collectSettings,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	bool collectForInput
 )
 {
 	// Find all others of the same type
 	auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
-	handleFactoryComponents(storageTeleporter, EFactoryConnectionConnector::FCC_CONVEYOR, inputComponents, outputComponents);
+	getFactoryConnectionComponents(storageTeleporter, inputComponents, outputComponents);
 
 	FScopeLock ScopeLock(&AEfficiencyCheckerLogic::singleton->eclCritical);
 
@@ -1499,48 +2384,351 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 			continue;
 		}
 
-		collectSettings.GetSeenActors().Add(testTeleporter);
+		if (collectForInput)
+		{
+			collectSettings.GetSeenActors()[testTeleporter];
+		}
+		else
+		{
+			addAllItemsToActor(collectSettings.GetSeenActors(), testTeleporter, collectSettings.GetInjectedItems());
+		}
 		collectSettings.GetConnected().Add(testTeleporter);
 
-		handleFactoryComponents(testTeleporter, EFactoryConnectionConnector::FCC_CONVEYOR, inputComponents, outputComponents);
+		getFactoryConnectionComponents(testTeleporter, inputComponents, outputComponents);
 	}
 }
 
 void AEfficiencyCheckerLogic2::handleModularLoadBalancerComponents
 (
-	AFGBuildableFactory* modularLoadBalancer,
-	ICollectSettings& collectSettings,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
-	TMap<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
+	AFGBuildableFactory* modularLoadBalancerGroupLeader,
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	bool collectForInput
 )
 {
-	auto arrayProperty = CastField<FArrayProperty>(modularLoadBalancer->GetClass()->FindPropertyByName(TEXT("mGroupModules")));
-	if (!arrayProperty)
+	auto groupModulesArrayProperty = CastField<FArrayProperty>(modularLoadBalancerGroupLeader->GetClass()->FindPropertyByName(TEXT("mGroupModules")));
+	if (!groupModulesArrayProperty)
 	{
 		return;
 	}
 
-	if (arrayProperty)
+	if (groupModulesArrayProperty)
 	{
-		FScriptArrayHelper arrayHelper(arrayProperty, arrayProperty->ContainerPtrToValuePtr<void>(modularLoadBalancer));
+		FScriptArrayHelper arrayHelper(groupModulesArrayProperty, groupModulesArrayProperty->ContainerPtrToValuePtr<void>(modularLoadBalancerGroupLeader));
 
-		auto arrayWeakObjectProperty = CastField<FWeakObjectProperty>(arrayProperty->Inner);
+		auto arrayWeakObjectProperty = CastField<FWeakObjectProperty>(groupModulesArrayProperty->Inner);
+
+		// TSet<TSubclassOf<UFGItemDescriptor>> definedItems;
+		// TSet<UFGFactoryConnectionComponent*> overflowComponents;
 
 		for (auto x = 0; x < arrayHelper.Num(); x++)
 		{
-			void* ObjectContainer = arrayHelper.GetRawPtr(x);
-			auto loadBalancerModule = Cast<AFGBuildableFactory>(arrayWeakObjectProperty->GetObjectPropertyValue(ObjectContainer));
-			if (!loadBalancerModule)
+			void* modularLoadBalancerObjectContainer = arrayHelper.GetRawPtr(x);
+			auto modularLoadBalancer = Cast<AFGBuildableFactory>(arrayWeakObjectProperty->GetObjectPropertyValue(modularLoadBalancerObjectContainer));
+			if (!modularLoadBalancer)
 			{
 				continue;
 			}
 
-			collectSettings.GetSeenActors().Add(loadBalancerModule);
+			if (collectForInput)
+			{
+				collectSettings.GetSeenActors()[modularLoadBalancer];
+			}
+			else
+			{
+				addAllItemsToActor(collectSettings.GetSeenActors(), modularLoadBalancer, collectSettings.GetInjectedItems());
+			}
 
-			handleFactoryComponents(loadBalancerModule, EFactoryConnectionConnector::FCC_CONVEYOR, inputComponents, outputComponents);
+			std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
+
+			getFactoryConnectionComponents(modularLoadBalancer, inputComponents, tempOutputComponents);
+
+			for (auto entry : tempOutputComponents)
+			{
+				outputComponents[entry.first] = entry.second;
+			}
+
+			auto filteredItemsProperty = CastField<FArrayProperty>(modularLoadBalancer->GetClass()->FindPropertyByName(TEXT("mFilteredItems")));
+			auto loaderTypeProperty = CastField<FEnumProperty>(modularLoadBalancer->GetClass()->FindPropertyByName(TEXT("mLoaderType")));
+			if (filteredItemsProperty && loaderTypeProperty)
+			{
+				const auto objReflection = UBlueprintReflectionLibrary::ReflectObject(modularLoadBalancer);
+				const auto reflectedValue = objReflection.GetEnumProperty(FName(loaderTypeProperty->GetName()));
+				auto currentValue = reflectedValue.GetCurrentValue();
+
+				FScriptArrayHelper filteredItemsHelper(filteredItemsProperty, filteredItemsProperty->ContainerPtrToValuePtr<void>(modularLoadBalancer));
+
+				auto filteredItemArrayObjectProperty = CastField<FObjectProperty>(filteredItemsProperty->Inner);
+
+				TSet<TSubclassOf<UFGItemDescriptor>> filteredItems;
+
+				for (auto x2 = 0; x2 < filteredItemsHelper.Num(); x2++)
+				{
+					void* itemObjectContainer = filteredItemsHelper.GetRawPtr(x2);
+					auto item = Cast<UClass>(filteredItemArrayObjectProperty->GetObjectPropertyValue(itemObjectContainer));
+					if (!item)
+					{
+						continue;
+					}
+
+					// definedItems.Add(item);
+					filteredItems.Add(item);
+				}
+
+				switch (currentValue)
+				{
+				// case 1: // Overflow
+				// 	for (auto component : tempOutputComponents)
+				// 	{
+				// 		overflowComponents.Add(component.first);
+				// 	}
+				// 	break;
+
+				case 2: // Filter
+				case 3: // Programmable
+					for (auto component : tempOutputComponents)
+					{
+						outputComponents[component.first].allowedFiltered = true;
+						outputComponents[component.first].allowedItems = filteredItems;
+					}
+					break;
+
+				default:
+					break;
+				}
+			}
+		}
+
+		// for (auto component : overflowComponents)
+		// {
+		// 	outputComponents[component].deniedFiltered = true;
+		// 	outputComponents[component].deniedItems = definedItems;
+		// }
+	}
+}
+
+void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
+(
+	AFGBuildableSplitterSmart* smartSplitter,
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	bool collectForInput
+)
+{
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
+
+	getFactoryConnectionComponents(smartSplitter, tempInputComponents, tempOutputComponents);
+
+	std::map<int, UFGFactoryConnectionComponent*> outputComponentsMapByIndex;
+
+	for (auto entry : tempOutputComponents)
+	{
+		FRegexMatcher m(AEfficiencyCheckerLogic::indexPattern, entry.first->GetName());
+		if (m.FindNext())
+		{
+			auto index = FCString::Atoi(*m.GetCaptureGroup(1));
+
+			outputComponentsMapByIndex[index] = entry.first;
+		}
+	}
+
+	// Already restricted. Restrict further
+	for (int x = 0; x < smartSplitter->GetNumSortRules(); ++x)
+	{
+		auto rule = smartSplitter->GetSortRuleAt(x);
+
+		EC_LOG_Display_Condition(
+			/**getTimeStamp(),*/
+			*collectSettings.GetIndent(),
+			TEXT("Rule "),
+			x,
+			TEXT(" / output index = "),
+			rule.OutputIndex,
+			TEXT(" / item = "),
+			*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
+			TEXT(" / class = "),
+			*GetPathNameSafe(rule.ItemClass)
+			);
+
+		if (!outputComponentsMapByIndex.contains(rule.OutputIndex))
+		{
+			// The connector is not connect or is not valid
+			continue;
+		}
+
+		auto connection = outputComponentsMapByIndex[rule.OutputIndex];
+
+		auto& componentFilter = tempOutputComponents[connection];
+
+		componentFilter.allowedFiltered = true;
+		componentFilter.allowedItems.Add(rule.ItemClass);
+	}
+
+	TSet<TSubclassOf<UFGItemDescriptor>> definedItems;
+
+	// First pass
+	for (auto entry : tempOutputComponents)
+	{
+		if (collectSettings.GetTimeout() < time(NULL))
+		{
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
+
+			collectSettings.SetOverflow(true);
+			return;
+		}
+
+		if (AEfficiencyCheckerLogic::singleton->noneItemDescriptors.Intersect(entry.second.allowedItems).Num())
+		{
+			// No item is valid. Empty it all
+			entry.second.allowedItems.Empty();
+		}
+		else if (AEfficiencyCheckerLogic::singleton->wildCardItemDescriptors.Intersect(entry.second.allowedItems).Num() ||
+			AEfficiencyCheckerLogic::singleton->overflowItemDescriptors.Intersect(entry.second.allowedItems).Num())
+		{
+			// Remove restrictions. Any item can flow through
+			entry.second.allowedFiltered = false;
+			entry.second.allowedItems.Empty();
+		}
+
+		definedItems.Append(entry.second.allowedItems);
+	}
+
+	// Second pass
+	for (auto entry : tempOutputComponents)
+	{
+		if (collectSettings.GetTimeout() < time(NULL))
+		{
+			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating restricted items!"));
+
+			collectSettings.SetOverflow(true);
+			return;
+		}
+
+		if (AEfficiencyCheckerLogic::singleton->anyUndefinedItemDescriptors.Intersect(entry.second.allowedItems).Num())
+		{
+			entry.second.deniedFiltered = true;
+			entry.second.deniedItems.Append(definedItems);
+		}
+
+		auto temp = FComponentFilter::combineFilters(entry.second, collectSettings.GetCurrentFilter());
+
+		entry.second.allowedFiltered = temp.allowedFiltered;
+		entry.second.allowedItems = temp.allowedItems;
+		entry.second.deniedFiltered = temp.deniedFiltered;
+		entry.second.deniedItems = temp.deniedItems;
+
+		if (entry.first == collectSettings.GetConnector() && !entry.second.allowedItems.Num())
+		{
+			// Can't go further. Return
+			return;
+		}
+	}
+
+	if (collectForInput &&
+		std::find_if(
+			tempOutputComponents.begin(),
+			tempOutputComponents.end(),
+			[](const auto& entry)
+			{
+				return !entry.second.allowedFiltered || entry.second.allowedItems.Num();
+			}
+			) != tempOutputComponents.end())
+	{
+		// Nothing will flow through. Return
+		return;
+	}
+
+	for (auto it : tempInputComponents)
+	{
+		it.second.allowedItems = it.second.allowedItems.Intersect(collectSettings.GetCurrentFilter().allowedItems).Intersect(definedItems);
+
+		if (it.second.allowedFiltered && !it.second.allowedItems.Num())
+		{
+			continue;
+		}
+
+		inputComponents[it.first] = it.second;
+	}
+
+	for (auto it : tempOutputComponents)
+	{
+		if (it.second.allowedFiltered && !it.second.allowedItems.Num())
+		{
+			continue;
+		}
+
+		outputComponents[it.first] = it.second;
+	}
+}
+
+void AEfficiencyCheckerLogic2::handleFluidIntegrant
+(
+	class IFGFluidIntegrantInterface* fluidIntegrant,
+	class CollectSettings& collectSettings,
+	TSet<class UFGPipeConnectionComponent*>& anyDirectionComponents,
+	TSet<class UFGPipeConnectionComponent*>& inputComponents,
+	TSet<class UFGPipeConnectionComponent*>& outputComponents
+)
+{
+	auto pipeConnection = Cast<UFGPipeConnectionComponent>(collectSettings.GetConnector());
+
+	getPipeConnectionComponents(
+		Cast<AFGBuildable>(fluidIntegrant),
+		anyDirectionComponents,
+		inputComponents,
+		outputComponents
+		);
+
+	if (auto pipeline = Cast<AFGBuildablePipeline>(fluidIntegrant))
+	{
+		collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), getPipeSpeed(pipeline)));
+	}
+
+	auto pipePump = Cast<AFGBuildablePipelinePump>(fluidIntegrant);
+
+	if (pipePump && anyDirectionComponents.IsEmpty() && inputComponents.Num() == 1 && outputComponents.Num() == 1)
+	{
+		if (pipePump->GetUserFlowLimit() == 0)
+		{
+			// Flow is blocked
+			return;
+		}
+		else if (pipePump->GetUserFlowLimit() > 0)
+		{
+			auto firstOutput = getFirstItem(outputComponents);
+
+			auto pipe1 = Cast<AFGBuildablePipeline>(getFirstItem(inputComponents)->GetPipeConnection()->GetOwner());
+			auto pipe2 = Cast<AFGBuildablePipeline>(getFirstItem(outputComponents)->GetPipeConnection()->GetOwner());
+
+			collectSettings.SetLimitedThroughput(
+				FMath::Min(
+					collectSettings.GetLimitedThroughput(),
+					UFGBlueprintFunctionLibrary::RoundFloatWithPrecision(
+						FMath::Min(
+							getPipeSpeed(pipe1),
+							getPipeSpeed(pipe2)
+							) * pipePump->GetUserFlowLimit() / pipePump->GetDefaultFlowLimit(),
+						4
+						)
+					)
+				);
+		}
+		else
+		{
+			// No user flow limitation. Use max flow limit for the pump/valve
+			collectSettings.SetLimitedThroughput(
+				FMath::Min(
+					collectSettings.GetLimitedThroughput(),
+					pipePump->GetDefaultFlowLimit() * 60
+					)
+				);
 		}
 	}
 }
+
 
 #ifndef OPTIMIZE
 #pragma optimize( "", on)

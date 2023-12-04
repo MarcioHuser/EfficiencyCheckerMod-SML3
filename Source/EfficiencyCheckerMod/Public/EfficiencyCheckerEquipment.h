@@ -35,6 +35,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "EfficiencyChecker")
 	FShowStatsWidgetEvent OnShowStatsWidget;
 
+	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
+	virtual bool CheckValidHit
+	(
+		UPARAM(DisplayName = "Buildable") AFGBuildable* buildable,
+		UPARAM(DisplayName = "Form") EResourceForm& out_form
+	);
+
 	UFUNCTION(Category = "EfficiencyChecker", NetMulticast, Reliable)
 	virtual void ShowStatsWidget
 	(
@@ -46,8 +53,8 @@ public:
 	);
 
 	static FString getAuthorityAndPlayer(const AActor* actor);
-	
-	UPROPERTY(BlueprintReadWrite, meta = (Bitmask,BitmaskEnum = EMachineStatusIncludeType))
+
+	UPROPERTY(BlueprintReadWrite, meta = (Bitmask, BitmaskEnum = EMachineStatusIncludeType))
 	int32 machineStatusIncludeType = TO_EMachineStatusIncludeType(EMachineStatusIncludeType::MSIT_All);
 
 	FString _TAG_NAME = TEXT("EfficiencyCheckerEquipment: ");

@@ -13,6 +13,7 @@
 
 #include <map>
 
+#include "Buildables/FGBuildableConveyorLift.h"
 #include "Buildables/FGBuildablePipeline.h"
 #include "Logic/CollectSettings.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
@@ -177,7 +178,6 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 	time_t t = time(NULL);
 	// time_t timeout = t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout;
-
 	collectSettings.SetTimeout(t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout);
 
 	EC_LOG_Warning_Condition(
@@ -195,6 +195,12 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	{
 		if (inputConnector)
 		{
+			// if (targetBuildable)
+			// {
+			// 	targetBuildable->PlayBuildEffects(this->GetInstigator());
+			// 	targetBuildable->ExecutePlayBuildEffects();
+			// }
+
 			collectSettings.SetConnector(inputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputIn);
 
@@ -205,10 +211,14 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 		if (outputConnector && !collectSettings.GetOverflow())
 		{
+			collectSettings.GetSeenActors().clear();
+			collectSettings.SetIndent(TEXT("    "));
+			collectSettings.SetLevel(0);
+
 			collectSettings.SetConnector(outputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputOut);
 
-			AEfficiencyCheckerLogic2::collectInput(collectSettings);
+			AEfficiencyCheckerLogic2::collectOutput(collectSettings);
 
 			limitedThroughputOut = collectSettings.GetLimitedThroughput();
 		}
@@ -217,8 +227,6 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	{
 		if (inputConnector)
 		{
-			TSet<AActor*> seenActors;
-
 			collectSettings.SetConnector(inputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputIn);
 
@@ -252,7 +260,9 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 		if (outputConnector && !collectSettings.GetOverflow())
 		{
-			collectSettings.GetSeenActors().Empty();
+			collectSettings.GetSeenActors().clear();
+			collectSettings.SetIndent(TEXT("    "));
+			collectSettings.SetLevel(0);
 
 			float requiredOutput = 0;
 
@@ -284,6 +294,15 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 		}
 	}
 
+	if (collectSettings.GetInjectedInput().empty())
+	{
+		for (auto entry : collectSettings.GetRequiredOutput())
+		{
+			collectSettings.GetInjectedItems().Add(entry.first);
+			collectSettings.GetInjectedInput()[entry.first];
+		}
+	}
+
 	if (inputConnector || outputConnector)
 	{
 		ShowStatsWidget(
@@ -294,6 +313,36 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			collectSettings.GetOverflow()
 			);
 	}
+}
+
+bool AEfficiencyCheckerEquipment::CheckValidHit(AFGBuildable* buildable, EResourceForm& out_form)
+{
+	if (buildable->IsA(AFGBuildablePipeline::StaticClass()))
+	{
+		out_form = EResourceForm::RF_LIQUID;
+
+		return true;
+	}
+
+	out_form = EResourceForm::RF_SOLID;
+
+	if (buildable->IsA(AFGBuildableConveyorBase::StaticClass()) ||
+		buildable->IsA(AFGBuildableConveyorLift::StaticClass()))
+	{
+		return true;
+	}
+
+	// if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass && buildable->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass))
+	// {
+	// 	return true;
+	// }
+	//
+	// if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass && buildable->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass))
+	// {
+	// 	return true;
+	// }
+
+	return false;
 }
 
 void AEfficiencyCheckerEquipment::ShowStatsWidget_Implementation
