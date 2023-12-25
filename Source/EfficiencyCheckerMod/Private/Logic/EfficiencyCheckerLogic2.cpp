@@ -1,7 +1,6 @@
 ﻿#include "Logic/EfficiencyCheckerLogic2.h"
-#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/ECMOptimize.h"
 #include "EfficiencyCheckerBuilding.h"
-#include "EfficiencyChecker_ConfigStruct.h"
 #include "FGBuildableSubsystem.h"
 #include "FGRailroadSubsystem.h"
 #include "FGRailroadTimeTable.h"
@@ -27,26 +26,28 @@
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Patching/NativeHookManager.h"
 #include "Resources/FGEquipmentDescriptor.h"
-#include "Util/Logging.h"
+#include "Util/ECMLogging.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
 #include <set>
 
+#include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildablePipelinePump.h"
 #include "Buildables/FGBuildableSplitterSmart.h"
 #include "Reflection/BlueprintReflectionLibrary.h"
+#include "Subsystems/CommonInfoSubsystem.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 bool (*AEfficiencyCheckerLogic2::containsActor)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor) = &AEfficiencyCheckerLogic::containsActor;
 bool (*AEfficiencyCheckerLogic2::actorContainsItem)
 	(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item) = &
 	AEfficiencyCheckerLogic::actorContainsItem;
-void (*AEfficiencyCheckerLogic2::addAllItemsToActor)
-	(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items) = &
-	AEfficiencyCheckerLogic::addAllItemsToActor;
+// void (*AEfficiencyCheckerLogic2::addAllItemsToActor)
+// 	(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items) = &
+// 	AEfficiencyCheckerLogic::addAllItemsToActor;
 
 float (*AEfficiencyCheckerLogic2::getPipeSpeed)(class AFGBuildablePipeline* pipe) = &AEfficiencyCheckerLogic::getPipeSpeed;
 EPipeConnectionType (*AEfficiencyCheckerLogic2::getConnectedPipeConnectionType)
@@ -56,8 +57,25 @@ void AEfficiencyCheckerLogic2::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 }
 
+void lodAttachmentConnector(CollectSettings& collectSettings, UFGConnectionComponent* connection)
+{
+	EC_LOG_Display_Condition(
+		/**getTimeStamp(),*/
+		*collectSettings.GetIndent(),
+		TEXT("    Collecting from "),
+		*connection->GetName()
+		);
+}
+
 void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+
+	if(!commonInfoSubsystem)
+	{
+		return;
+	}
+
 	for (;;)
 	{
 		if (!collectSettings.GetConnector())
@@ -106,7 +124,10 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 			TEXT(": "),
 			*owner->GetName(),
 			TEXT(" / "),
-			*fullClassName
+			*fullClassName,
+			TEXT(" (connection "),
+			*collectSettings.GetConnector()->GetName(),
+			TEXT(")")
 			);
 
 		collectSettings.GetSeenActors()[owner];
@@ -141,8 +162,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 		if (collectSettings.GetResourceForm() == EResourceForm::RF_SOLID)
 		{
-			const auto conveyor = Cast<AFGBuildableConveyorBase>(owner);
-			if (conveyor)
+			if (const auto conveyor = Cast<AFGBuildableConveyorBase>(owner))
 			{
 				// The initial limit for a belt is its own speed
 				collectSettings.GetConnected().Add(conveyor);
@@ -156,13 +176,50 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				continue;
 			}
 
+			if (commonInfoSubsystem->baseCounterLimiterClass && owner->IsA(commonInfoSubsystem->baseCounterLimiterClass))
+			{
+				auto buildable = Cast<AFGBuildable>(owner);
+
+				addAllItemsToActor(collectSettings, buildable);
+
+				collectSettings.GetConnected().Add(buildable);
+
+				std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
+
+				getFactoryConnectionComponents(buildable, inputComponents, outputComponents);
+
+				if (inputComponents.empty())
+				{
+					// Nowhere to go
+					return;
+				}
+
+				collectSettings.SetConnector(inputComponents.begin()->first->GetConnection());
+
+				auto limitRate = FReflectionHelper::GetPropertyValue<FFloatProperty>(buildable, TEXT("mPerMinuteLimitRate"));
+
+				if (limitRate >= 0)
+				{
+					collectSettings.SetLimitedThroughput(
+						FMath::Min(
+							collectSettings.GetLimitedThroughput(),
+							limitRate
+							)
+						);
+				}
+
+				EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" limited at "), collectSettings.GetLimitedThroughput(), TEXT(" items/minute"));
+
+				continue;
+			}
+
 			AFGBuildable* buildable = nullptr;
 
 			std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
 
 			if (!buildable &&
-				(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass) ||
-					AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass)))
+				(commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
+					commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
 			{
 				if (auto undergroundBelt = Cast<AFGBuildableStorage>(owner))
 				{
@@ -173,7 +230,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && AEfficiencyCheckerLogic::singleton->baseStorageTeleporterClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
 			{
 				if (auto storageTeleporter = Cast<AFGBuildableFactory>(owner))
 				{
@@ -183,7 +240,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				}
 			}
 
-			if (!buildable && AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
 			{
 				if (auto modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader")))
 				{
@@ -223,7 +280,8 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						storageContainer->GetStorageInventory(),
 						collectSettings,
 						inputComponents,
-						outputComponents
+						outputComponents,
+						true
 						);
 				}
 			}
@@ -250,6 +308,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						collectSettings,
 						inputComponents,
 						outputComponents,
+						true,
 						[](class UFGFactoryConnectionComponent* component)
 						{
 							return !component->GetName().Equals(TEXT("Input0"), ESearchCase::IgnoreCase);
@@ -279,7 +338,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 					collectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), inputComponents.begin()->second));
 
 					// Check if anything can still POSSIBLY flow through
-					if (collectSettings.GetCurrentFilter().allowedFiltered && !collectSettings.GetCurrentFilter().allowedItems.Num())
+					if (collectSettings.GetCurrentFilter().allowedFiltered && collectSettings.GetCurrentFilter().allowedItems.IsEmpty())
 					{
 						// Is filtered and has no "pass-through" item. Stop crawling
 						return;
@@ -298,7 +357,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 					bool firstConnection = true;
 					float limitedThroughput = 0;
 
-					for (auto connectionEntry : inputComponents)
+					for (const auto& connectionEntry : inputComponents)
 					{
 						if (collectSettings.GetTimeout() < time(NULL))
 						{
@@ -325,10 +384,12 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						// 	continue;
 						// }
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 
@@ -352,7 +413,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 					collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), limitedThroughput));
 
-					for (auto connectionEntry : outputComponents)
+					for (const auto& connectionEntry : outputComponents)
 					{
 						if (collectSettings.GetTimeout() < time(NULL))
 						{
@@ -374,16 +435,18 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(0, true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 						tempCollectSettings.SetInjectedInputPtr(nullptr);
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
-						tempCollectSettings.SetInjectedItems(tempCollectSettings.GetCurrentFilter().allowedItems, true);
+						// tempCollectSettings.SetInjectedItems(tempCollectSettings.GetCurrentFilter().allowedItems, true);
 
 						collectOutput(tempCollectSettings);
 
@@ -396,7 +459,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						{
 							EC_LOG_Display_Condition(*tempCollectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetRequiredOutputTotal(), TEXT(" items/minute"));
 
-							for (auto entry : tempCollectSettings.GetRequiredOutput())
+							for (const auto& entry : tempCollectSettings.GetRequiredOutput())
 							{
 								if (!collectSettings.GetCurrentFilter().itemIsAllowed(entry.first))
 								{
@@ -410,6 +473,8 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				}
 
 				collectSettings.GetConnected().Add(buildable);
+
+				return;
 			}
 		}
 
@@ -500,10 +565,12 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 
 						collectInput(tempCollectSettings);
@@ -548,10 +615,12 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(0, true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetInjectedInputPtr(nullptr);
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
@@ -568,9 +637,9 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						{
 							EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetInjectedInputTotal(), TEXT(" m³/minute"));
 
-							if (!collectSettings.GetCustomInjectedInput() && !collectSettings.GetInjectedItems().IsEmpty())
+							if (!collectSettings.GetCustomInjectedInput() && !collectSettings.GetInjectedInput().empty())
 							{
-								auto item = *collectSettings.GetInjectedItems().begin();
+								auto item = collectSettings.GetInjectedInput().begin()->first;
 
 								collectSettings.GetInjectedInput()[item] -= tempCollectSettings.GetInjectedInput()[item];
 							}
@@ -592,9 +661,9 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				(nuclearGenerator->HasPower() || Has_EMachineStatusIncludeType(collectSettings. GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
 				(!nuclearGenerator->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
 			{
-				for (auto item : AEfficiencyCheckerLogic::singleton->nuclearWasteItemDescriptors)
+				for (auto item : commonInfoSubsystem->nuclearWasteItemDescriptors)
 				{
-					collectSettings.GetInjectedItems().Add(item);
+					// collectSettings.GetInjectedItems().Add(item);
 
 					collectSettings.GetInjectedInput()[item] += 0.2;
 				}
@@ -605,15 +674,14 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 			}
 		}
 
-		if (AEfficiencyCheckerLogic::singleton->baseBuildableFactorySimpleProducerClass &&
-			owner->IsA(AEfficiencyCheckerLogic::singleton->baseBuildableFactorySimpleProducerClass))
+		if (auto itemProducer = Cast<AFGBuildableFactorySimpleProducer>(owner))
 		{
-			TSubclassOf<UFGItemDescriptor> itemType = FReflectionHelper::GetObjectPropertyValue<UClass>(owner, TEXT("mItemType"));
-			auto timeToProduceItem = FReflectionHelper::GetPropertyValue<FFloatProperty>(owner, TEXT("mTimeToProduceItem"));
+			auto itemType = itemProducer->mItemType;
+			auto timeToProduceItem = itemProducer->mTimeToProduceItem;
 
 			if (timeToProduceItem && itemType)
 			{
-				collectSettings.GetInjectedItems().Add(itemType);
+				// collectSettings.GetInjectedItems().Add(itemType);
 
 				collectSettings.GetInjectedInput()[itemType] += 60 / timeToProduceItem;
 			}
@@ -629,7 +697,19 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 {
-	TSet<TSubclassOf<UFGItemDescriptor>> injectedItems = collectSettings.GetInjectedItems();
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	
+	if(!commonInfoSubsystem)
+	{
+		return;
+	}
+
+	// TSet<TSubclassOf<UFGItemDescriptor>> injectedItems;
+
+	// for (const auto& entry : collectSettings.GetInjectedInput())
+	// {
+	// 	injectedItems.Add(entry.first);
+	// }
 
 	for (;;)
 	{
@@ -671,13 +751,13 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 			return;
 		}
 
-		if (injectedItems.Num())
+		if (!collectSettings.GetInjectedInput().empty())
 		{
 			bool unusedItems = false;
 
-			for (auto item : injectedItems)
+			for (auto item : collectSettings.GetInjectedInput())
 			{
-				if (!actorContainsItem(collectSettings.GetSeenActors(), owner, item))
+				if (!actorContainsItem(collectSettings.GetSeenActors(), owner, item.first))
 				{
 					unusedItems = true;
 					break;
@@ -705,7 +785,10 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 			TEXT(": "),
 			*owner->GetName(),
 			TEXT(" / "),
-			*fullClassName
+			*fullClassName,
+			TEXT(" (connection "),
+			*collectSettings.GetConnector()->GetName(),
+			TEXT(")")
 			);
 
 		{
@@ -725,10 +808,9 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 		if (collectSettings.GetResourceForm() == EResourceForm::RF_SOLID)
 		{
-			const auto conveyor = Cast<AFGBuildableConveyorBase>(owner);
-			if (conveyor)
+			if (const auto conveyor = Cast<AFGBuildableConveyorBase>(owner))
 			{
-				addAllItemsToActor(collectSettings.GetSeenActors(), conveyor, injectedItems);
+				addAllItemsToActor(collectSettings, conveyor);
 
 				collectSettings.GetConnected().Add(conveyor);
 
@@ -741,13 +823,50 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				continue;
 			}
 
+			if (commonInfoSubsystem->baseCounterLimiterClass && owner->IsA(commonInfoSubsystem->baseCounterLimiterClass))
+			{
+				auto buildable = Cast<AFGBuildable>(owner);
+
+				addAllItemsToActor(collectSettings, buildable);
+
+				collectSettings.GetConnected().Add(buildable);
+
+				std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
+
+				getFactoryConnectionComponents(buildable, inputComponents, outputComponents);
+
+				if (outputComponents.empty())
+				{
+					// Nowhere to go
+					return;
+				}
+
+				collectSettings.SetConnector(outputComponents.begin()->first->GetConnection());
+
+				auto limitRate = FReflectionHelper::GetPropertyValue<FFloatProperty>(buildable, TEXT("mPerMinuteLimitRate"));
+
+				if (limitRate >= 0)
+				{
+					collectSettings.SetLimitedThroughput(
+						FMath::Min(
+							collectSettings.GetLimitedThroughput(),
+							limitRate
+							)
+						);
+				}
+
+				EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" limited at "), collectSettings.GetLimitedThroughput(), TEXT(" items/minute"));
+
+				continue;
+			}
+
 			AFGBuildable* buildable = nullptr;
 
 			std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
 
 			if (!buildable &&
-				(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass) ||
-					AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass)))
+				(commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
+					commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
 			{
 				if (auto undergroundBelt = Cast<AFGBuildableStorage>(owner))
 				{
@@ -758,7 +877,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && AEfficiencyCheckerLogic::singleton->baseStorageTeleporterClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
 			{
 				auto storageTeleporter = Cast<AFGBuildableFactory>(owner);
 				buildable = storageTeleporter;
@@ -769,7 +888,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				}
 			}
 
-			if (!buildable && AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass && owner->IsA(AEfficiencyCheckerLogic::singleton->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
 			{
 				if (auto modularLoadBalancerGroupLeader = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader")))
 				{
@@ -809,7 +928,8 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						storageContainer->GetStorageInventory(),
 						collectSettings,
 						inputComponents,
-						outputComponents
+						outputComponents,
+						true
 						);
 				}
 			}
@@ -836,6 +956,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						collectSettings,
 						inputComponents,
 						outputComponents,
+						false,
 						[](class UFGFactoryConnectionComponent* component)
 						{
 							return !component->GetName().Equals(TEXT("Input0"), ESearchCase::IgnoreCase);
@@ -846,7 +967,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 			if (buildable)
 			{
-				addAllItemsToActor(collectSettings.GetSeenActors(), buildable, injectedItems);
+				addAllItemsToActor(collectSettings, buildable);
 
 				if (inputComponents.size() == 1 && outputComponents.size() == 1)
 				{
@@ -856,14 +977,14 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *buildable->GetName(), TEXT(" skipped"));
 
-					injectedItems = outputComponents.begin()->second.filterItems(injectedItems);
+					// injectedItems = outputComponents.begin()->second.filterItems(injectedItems);
 
 					collectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), outputComponents.begin()->second));
 
 					// Check if anything can still POSSIBLY flow through
-					if (!injectedItems.Num())
+					if (collectSettings.GetCurrentFilter().allowedFiltered && collectSettings.GetCurrentFilter().allowedItems.IsEmpty())
 					{
-						// No item is being inject. Can't go any further
+						// Is filtered and has no "pass-through" item. Stop crawling
 						return;
 					}
 
@@ -880,7 +1001,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 					bool firstConnection = true;
 					float limitedThroughput = 0;
 
-					for (auto connectionEntry : outputComponents)
+					for (const auto& connectionEntry : outputComponents)
 					{
 						if (collectSettings.GetTimeout() < time(NULL))
 						{
@@ -902,10 +1023,12 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 
@@ -929,7 +1052,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 					collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), limitedThroughput));
 
-					for (auto connectionEntry : inputComponents)
+					for (const auto& connectionEntry : inputComponents)
 					{
 						if (collectSettings.GetTimeout() < time(NULL))
 						{
@@ -951,16 +1074,18 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(0, true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 						tempCollectSettings.SetInjectedInputPtr(nullptr);
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
-						tempCollectSettings.SetInjectedItems(injectedItems, true);
+						// tempCollectSettings.SetInjectedItems(injectedItems, true);
 
 						collectInput(tempCollectSettings);
 
@@ -973,7 +1098,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						{
 							EC_LOG_Display_Condition(*tempCollectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetInjectedInputTotal(), TEXT(" items/minute"));
 
-							for (auto entry : tempCollectSettings.GetInjectedInput())
+							for (const auto& entry : tempCollectSettings.GetInjectedInput())
 							{
 								if (!collectSettings.GetCurrentFilter().itemIsAllowed(entry.first))
 								{
@@ -985,6 +1110,8 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						}
 					}
 				}
+
+				return;
 			}
 		}
 
@@ -1002,7 +1129,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				{
 					buildable = Cast<AFGBuildable>(fluidIntegrant);
 
-					addAllItemsToActor(collectSettings.GetSeenActors(), buildable, injectedItems);
+					addAllItemsToActor(collectSettings, buildable);
 
 					handleFluidIntegrant(
 						fluidIntegrant,
@@ -1020,7 +1147,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				{
 					buildable = cargoPlatform;
 
-					addAllItemsToActor(collectSettings.GetSeenActors(), buildable, injectedItems);
+					addAllItemsToActor(collectSettings, buildable);
 
 					handleTrainPlatformCargoPipe(
 						cargoPlatform,
@@ -1079,10 +1206,12 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(collectSettings.GetLimitedThroughput(), true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 
 						collectOutput(tempCollectSettings);
@@ -1127,10 +1256,12 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 							continue;
 						}
 
+						lodAttachmentConnector(collectSettings, connection);
+
 						CollectSettings tempCollectSettings(collectSettings);
 						tempCollectSettings.SetConnector(connection->GetConnection(), true);
 						tempCollectSettings.SetLimitedThroughput(0, true);
-						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("    "), true);
+						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetInjectedInputPtr(nullptr);
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
@@ -1147,9 +1278,9 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						{
 							EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetRequiredOutputTotal(), TEXT(" m³/minute"));
 
-							if (!collectSettings.GetCustomRequiredOutput() && !collectSettings.GetInjectedItems().IsEmpty())
+							if (!collectSettings.GetCustomRequiredOutput() && !collectSettings.GetRequiredOutput().empty())
 							{
-								auto item = *collectSettings.GetInjectedItems().begin();
+								auto item = *collectSettings.GetRequiredOutput().begin()->first;
 
 								collectSettings.GetRequiredOutput()[item] -= tempCollectSettings.GetRequiredOutput()[item];
 							}
@@ -1170,10 +1301,12 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 			if (generator)
 			{
 				handleGeneratorFuel(generator, collectSettings);
+
+				return;
 			}
 		}
 
-		addAllItemsToActor(collectSettings.GetSeenActors(), owner, injectedItems);
+		addAllItemsToActor(collectSettings, owner);
 
 		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 		{
@@ -1210,7 +1343,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						}
 						);
 
-				if (products.Num())
+				if (!products.IsEmpty())
 				{
 					int outputIndex = 0;
 
@@ -1258,13 +1391,13 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 								FRegexMatcher m1(AEfficiencyCheckerLogic::indexPattern, x);
 								if (m1.FindNext())
 								{
-									index1 = FCString::Atoi(*m1.GetCaptureGroup(1));
+									index1 = FCString::Atoi(*m1.GetCaptureGroup(1)) - 1;
 								}
 
 								FRegexMatcher m2(AEfficiencyCheckerLogic::indexPattern, y);
 								if (m2.FindNext())
 								{
-									index2 = FCString::Atoi(*m2.GetCaptureGroup(1));
+									index2 = FCString::Atoi(*m2.GetCaptureGroup(1)) - 1;
 								}
 
 								auto order = index1 - index2;
@@ -1318,7 +1451,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						TEXT("/minute")
 						);
 
-					collectSettings.GetInjectedItems().Add(item.ItemClass);
+					collectSettings.GetInjectedInput()[item.ItemClass];
 
 					if (!collectSettings.GetCustomInjectedInput())
 					{
@@ -1339,6 +1472,13 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						collectSettings.GetResourceForm() != EResourceForm::RF_LIQUID && collectSettings.GetResourceForm() != EResourceForm::RF_GAS)
 					{
 						continue;
+					}
+
+					if (!collectSettings.GetInjectedInput().empty() && !collectSettings.GetInjectedInput().contains(item.ItemClass))
+					{
+						// Item is not being inject by anyone. Ignore this
+						continue;
+						// EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Item is not being inject"));
 					}
 
 					if (!collectSettings.GetCurrentFilter().itemIsAllowed(item.ItemClass) ||
@@ -1379,6 +1519,8 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						*UFGItemDescriptor::GetItemName(item.ItemClass).ToString(),
 						TEXT("/minute")
 						);
+
+					collectSettings.GetRequiredOutput()[item.ItemClass];
 
 					if (!collectSettings.GetCustomRequiredOutput())
 					{
@@ -1438,7 +1580,8 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 
 		EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Resource name = "), *UFGItemDescriptor::GetItemName(item).ToString());
 
-		collectSettings.GetInjectedItems().Add(item);
+		collectSettings.GetRequiredOutput()[item];
+		//collectSettings.GetInjectedItems().Add(item);
 
 		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 		{
@@ -1503,7 +1646,7 @@ void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* ge
 	if ((generatorFuel->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
 		(!generatorFuel->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
 	{
-		if (collectSettings.GetInjectedItems().Contains(generatorFuel->GetSupplementalResourceClass()) &&
+		if (collectSettings.GetInjectedInput().contains(generatorFuel->GetSupplementalResourceClass()) &&
 			!collectSettings.GetSeenActors()[generatorFuel].Contains(generatorFuel->GetSupplementalResourceClass()))
 		{
 			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
@@ -1527,8 +1670,10 @@ void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* ge
 		}
 		else
 		{
-			for (auto item : collectSettings.GetInjectedItems())
+			for (const auto& entry : collectSettings.GetInjectedInput())
 			{
+				auto item = entry.first;
+
 				if (collectSettings.GetTimeout() < time(NULL))
 				{
 					EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating injected items!"));
@@ -1666,10 +1811,14 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
 )
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	
 	getFactoryConnectionComponents(undergroundBelt, inputComponents, outputComponents);
 
-	if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass &&
-		undergroundBelt->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass))
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+	
+	if (commonInfoSubsystem->baseUndergroundSplitterInputClass &&
+		undergroundBelt->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass))
 	{
 		auto outputsProperty = CastField<FArrayProperty>(undergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 		if (!outputsProperty)
@@ -1703,10 +1852,10 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 			}
 		}
 	}
-	else if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass &&
-		undergroundBelt->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass))
+	else if (commonInfoSubsystem->baseUndergroundSplitterOutputClass &&
+		undergroundBelt->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass))
 	{
-		for (auto inputUndergroundBelt : AEfficiencyCheckerLogic::singleton->allUndergroundInputBelts)
+		for (auto inputUndergroundBelt : commonInfoSubsystem->allUndergroundInputBelts)
 		{
 			auto outputsProperty = CastField<FArrayProperty>(inputUndergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 			if (!outputsProperty)
@@ -1730,7 +1879,7 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 				continue;
 			}
 
-			addAllItemsToActor(collectSettings.GetSeenActors(), inputUndergroundBelt, collectSettings.GetInjectedItems());
+			addAllItemsToActor(collectSettings, inputUndergroundBelt);
 			collectSettings.GetConnected().Add(inputUndergroundBelt);
 
 			getFactoryConnectionComponents(
@@ -1754,6 +1903,7 @@ void AEfficiencyCheckerLogic2::handleContainerComponents
 	CollectSettings& collectSettings,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	bool collectForInput,
 	const std::function<bool (class UFGFactoryConnectionComponent*)>& filter
 )
 {
@@ -1763,14 +1913,21 @@ void AEfficiencyCheckerLogic2::handleContainerComponents
 
 	inventory->GetInventoryStacks(stacks);
 
-	for (auto stack : stacks)
+	for (const auto& stack : stacks)
 	{
 		if (!collectSettings.GetCurrentFilter().itemIsAllowed(stack.Item.GetItemClass()))
 		{
 			continue;
 		}
 
-		collectSettings.GetInjectedItems().Add(stack.Item.GetItemClass());
+		if (collectForInput)
+		{
+			collectSettings.GetInjectedInput()[stack.Item.GetItemClass()];
+		}
+		else
+		{
+			collectSettings.GetRequiredOutput()[stack.Item.GetItemClass()];
+		}
 	}
 }
 
@@ -1783,7 +1940,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 	bool collectForInput
 )
 {
-	handleContainerComponents(trainPlatformCargo, trainPlatformCargo->GetInventory(), collectSettings, inputComponents, outputComponents);
+	handleContainerComponents(trainPlatformCargo, trainPlatformCargo->GetInventory(), collectSettings, inputComponents, outputComponents, collectForInput);
 
 	if (collectForInput)
 	{
@@ -1791,7 +1948,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 	}
 	else
 	{
-		addAllItemsToActor(collectSettings.GetSeenActors(), trainPlatformCargo, collectSettings.GetInjectedItems());
+		addAllItemsToActor(collectSettings, trainPlatformCargo);
 	}
 
 	auto trackId = trainPlatformCargo->GetTrackGraphID();
@@ -1927,7 +2084,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 
 		bool stopAtStations = false;
 
-		for (auto stop : stops)
+		for (const auto& stop : stops)
 		{
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
@@ -1952,7 +2109,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 			continue;
 		}
 
-		for (auto stop : stops)
+		for (const auto& stop : stops)
 		{
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
@@ -2027,7 +2184,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 					}
 					else
 					{
-						addAllItemsToActor(collectSettings.GetSeenActors(), stopCargo, collectSettings.GetInjectedItems());
+						addAllItemsToActor(collectSettings, stopCargo);
 					}
 
 					getFactoryConnectionComponents(
@@ -2073,7 +2230,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 	}
 	else
 	{
-		addAllItemsToActor(collectSettings.GetSeenActors(), trainPlatformCargo, collectSettings.GetInjectedItems());
+		addAllItemsToActor(collectSettings, trainPlatformCargo);
 	}
 
 	// Add all local pipes
@@ -2217,7 +2374,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 
 		bool stopAtStations = false;
 
-		for (auto stop : stops)
+		for (const auto& stop : stops)
 		{
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
@@ -2242,7 +2399,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 			continue;
 		}
 
-		for (auto stop : stops)
+		for (const auto& stop : stops)
 		{
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
@@ -2315,7 +2472,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 					}
 					else
 					{
-						addAllItemsToActor(collectSettings.GetSeenActors(), stopCargo, collectSettings.GetInjectedItems());
+						addAllItemsToActor(collectSettings, stopCargo);
 					}
 
 					getPipeConnectionComponents(
@@ -2361,9 +2518,11 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 
 	getFactoryConnectionComponents(storageTeleporter, inputComponents, outputComponents);
 
-	FScopeLock ScopeLock(&AEfficiencyCheckerLogic::singleton->eclCritical);
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
 
-	for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+
+	for (auto testTeleporter : commonInfoSubsystem->allTeleporters)
 	{
 		if (collectSettings.GetTimeout() < time(NULL))
 		{
@@ -2390,7 +2549,7 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 		}
 		else
 		{
-			addAllItemsToActor(collectSettings.GetSeenActors(), testTeleporter, collectSettings.GetInjectedItems());
+			addAllItemsToActor(collectSettings, testTeleporter);
 		}
 		collectSettings.GetConnected().Add(testTeleporter);
 
@@ -2437,14 +2596,14 @@ void AEfficiencyCheckerLogic2::handleModularLoadBalancerComponents
 			}
 			else
 			{
-				addAllItemsToActor(collectSettings.GetSeenActors(), modularLoadBalancer, collectSettings.GetInjectedItems());
+				addAllItemsToActor(collectSettings, modularLoadBalancer);
 			}
 
 			std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
 
 			getFactoryConnectionComponents(modularLoadBalancer, inputComponents, tempOutputComponents);
 
-			for (auto entry : tempOutputComponents)
+			for (const auto& entry : tempOutputComponents)
 			{
 				outputComponents[entry.first] = entry.second;
 			}
@@ -2479,7 +2638,7 @@ void AEfficiencyCheckerLogic2::handleModularLoadBalancerComponents
 				switch (currentValue)
 				{
 				// case 1: // Overflow
-				// 	for (auto component : tempOutputComponents)
+				// 	for (const auto& component : tempOutputComponents)
 				// 	{
 				// 		overflowComponents.Add(component.first);
 				// 	}
@@ -2487,7 +2646,7 @@ void AEfficiencyCheckerLogic2::handleModularLoadBalancerComponents
 
 				case 2: // Filter
 				case 3: // Programmable
-					for (auto component : tempOutputComponents)
+					for (const auto& component : tempOutputComponents)
 					{
 						outputComponents[component.first].allowedFiltered = true;
 						outputComponents[component.first].allowedItems = filteredItems;
@@ -2517,6 +2676,8 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 	bool collectForInput
 )
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
 
@@ -2524,12 +2685,12 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 
 	std::map<int, UFGFactoryConnectionComponent*> outputComponentsMapByIndex;
 
-	for (auto entry : tempOutputComponents)
+	for (const auto& entry : tempOutputComponents)
 	{
 		FRegexMatcher m(AEfficiencyCheckerLogic::indexPattern, entry.first->GetName());
 		if (m.FindNext())
 		{
-			auto index = FCString::Atoi(*m.GetCaptureGroup(1));
+			auto index = FCString::Atoi(*m.GetCaptureGroup(1)) - 1;
 
 			outputComponentsMapByIndex[index] = entry.first;
 		}
@@ -2539,19 +2700,6 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 	for (int x = 0; x < smartSplitter->GetNumSortRules(); ++x)
 	{
 		auto rule = smartSplitter->GetSortRuleAt(x);
-
-		EC_LOG_Display_Condition(
-			/**getTimeStamp(),*/
-			*collectSettings.GetIndent(),
-			TEXT("Rule "),
-			x,
-			TEXT(" / output index = "),
-			rule.OutputIndex,
-			TEXT(" / item = "),
-			*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
-			TEXT(" / class = "),
-			*GetPathNameSafe(rule.ItemClass)
-			);
 
 		if (!outputComponentsMapByIndex.contains(rule.OutputIndex))
 		{
@@ -2565,12 +2713,27 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 
 		componentFilter.allowedFiltered = true;
 		componentFilter.allowedItems.Add(rule.ItemClass);
+
+		EC_LOG_Display_Condition(
+			/**getTimeStamp(),*/
+			*collectSettings.GetIndent(),
+			TEXT("Rule "),
+			x,
+			TEXT(" / output index = "),
+			rule.OutputIndex,
+			TEXT(" / item = "),
+			*UFGItemDescriptor::GetItemName(rule.ItemClass).ToString(),
+			TEXT(" / class = "),
+			*GetPathNameSafe(rule.ItemClass),
+			TEXT(" / connection = "),
+			*GetNameSafe(connection)
+			);
 	}
 
 	TSet<TSubclassOf<UFGItemDescriptor>> definedItems;
 
 	// First pass
-	for (auto entry : tempOutputComponents)
+	for (auto& entry : tempOutputComponents)
 	{
 		if (collectSettings.GetTimeout() < time(NULL))
 		{
@@ -2580,13 +2743,13 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 			return;
 		}
 
-		if (AEfficiencyCheckerLogic::singleton->noneItemDescriptors.Intersect(entry.second.allowedItems).Num())
+		if (!commonInfoSubsystem->noneItemDescriptors.Intersect(entry.second.allowedItems).IsEmpty())
 		{
 			// No item is valid. Empty it all
 			entry.second.allowedItems.Empty();
 		}
-		else if (AEfficiencyCheckerLogic::singleton->wildCardItemDescriptors.Intersect(entry.second.allowedItems).Num() ||
-			AEfficiencyCheckerLogic::singleton->overflowItemDescriptors.Intersect(entry.second.allowedItems).Num())
+		else if (!commonInfoSubsystem->wildCardItemDescriptors.Intersect(entry.second.allowedItems).IsEmpty() ||
+			!commonInfoSubsystem->overflowItemDescriptors.Intersect(entry.second.allowedItems).IsEmpty())
 		{
 			// Remove restrictions. Any item can flow through
 			entry.second.allowedFiltered = false;
@@ -2597,7 +2760,7 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 	}
 
 	// Second pass
-	for (auto entry : tempOutputComponents)
+	for (auto& entry : tempOutputComponents)
 	{
 		if (collectSettings.GetTimeout() < time(NULL))
 		{
@@ -2607,11 +2770,25 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 			return;
 		}
 
-		if (AEfficiencyCheckerLogic::singleton->anyUndefinedItemDescriptors.Intersect(entry.second.allowedItems).Num())
+		if (!commonInfoSubsystem->anyUndefinedItemDescriptors.Intersect(entry.second.allowedItems).IsEmpty())
 		{
+			entry.second.allowedFiltered = false;
+			entry.second.allowedItems.Empty();
 			entry.second.deniedFiltered = true;
 			entry.second.deniedItems.Append(definedItems);
 		}
+
+		entry.second.allowedItems = entry.second.allowedItems
+		                                 .Difference(commonInfoSubsystem->noneItemDescriptors)
+		                                 .Difference(commonInfoSubsystem->wildCardItemDescriptors)
+		                                 .Difference(commonInfoSubsystem->anyUndefinedItemDescriptors)
+		                                 .Difference(commonInfoSubsystem->overflowItemDescriptors);
+
+		entry.second.deniedItems = entry.second.deniedItems
+		                                .Difference(commonInfoSubsystem->noneItemDescriptors)
+		                                .Difference(commonInfoSubsystem->wildCardItemDescriptors)
+		                                .Difference(commonInfoSubsystem->anyUndefinedItemDescriptors)
+		                                .Difference(commonInfoSubsystem->overflowItemDescriptors);
 
 		auto temp = FComponentFilter::combineFilters(entry.second, collectSettings.GetCurrentFilter());
 
@@ -2620,7 +2797,7 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 		entry.second.deniedFiltered = temp.deniedFiltered;
 		entry.second.deniedItems = temp.deniedItems;
 
-		if (entry.first == collectSettings.GetConnector() && !entry.second.allowedItems.Num())
+		if (entry.first == collectSettings.GetConnector() && entry.second.allowedFiltered && entry.second.allowedItems.IsEmpty())
 		{
 			// Can't go further. Return
 			return;
@@ -2633,7 +2810,7 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 			tempOutputComponents.end(),
 			[](const auto& entry)
 			{
-				return !entry.second.allowedFiltered || entry.second.allowedItems.Num();
+				return !entry.second.allowedFiltered || !entry.second.allowedItems.IsEmpty();
 			}
 			) != tempOutputComponents.end())
 	{
@@ -2641,26 +2818,58 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 		return;
 	}
 
-	for (auto it : tempInputComponents)
-	{
-		it.second.allowedItems = it.second.allowedItems.Intersect(collectSettings.GetCurrentFilter().allowedItems).Intersect(definedItems);
+	definedItems = definedItems.Difference(commonInfoSubsystem->noneItemDescriptors);
 
-		if (it.second.allowedFiltered && !it.second.allowedItems.Num())
+	auto allFiltered = std::find_if(
+		tempOutputComponents.begin(),
+		tempOutputComponents.end(),
+		[](const auto& entry)
 		{
-			continue;
+			return !entry.second.allowedFiltered;
+		}
+		) == tempOutputComponents.end();
+
+	for (auto& it : tempInputComponents)
+	{
+		if (!definedItems.Intersect(commonInfoSubsystem->anyUndefinedItemDescriptors).IsEmpty() ||
+			!definedItems.Intersect(commonInfoSubsystem->wildCardItemDescriptors).IsEmpty() ||
+			!definedItems.Intersect(commonInfoSubsystem->overflowItemDescriptors).IsEmpty())
+		{
+			// Allow anything to pass-through
+			it.second.allowedFiltered = collectSettings.GetCurrentFilter().allowedFiltered;
+			it.second.allowedItems = collectSettings.GetCurrentFilter().allowedItems;
+			it.second.deniedFiltered = collectSettings.GetCurrentFilter().deniedFiltered;
+			it.second.deniedItems = collectSettings.GetCurrentFilter().deniedItems;
+		}
+		else
+		{
+			it.second.allowedFiltered = allFiltered;
+
+			if (it.second.allowedFiltered)
+			{
+				if (collectSettings.GetCurrentFilter().allowedFiltered)
+				{
+					it.second.allowedItems = collectSettings.GetCurrentFilter().allowedItems.Intersect(definedItems);
+				}
+
+				if (it.second.allowedItems.IsEmpty())
+				{
+					continue;
+				}
+			}
 		}
 
 		inputComponents[it.first] = it.second;
 	}
 
-	for (auto it : tempOutputComponents)
+	for (const auto& entry : tempOutputComponents)
 	{
-		if (it.second.allowedFiltered && !it.second.allowedItems.Num())
+		if (entry.second.allowedFiltered && entry.second.allowedItems.IsEmpty())
 		{
 			continue;
 		}
 
-		outputComponents[it.first] = it.second;
+		outputComponents[entry.first] = entry.second;
 	}
 }
 
@@ -2679,7 +2888,11 @@ void AEfficiencyCheckerLogic2::handleFluidIntegrant
 		Cast<AFGBuildable>(fluidIntegrant),
 		anyDirectionComponents,
 		inputComponents,
-		outputComponents
+		outputComponents,
+		[&collectSettings](UFGPipeConnectionComponent* connection)
+		{
+			return collectSettings.GetSeenActors().size() == 1 || connection != collectSettings.GetConnector();
+		}
 		);
 
 	if (auto pipeline = Cast<AFGBuildablePipeline>(fluidIntegrant))
@@ -2729,7 +2942,22 @@ void AEfficiencyCheckerLogic2::handleFluidIntegrant
 	}
 }
 
+void AEfficiencyCheckerLogic2::addAllItemsToActor
+(
+	CollectSettings& collectSettings,
+	AActor* actor
+)
+{
+	// Ensure the actor exists, even with an empty list
+	TSet<TSubclassOf<UFGItemDescriptor>>& itemsSet = collectSettings.GetSeenActors()[actor];
+
+	for (auto item : collectSettings.GetInjectedInput())
+	{
+		itemsSet.Add(item.first);
+	}
+}
+
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

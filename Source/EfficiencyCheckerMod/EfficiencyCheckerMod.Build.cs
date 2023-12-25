@@ -49,7 +49,7 @@ public class EfficiencyCheckerMod : ModuleRules
 			}
 			);
 			
-		PublicDependencyModuleNames.AddRange(new string[] {"FactoryGame", "SML"});
+		PublicDependencyModuleNames.AddRange(new string[] {"FactoryGame", "SML", "MarcioCommonLibs"});
 			
 		
 		PrivateDependencyModuleNames.AddRange(

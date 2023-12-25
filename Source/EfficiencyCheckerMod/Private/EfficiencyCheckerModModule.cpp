@@ -2,7 +2,7 @@
 // ReSharper disable CommentTypo
 
 #include "EfficiencyCheckerModModule.h"
-#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/ECMOptimize.h"
 
 void FEfficiencyCheckerModModule::StartupModule()
 {

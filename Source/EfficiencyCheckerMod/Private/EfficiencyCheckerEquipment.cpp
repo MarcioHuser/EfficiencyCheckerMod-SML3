@@ -7,9 +7,8 @@
 #include "FGPipeConnectionComponent.h"
 #include "FGPlayerController.h"
 #include "Logic/EfficiencyCheckerLogic.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
-#include "EfficiencyChecker_ConfigStruct.h"
+#include "Util/ECMOptimize.h"
+#include "Util/ECMLogging.h"
 
 #include <map>
 
@@ -18,10 +17,11 @@
 #include "Logic/CollectSettings.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
 #include "Resources/FGNoneDescriptor.h"
+#include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 FString AEfficiencyCheckerEquipment::getAuthorityAndPlayer(const AActor* actor)
@@ -94,7 +94,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	collectSettings.SetBuildableSubsystem(AFGBuildableSubsystem::Get(GetWorld()));
 	//const FString indent(TEXT("    "));
 	collectSettings.SetIndent(TEXT("    "));
-	//TSet<TSubclassOf<UFGItemDescriptor>> injectedItemsSet;
+	TSet<TSubclassOf<UFGItemDescriptor>> injectedItemsSet;
 
 	float initialThroughtputLimit = 0;
 	//bool overflow = false;
@@ -114,15 +114,17 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			TArray<TSubclassOf<UFGItemDescriptor>> allItems;
 			UFGBlueprintFunctionLibrary::Cheat_GetAllDescriptors(allItems);
 
+			auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+
 			for (auto item : allItems)
 			{
 				if (!item ||
 					!UFGBlueprintFunctionLibrary::CanBeOnConveyor(item) ||
 					UFGItemDescriptor::GetForm(item) != EResourceForm::RF_SOLID ||
-					AEfficiencyCheckerLogic::singleton->wildCardItemDescriptors.Contains(item) ||
-					AEfficiencyCheckerLogic::singleton->overflowItemDescriptors.Contains(item) ||
-					AEfficiencyCheckerLogic::singleton->noneItemDescriptors.Contains(item) ||
-					AEfficiencyCheckerLogic::singleton->anyUndefinedItemDescriptors.Contains(item)
+					commonInfoSubsystem->wildCardItemDescriptors.Contains(item) ||
+					commonInfoSubsystem->overflowItemDescriptors.Contains(item) ||
+					commonInfoSubsystem->noneItemDescriptors.Contains(item) ||
+					commonInfoSubsystem->anyUndefinedItemDescriptors.Contains(item)
 					)
 				{
 					continue;;
@@ -161,7 +163,9 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 					collectSettings.GetCurrentFilter().allowedFiltered = true;
 					collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
 
-					collectSettings.GetInjectedItems().Add(fluidItem);
+					collectSettings.GetInjectedInput()[fluidItem];
+					collectSettings.GetRequiredOutput()[fluidItem];
+					//collectSettings.GetInjectedItems().Add(fluidItem);
 
 					collectSettings.SetResourceForm(UFGItemDescriptor::GetForm(fluidItem));
 				}
@@ -240,7 +244,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 				collectSettings.GetLimitedThroughput(),
 				collectSettings.GetSeenActors(),
 				collectSettings.GetConnected(),
-				collectSettings.GetInjectedItems(),
+				injectedItemsSet,
 				collectSettings.GetCurrentFilter().allowedItems,
 				collectSettings.GetBuildableSubsystem(),
 				collectSettings.GetLevel(),
@@ -252,9 +256,9 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 			limitedThroughputIn = collectSettings.GetLimitedThroughput();
 
-			if (collectSettings.GetInjectedItems().Num())
+			if (injectedItemsSet.Num())
 			{
-				collectSettings.GetInjectedInput()[*collectSettings.GetInjectedItems().begin()] = injectedInput;
+				collectSettings.GetInjectedInput()[*injectedItemsSet.begin()] = injectedInput;
 			}
 		}
 
@@ -276,7 +280,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 				collectSettings.GetLimitedThroughput(),
 				collectSettings.GetSeenActors(),
 				collectSettings.GetConnected(),
-				collectSettings.GetInjectedItems(),
+				injectedItemsSet,
 				collectSettings.GetBuildableSubsystem(),
 				collectSettings.GetLevel(),
 				collectSettings.GetOverflow(),
@@ -287,9 +291,9 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 			limitedThroughputOut = collectSettings.GetLimitedThroughput();
 
-			if (collectSettings.GetInjectedItems().Num())
+			if (injectedItemsSet.Num())
 			{
-				collectSettings.GetRequiredOutput()[*collectSettings.GetInjectedItems().begin()] = requiredOutput;
+				collectSettings.GetRequiredOutput()[*injectedItemsSet.begin()] = requiredOutput;
 			}
 		}
 	}
@@ -298,9 +302,13 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	{
 		for (auto entry : collectSettings.GetRequiredOutput())
 		{
-			collectSettings.GetInjectedItems().Add(entry.first);
 			collectSettings.GetInjectedInput()[entry.first];
 		}
+	}
+
+	for (auto entry : collectSettings.GetInjectedInput())
+	{
+		injectedItemsSet.Add(entry.first);
 	}
 
 	if (inputConnector || outputConnector)
@@ -309,40 +317,35 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			collectSettings.GetInjectedInputTotal(),
 			FMath::Min(limitedThroughputIn, limitedThroughputOut),
 			collectSettings.GetRequiredOutputTotal(),
-			collectSettings.GetInjectedItems().Array(),
+			injectedItemsSet.Array(),
 			collectSettings.GetOverflow()
 			);
 	}
 }
 
-bool AEfficiencyCheckerEquipment::CheckValidHit(AFGBuildable* buildable, EResourceForm& out_form)
+AFGBuildable* AEfficiencyCheckerEquipment::CheckValidHit(AActor* actor, EResourceForm& out_form)
 {
-	if (buildable->IsA(AFGBuildablePipeline::StaticClass()))
+	out_form = EResourceForm::RF_INVALID;
+
+	if (!actor)
+	{
+		return nullptr;
+	}
+	else if (actor->IsA(AFGBuildablePipeline::StaticClass()))
 	{
 		out_form = EResourceForm::RF_LIQUID;
-
-		return true;
 	}
-
-	out_form = EResourceForm::RF_SOLID;
-
-	if (buildable->IsA(AFGBuildableConveyorBase::StaticClass()) ||
-		buildable->IsA(AFGBuildableConveyorLift::StaticClass()))
+	else if (actor->IsA(AFGBuildableConveyorBase::StaticClass()) ||
+		actor->IsA(AFGBuildableConveyorLift::StaticClass()))
 	{
-		return true;
+		out_form = EResourceForm::RF_LIQUID;
+	}
+	else
+	{
+		return nullptr;
 	}
 
-	// if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass && buildable->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterInputClass))
-	// {
-	// 	return true;
-	// }
-	//
-	// if (AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass && buildable->IsA(AEfficiencyCheckerLogic::singleton->baseUndergroundSplitterOutputClass))
-	// {
-	// 	return true;
-	// }
-
-	return false;
+	return Cast<AFGBuildable>(actor);
 }
 
 void AEfficiencyCheckerEquipment::ShowStatsWidget_Implementation
@@ -364,5 +367,5 @@ void AEfficiencyCheckerEquipment::ShowStatsWidget_Implementation
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

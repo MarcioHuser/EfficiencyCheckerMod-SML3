@@ -2,6 +2,7 @@
 
 
 #include "GameFramework/Actor.h"
+#include "EfficiencyChecker_ConfigStruct.h"
 
 #include "EfficiencyCheckerConfiguration.generated.h"
 

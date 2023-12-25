@@ -21,20 +21,10 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
-	virtual void Initialize
-	(
-		UPARAM(DisplayName = "None Item Descriptor") const TSet<TSubclassOf<class UFGItemDescriptor>>& in_noneItemDescriptors,
-		UPARAM(DisplayName = "Wildcard Item Descriptor") const TSet<TSubclassOf<class UFGItemDescriptor>>& in_wildcardItemDescriptors,
-		UPARAM(DisplayName = "Any Undefined Item Descriptor") const TSet<TSubclassOf<class UFGItemDescriptor>>& in_anyUndefinedItemDescriptors,
-		UPARAM(DisplayName = "Overflow Item Descriptor") const TSet<TSubclassOf<class UFGItemDescriptor>>& in_overflowItemDescriptors,
-		UPARAM(DisplayName = "Nuclear Waste Item Descriptor") const TSet<TSubclassOf<class UFGItemDescriptor>>& in_nuclearWasteItemDescriptors
-	);
+	virtual void Initialize();
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
 	virtual void Terminate();
-
-	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
-	static void DumpInformation(AActor* worldContext, TSubclassOf<UFGItemDescriptor> equipmentDescriptor);
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
 	virtual bool IsValidBuildable(class AFGBuildable* newBuildable);
@@ -84,49 +74,41 @@ public:
 
 	static float getPipeSpeed(class AFGBuildablePipeline* pipe);
 
-	TSet<TSubclassOf<class UFGItemDescriptor>> nuclearWasteItemDescriptors;
-	TSet<TSubclassOf<class UFGItemDescriptor>> noneItemDescriptors;
-	TSet<TSubclassOf<class UFGItemDescriptor>> wildCardItemDescriptors;
-	TSet<TSubclassOf<class UFGItemDescriptor>> anyUndefinedItemDescriptors;
-	TSet<TSubclassOf<class UFGItemDescriptor>> overflowItemDescriptors;
-
-	FCriticalSection eclCritical;
+	// TSet<TSubclassOf<class UFGItemDescriptor>> nuclearWasteItemDescriptors;
+	// TSet<TSubclassOf<class UFGItemDescriptor>> noneItemDescriptors;
+	// TSet<TSubclassOf<class UFGItemDescriptor>> wildCardItemDescriptors;
+	// TSet<TSubclassOf<class UFGItemDescriptor>> anyUndefinedItemDescriptors;
+	// TSet<TSubclassOf<class UFGItemDescriptor>> overflowItemDescriptors;
 
 	static AEfficiencyCheckerLogic* singleton;
-	UClass* baseStorageTeleporterClass = nullptr;
-	UClass* baseUndergroundSplitterInputClass = nullptr;
-	UClass* baseUndergroundSplitterOutputClass = nullptr;
-	UClass* baseModularLoadBalancerClass = nullptr;
-	UClass* baseBuildableFactorySimpleProducerClass = nullptr;
+	// UClass* baseStorageTeleporterClass = nullptr;
+	// UClass* baseUndergroundSplitterInputClass = nullptr;
+	// UClass* baseUndergroundSplitterOutputClass = nullptr;
+	// UClass* baseModularLoadBalancerClass = nullptr;
+	// UClass* baseBuildableFactorySimpleProducerClass = nullptr;
+	// UClass* baseCounterLimiterClass = nullptr;
 
 	TSet<class AEfficiencyCheckerBuilding*> allEfficiencyBuildings;
 	TSet<class AFGBuildableConveyorBelt*> allBelts;
 	TSet<class AFGBuildablePipeline*> allPipes;
-	TSet<class AFGBuildableFactory*> allTeleporters;
-	TSet<class AFGBuildableStorage*> allUndergroundInputBelts;
 
-	FActorEndPlaySignature::FDelegate removeEffiencyBuildingDelegate;
-	FActorEndPlaySignature::FDelegate removeBeltDelegate;
-	FActorEndPlaySignature::FDelegate removePipeDelegate;
-	FActorEndPlaySignature::FDelegate removeTeleporterDelegate;
-	FActorEndPlaySignature::FDelegate removeUndergroundInputBeltDelegate;
+	// FActorEndPlaySignature::FDelegate removeEffiencyBuildingDelegate;
+	// FActorEndPlaySignature::FDelegate removeBeltDelegate;
+	// FActorEndPlaySignature::FDelegate removePipeDelegate;
+	// FActorEndPlaySignature::FDelegate removeUndergroundInputBeltDelegate;
 
 	virtual void addEfficiencyBuilding(class AEfficiencyCheckerBuilding* actor);
 	virtual void addBelt(class AFGBuildableConveyorBelt* actor);
 	virtual void addPipe(class AFGBuildablePipeline* actor);
-	virtual void addTeleporter(class AFGBuildableFactory* actor);
-	virtual void addUndergroundInputBelt(class AFGBuildableStorage* actor);
 
+	UFUNCTION()
+	virtual void handleBuildableConstructed(class AFGBuildable* buildable);
 	UFUNCTION()
 	virtual void removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason);
 	UFUNCTION()
 	virtual void removeBelt(AActor* actor, EEndPlayReason::Type reason);
 	UFUNCTION()
 	virtual void removePipe(AActor* actor, EEndPlayReason::Type reason);
-	UFUNCTION()
-	virtual void removeTeleporter(AActor* teleporter, EEndPlayReason::Type reason);
-	UFUNCTION()
-	virtual void removeUndergroundInputBelt(AActor* undergroundInputBelt, EEndPlayReason::Type reason);
 
 	static EPipeConnectionType getConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
 
@@ -139,7 +121,7 @@ public:
 
 	static void collectModularLoadBalancerComponents
 	(
-		AFGBuildableFactory* modularLoadBalancer,
+		class AFGBuildableFactory* modularLoadBalancer,
 		TSet<UFGFactoryConnectionComponent*>& components,
 		TSet<AActor*>& actors
 	);

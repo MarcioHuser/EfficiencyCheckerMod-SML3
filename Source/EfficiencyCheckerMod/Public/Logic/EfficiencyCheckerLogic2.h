@@ -25,7 +25,8 @@ public:
 
 	static bool (*containsActor)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
 	static bool (*actorContainsItem)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
-	static void (*addAllItemsToActor)(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
+	// static void (*addAllItemsToActor)(std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSet<TSubclassOf<UFGItemDescriptor>>& items);
+	static void addAllItemsToActor(CollectSettings& collectSettings, AActor* actor);
 
 	static float (*getPipeSpeed)(class AFGBuildablePipeline* pipe);
 	static EPipeConnectionType (*getConnectedPipeConnectionType)(class UFGPipeConnectionComponent* component);
@@ -73,6 +74,7 @@ public:
 		class CollectSettings& collectSettings,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		bool collectForInput,
 		const std::function<bool (class UFGFactoryConnectionComponent*)>& filter = [](class UFGFactoryConnectionComponent*) { return true; }
 	);
 

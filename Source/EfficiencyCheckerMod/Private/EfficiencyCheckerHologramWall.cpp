@@ -8,11 +8,11 @@
 #include "EfficiencyCheckerBuilding.h"
 #include "FGConstructDisqualifier.h"
 #include "FGFactoryConnectionComponent.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
+#include "Util/ECMOptimize.h"
+#include "Util/ECMLogging.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 AEfficiencyCheckerHologramWall::AEfficiencyCheckerHologramWall()
@@ -357,5 +357,5 @@ AEfficiencyCheckerBuilding* AEfficiencyCheckerHologramWall::GetCheckerBuildable(
 
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

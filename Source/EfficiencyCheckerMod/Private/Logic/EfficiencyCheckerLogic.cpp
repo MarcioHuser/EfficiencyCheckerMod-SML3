@@ -3,12 +3,10 @@
 // ReSharper disable IdentifierTypo
 
 #include "Logic/EfficiencyCheckerLogic.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
+#include "Util/ECMOptimize.h"
+#include "Util/ECMLogging.h"
 #include "Util/Helpers.h"
 
-#include "AkAudioEvent.h"
-#include "Animation/AnimSequence.h"
 #include "Buildables/FGBuildableConveyorAttachment.h"
 #include "Buildables/FGBuildableConveyorBase.h"
 #include "Buildables/FGBuildableConveyorBelt.h"
@@ -22,9 +20,7 @@
 #include "Buildables/FGBuildableStorage.h"
 #include "Buildables/FGBuildableTrainPlatformCargo.h"
 #include "EfficiencyCheckerRCO.h"
-#include "EfficiencyChecker_ConfigStruct.h"
 #include "Equipment/FGEquipment.h"
-#include "Equipment/FGEquipmentAttachment.h"
 #include "FGConnectionComponent.h"
 #include "FGFactoryConnectionComponent.h"
 #include "FGItemCategory.h"
@@ -36,19 +32,22 @@
 #include "Patching/NativeHookManager.h"
 #include "Reflection/ReflectionHelper.h"
 #include "Resources/FGEquipmentDescriptor.h"
-#include "Animation/AimOffsetBlendSpace.h"
 
 #include <map>
 #include <set>
 
+#include "AkComponent.h"
 #include "EfficiencyCheckerBuilding.h"
+#include "../../../../../MarcioCommonLibs/Source/MarcioCommonLibs/Public/Util/MarcioCommonLibsUtils.h"
+#include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildableManufacturer.h"
 #include "Buildables/FGBuildablePipeline.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
+#include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 // TSet<TSubclassOf<UFGItemDescriptor>> AEfficiencyCheckerLogic::nuclearWasteItemDescriptors;
@@ -69,85 +68,50 @@ void AEfficiencyCheckerLogic::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Terminate();
 }
 
-void AEfficiencyCheckerLogic::Initialize
-(
-	const TSet<TSubclassOf<UFGItemDescriptor>>& in_noneItemDescriptors,
-	const TSet<TSubclassOf<UFGItemDescriptor>>& in_wildcardItemDescriptors,
-	const TSet<TSubclassOf<UFGItemDescriptor>>& in_anyUndefinedItemDescriptors,
-	const TSet<TSubclassOf<UFGItemDescriptor>>& in_overflowItemDescriptors,
-	const TSet<TSubclassOf<UFGItemDescriptor>>& in_nuclearWasteItemDescriptors
-)
+void AEfficiencyCheckerLogic::Initialize()
 {
 	singleton = this;
 
-	noneItemDescriptors = in_noneItemDescriptors;
-	wildCardItemDescriptors = in_wildcardItemDescriptors;
-	anyUndefinedItemDescriptors = in_anyUndefinedItemDescriptors;
-	overflowItemDescriptors = in_overflowItemDescriptors;
-	nuclearWasteItemDescriptors = in_nuclearWasteItemDescriptors;
+	// removeEffiencyBuildingDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
+	// removeBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
+	// removePipeDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removePipe);
+	// removeUndergroundInputBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeUndergroundInputBelt);
 
-	removeEffiencyBuildingDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
-	removeBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
-	removePipeDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removePipe);
-	removeTeleporterDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeTeleporter);
-	removeUndergroundInputBeltDelegate.BindDynamic(this, &AEfficiencyCheckerLogic::removeUndergroundInputBelt);
+	auto buildableSubsystem = AFGBuildableSubsystem::Get(this);
 
-	baseStorageTeleporterClass = UClass::TryFindTypeSlow<UClass>(TEXT("/StorageTeleporter/Buildables/ItemTeleporter/ItemTeleporter_Build.ItemTeleporter_Build_C"));
-	baseUndergroundSplitterInputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterInput.Build_UndergroundSplitterInput_C"));
-	baseUndergroundSplitterOutputClass = UClass::TryFindTypeSlow<UClass>(TEXT("/UndergroundBelts/Build/Build_UndergroundSplitterOutput.Build_UndergroundSplitterOutput_C"));
-	baseModularLoadBalancerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/LoadBalancers.LBBuild_ModularLoadBalancer"));
-	baseBuildableFactorySimpleProducerClass = UClass::TryFindTypeSlow<UClass>(TEXT("/Script/FactoryGame.FGBuildableFactorySimpleProducer"));
-
-	// /LoadBalancers/Buildable/FilterModule/Build_ModularLoadBalancer_Filtered.Build_ModularLoadBalancer_Filtered_C
-	// /LoadBalancers/Buildable/FilterModule/OutputOnly/Build_ModularLoadBalancer_Filtered_Output.Build_ModularLoadBalancer_Filtered_Output_C
-	// /LoadBalancers/Buildable/OverflowModule/Build_ModularLoadBalancer_Overflow.Build_ModularLoadBalancer_Overflow_C
-	// /LoadBalancers/Buildable/OverflowModule/OutputOnly/Build_ModularLoadBalancer_Overflow_Output.Build_ModularLoadBalancer_Overflow_Output_C
-	// /LoadBalancers/Buildable/ProgrammableModule/Build_ModularLoadBalancer_Programmable.Build_ModularLoadBalancer_Programmable_C
-	// /LoadBalancers/Buildable/ProgrammableModule/OutputOnly/Build_ModularLoadBalancer_Programmable_Output.Build_ModularLoadBalancer_Programmable_Output_C
-
-	auto subsystem = AFGBuildableSubsystem::Get(this);
-
-	if (subsystem)
+	if (buildableSubsystem)
 	{
-		FScopeLock ScopeLock(&eclCritical);
+		buildableSubsystem->BuildableConstructedGlobalDelegate.AddDynamic(this, &AEfficiencyCheckerLogic::handleBuildableConstructed);
+
+		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 		TArray<AActor*> allBuildables;
-		UGameplayStatics::GetAllActorsOfClass(subsystem->GetWorld(), AFGBuildable::StaticClass(), allBuildables);
+		UGameplayStatics::GetAllActorsOfClass(buildableSubsystem->GetWorld(), AFGBuildable::StaticClass(), allBuildables);
 
 		for (auto buildableActor : allBuildables)
 		{
 			IsValidBuildable(Cast<AFGBuildable>(buildableActor));
 		}
-
-		// auto gameMode = Cast<AFGGameMode>(UGameplayStatics::GetGameMode(subsystem->GetWorld()));
-		// if (gameMode)
-		// {
-		// 	gameMode->RegisterRemoteCallObjectClass(UEfficiencyCheckerRCO::StaticClass());
-		// }
 	}
+}
 
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParameters.TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale;
+void AEfficiencyCheckerLogic::handleBuildableConstructed(AFGBuildable* buildable)
+{
+	if (IsValidBuildable(buildable) && AEfficiencyCheckerConfiguration::configuration.autoUpdate)
+	{
+		AEfficiencyCheckerBuilding::UpdateBuildings(buildable);
+	}
 }
 
 void AEfficiencyCheckerLogic::Terminate()
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 	allEfficiencyBuildings.Empty();
 	allBelts.Empty();
 	allPipes.Empty();
-	allTeleporters.Empty();
-	allUndergroundInputBelts.Empty();
 
 	singleton = nullptr;
-
-	baseStorageTeleporterClass = nullptr;
-	baseUndergroundSplitterInputClass = nullptr;
-	baseUndergroundSplitterOutputClass = nullptr;
-	baseModularLoadBalancerClass = nullptr;
-	baseBuildableFactorySimpleProducerClass = nullptr;
 }
 
 bool AEfficiencyCheckerLogic::containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
@@ -202,6 +166,8 @@ void AEfficiencyCheckerLogic::collectInput
 	int machineStatusIncludeType
 )
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+
 	TSet<TSubclassOf<UFGItemDescriptor>> restrictItems = in_restrictItems;
 
 	for (;;)
@@ -505,8 +471,8 @@ void AEfficiencyCheckerLogic::collectInput
 
 			AFGBuildable* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (singleton->baseUndergroundSplitterInputClass && owner->IsA(singleton->baseUndergroundSplitterInputClass) ||
-				singleton->baseUndergroundSplitterOutputClass && owner->IsA(singleton->baseUndergroundSplitterOutputClass)))
+			if (!buildable && (commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
+				commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -563,12 +529,12 @@ void AEfficiencyCheckerLogic::collectInput
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && singleton->baseStorageTeleporterClass && owner->IsA(singleton->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
 
-			if (!buildable && singleton->baseModularLoadBalancerClass && owner->IsA(singleton->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
 			{
 				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
@@ -828,9 +794,9 @@ void AEfficiencyCheckerLogic::collectInput
 					// Find all others of the same type
 					auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
-					FScopeLock ScopeLock(&singleton->eclCritical);
+					FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
-					for (auto testTeleporter : singleton->allTeleporters)
+					for (auto testTeleporter : commonInfoSubsystem->allTeleporters)
 					{
 						if (timeout < time(NULL))
 						{
@@ -951,12 +917,13 @@ void AEfficiencyCheckerLogic::collectInput
 							return;
 						}
 
-						if (singleton->noneItemDescriptors.Intersect(it->second).Num())
+						if (commonInfoSubsystem->noneItemDescriptors.Intersect(it->second).Num())
 						{
 							// No item is valid. Empty it all
 							it->second.Empty();
 						}
-						else if (singleton->wildCardItemDescriptors.Intersect(it->second).Num() || singleton->overflowItemDescriptors.Intersect(it->second).Num())
+						else if (commonInfoSubsystem->wildCardItemDescriptors.Intersect(it->second).Num() || commonInfoSubsystem->overflowItemDescriptors.Intersect(it->second).
+							Num())
 						{
 							// Add all current restrictItems as valid items
 							it->second = restrictItems;
@@ -978,7 +945,7 @@ void AEfficiencyCheckerLogic::collectInput
 							return;
 						}
 
-						if (singleton->anyUndefinedItemDescriptors.Intersect(it->second).Num())
+						if (commonInfoSubsystem->anyUndefinedItemDescriptors.Intersect(it->second).Num())
 						{
 							it->second = it->second.Union(restrictItems.Difference(definedItems));
 						}
@@ -1893,7 +1860,7 @@ void AEfficiencyCheckerLogic::collectInput
 				(nuclearGenerator->HasPower() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Unpowered)) &&
 				(!nuclearGenerator->IsProductionPaused() || Has_EMachineStatusIncludeType(machineStatusIncludeType, EMachineStatusIncludeType::MSIT_Paused)))
 			{
-				for (auto item : singleton->nuclearWasteItemDescriptors)
+				for (auto item : commonInfoSubsystem->nuclearWasteItemDescriptors)
 				{
 					out_injectedItems.Add(item);
 				}
@@ -1906,10 +1873,10 @@ void AEfficiencyCheckerLogic::collectInput
 			}
 		}
 
-		if (singleton->baseBuildableFactorySimpleProducerClass && owner->IsA(singleton->baseBuildableFactorySimpleProducerClass))
+		if (auto itemProducer = Cast<AFGBuildableFactorySimpleProducer>(owner))
 		{
-			TSubclassOf<UFGItemDescriptor> itemType = FReflectionHelper::GetObjectPropertyValue<UClass>(owner, TEXT("mItemType"));
-			auto timeToProduceItem = FReflectionHelper::GetPropertyValue<FFloatProperty>(owner, TEXT("mTimeToProduceItem"));
+			auto itemType = itemProducer->mItemType;
+			auto timeToProduceItem = itemProducer->mTimeToProduceItem;
 
 			if (timeToProduceItem && itemType)
 			{
@@ -1951,6 +1918,8 @@ void AEfficiencyCheckerLogic::collectOutput
 	int32 machineStatusIncludeType
 )
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+
 	TSet<TSubclassOf<UFGItemDescriptor>> injectedItems = in_injectedItems;
 
 	for (;;)
@@ -2130,8 +2099,8 @@ void AEfficiencyCheckerLogic::collectOutput
 
 			AFGBuildable* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (singleton->baseUndergroundSplitterInputClass && owner->IsA(singleton->baseUndergroundSplitterInputClass) ||
-				singleton->baseUndergroundSplitterOutputClass && owner->IsA(singleton->baseUndergroundSplitterOutputClass)))
+			if (!buildable && (commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
+				commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -2152,12 +2121,12 @@ void AEfficiencyCheckerLogic::collectOutput
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && singleton->baseStorageTeleporterClass && owner->IsA(singleton->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
 
-			if (!buildable && singleton->baseModularLoadBalancerClass && owner->IsA(singleton->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
 			{
 				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
@@ -2412,9 +2381,9 @@ void AEfficiencyCheckerLogic::collectOutput
 				{
 					auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
-					FScopeLock ScopeLock(&singleton->eclCritical);
+					FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
-					for (auto testTeleporter : AEfficiencyCheckerLogic::singleton->allTeleporters)
+					for (auto testTeleporter : commonInfoSubsystem->allTeleporters)
 					{
 						if (timeout < time(NULL))
 						{
@@ -2509,12 +2478,13 @@ void AEfficiencyCheckerLogic::collectOutput
 							return;
 						}
 
-						if (singleton->noneItemDescriptors.Intersect(it->second).Num())
+						if (commonInfoSubsystem->noneItemDescriptors.Intersect(it->second).Num())
 						{
 							// No item is valid. Empty it all
 							it->second.Empty();
 						}
-						else if (singleton->wildCardItemDescriptors.Intersect(it->second).Num() || singleton->overflowItemDescriptors.Intersect(it->second).Num())
+						else if (commonInfoSubsystem->wildCardItemDescriptors.Intersect(it->second).Num() || commonInfoSubsystem->overflowItemDescriptors.Intersect(it->second).
+							Num())
 						{
 							// Add all current restrictItems as valid items
 							it->second = injectedItems;
@@ -2536,7 +2506,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							return;
 						}
 
-						if (singleton->anyUndefinedItemDescriptors.Intersect(it->second).Num())
+						if (commonInfoSubsystem->anyUndefinedItemDescriptors.Intersect(it->second).Num())
 						{
 							it->second = it->second.Union(injectedItems.Difference(definedItems));
 						}
@@ -3481,101 +3451,6 @@ void AEfficiencyCheckerLogic::dumpUnknownClass(const FString& indent, AActor* ow
 	}
 }
 
-void AEfficiencyCheckerLogic::DumpInformation(AActor* worldContext, TSubclassOf<UFGItemDescriptor> itemDescriptorClass)
-{
-	// if (configuration.dumpConnections)
-	{
-		if (!itemDescriptorClass)
-		{
-			return;
-		}
-
-		auto className = GetFullNameSafe(itemDescriptorClass);
-
-		EC_LOG_Display(TEXT("Dumping "), *className);
-
-		auto itemDescriptor = Cast<UFGItemDescriptor>(itemDescriptorClass->GetDefaultObject());
-		if (!itemDescriptor)
-		{
-			EC_LOG_Display(TEXT("    Equipment small icon = "), *GetPathNameSafe(itemDescriptor->mSmallIcon));
-			EC_LOG_Display(TEXT("    Equipment big icon = "), *GetPathNameSafe(itemDescriptor->mPersistentBigIcon));
-			EC_LOG_Display(TEXT("    Equipment conveyor mesh = "), *GetPathNameSafe(itemDescriptor->mConveyorMesh));
-			EC_LOG_Display(TEXT("    Equipment category = "), *GetPathNameSafe(itemDescriptor->mCategory));
-		}
-
-		auto equipmentDescriptor = Cast<UFGEquipmentDescriptor>(itemDescriptor);
-		if (!equipmentDescriptor)
-		{
-			EC_LOG_Display(TEXT("    Class "), *className, TEXT(" is not an Equipment Descriptor"));
-
-			return;
-		}
-
-		EC_LOG_Display(TEXT("    Equipment stack size = "), *getEnumItemName(TEXT("EStackSize"), (int)equipmentDescriptor->mStackSize));
-
-		EC_LOG_Display(TEXT("    Equipment class = "), *GetPathNameSafe(equipmentDescriptor->mEquipmentClass));
-
-		if (!equipmentDescriptor->mEquipmentClass)
-		{
-			return;
-		}
-
-		// auto equipment = Cast<AFGEquipment>(equipmentDescriptor->mEquipmentClass->GetDefaultObject());
-
-		auto equipment = Cast<AFGEquipment>(
-			worldContext->GetWorld()->SpawnActor(
-				equipmentDescriptor->mEquipmentClass
-				)
-			);
-
-		EC_LOG_Display(TEXT("    Equipment attachment = "), *GetPathNameSafe(equipment->mAttachmentClass));
-		EC_LOG_Display(TEXT("    Equipment secondary attachment = "), *GetPathNameSafe(equipment->mSecondaryAttachmentClass));
-		EC_LOG_Display(TEXT("    Equipment slot = "), *getEnumItemName(TEXT("EEquipmentSlot"), (int)equipment->mEquipmentSlot));
-		EC_LOG_Display(TEXT("    Equipment attachment socket = "), *equipment->mAttachSocket.ToString());
-		EC_LOG_Display(TEXT("    Equipment arm animation = "), *getEnumItemName(TEXT("EArmEquipment"), (int)equipment->GetArmsAnimation()));
-		EC_LOG_Display(TEXT("    Equipment back animation = "), *getEnumItemName(TEXT("EBackEquipment"), (int)equipment->GetBackAnimation()));
-		EC_LOG_Display(TEXT("    Equipment equip sound = "), *GetPathNameSafe(equipment->mEquipSound));
-		EC_LOG_Display(TEXT("    Equipment unequip sound = "), *GetPathNameSafe(equipment->mUnequipSound));
-		EC_LOG_Display(TEXT("    Equipment widget = "), *GetPathNameSafe(equipment->mEquipmentWidget));
-		// EC_LOG_Display(TEXT("    Equipment use default primary fire = "), equipment->CanDoDefaultPrimaryFire() ? TEXT("true") : TEXT("false"));
-		EC_LOG_Display(TEXT("    Equipment idle pose animation = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation()));
-		EC_LOG_Display(TEXT("    Equipment idle pose animation 3p = "), *GetPathNameSafe(equipment->GetIdlePoseAnimation3p()));
-		EC_LOG_Display(TEXT("    Equipment crouch pose animation 3p = "), *GetPathNameSafe(equipment->GetCrouchPoseAnimation3p()));
-		EC_LOG_Display(TEXT("    Equipment slide pose animation 3p = "), *GetPathNameSafe(equipment->GetSlidePoseAnimation3p()));
-		EC_LOG_Display(TEXT("    Equipment attachmend idle AO = "), *GetPathNameSafe(equipment->GetAttachmentIdleAO()));
-
-		auto& components = equipment->GetComponents();
-
-		for (auto component : components)
-		{
-			EC_LOG_Display(TEXT("    Component Class = "), *GetFullNameSafe(component->GetClass()));
-
-			if (auto scene = Cast<USceneComponent>(component))
-			{
-				EC_LOG_Display(TEXT("        Location = "), *scene->GetComponentLocation().ToString());
-				EC_LOG_Display(TEXT("        Rotation = "), *scene->GetComponentRotation().ToString());
-				EC_LOG_Display(TEXT("        Scale = "), *scene->GetComponentScale().ToString());
-			}
-
-			if (auto skeletalMesh = Cast<USkeletalMeshComponent>(component))
-			{
-				EC_LOG_Display(TEXT("        Animation Mode = "), *getEnumItemName(TEXT("EAnimationMode"), skeletalMesh->GetAnimationMode()));
-				EC_LOG_Display(TEXT("        Anim Class = "), *GetPathNameSafe(skeletalMesh->GetAnimClass()));
-				EC_LOG_Display(TEXT("        Disable Post Process Blueprint = "), skeletalMesh->GetDisablePostProcessBlueprint() ? TEXT("true") : TEXT("false"));
-				EC_LOG_Display(TEXT("        Global Anim Rate Scale = "), skeletalMesh->GlobalAnimRateScale);
-				EC_LOG_Display(TEXT("        Pause Anims = "), skeletalMesh->bPauseAnims ? TEXT("true") : TEXT("false"));
-				EC_LOG_Display(TEXT("        Use Ref Pose On Init Anim = "), skeletalMesh->bUseRefPoseOnInitAnim ? TEXT("true") : TEXT("false"));
-				EC_LOG_Display(TEXT("        Skeletal Mesh = "), *GetPathNameSafe(skeletalMesh->SkeletalMesh));
-			}
-		}
-
-		equipment->Destroy();
-
-		EC_LOG_Display(TEXT(" Dump done"));
-		EC_LOG_Display(TEXT("===="));
-	}
-}
-
 bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 {
 	if (!newBuildable)
@@ -3589,78 +3464,60 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 
 		return true;
 	}
-	if (Cast<AFGBuildableManufacturer>(newBuildable))
+	else if (Cast<AFGBuildableManufacturer>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableResourceExtractor>(newBuildable))
+	else if (Cast<AFGBuildableResourceExtractor>(newBuildable))
 	{
 		return true;
 	}
-	if (baseUndergroundSplitterInputClass && newBuildable->IsA(baseUndergroundSplitterInputClass))
-	{
-		if (auto underGroundBelt = Cast<AFGBuildableStorage>(newBuildable))
-		{
-			addUndergroundInputBelt(underGroundBelt);
-
-			return true;
-		}
-	}
-	if (Cast<AFGBuildableStorage>(newBuildable))
+	else if (Cast<AFGBuildableStorage>(newBuildable))
 	{
 		return true;
 	}
-	if (auto belt = Cast<AFGBuildableConveyorBelt>(newBuildable))
+	else if (auto belt = Cast<AFGBuildableConveyorBelt>(newBuildable))
 	{
 		addBelt(belt);
 
 		return true;
 	}
-	if (Cast<AFGBuildableConveyorBase>(newBuildable))
+	else if (Cast<AFGBuildableConveyorBase>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableConveyorAttachment>(newBuildable))
+	else if (Cast<AFGBuildableConveyorAttachment>(newBuildable))
 	{
 		return true;
 	}
-	if (auto pipe = Cast<AFGBuildablePipeline>(newBuildable))
+	else if (auto pipe = Cast<AFGBuildablePipeline>(newBuildable))
 	{
 		addPipe(pipe);
 
 		return true;
 	}
-	if (Cast<AFGBuildablePipelineAttachment>(newBuildable))
+	else if (Cast<AFGBuildablePipelineAttachment>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableTrainPlatform>(newBuildable))
+	else if (Cast<AFGBuildableTrainPlatform>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableRailroadStation>(newBuildable))
+	else if (Cast<AFGBuildableRailroadStation>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableDockingStation>(newBuildable))
+	else if (Cast<AFGBuildableDockingStation>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableGeneratorFuel>(newBuildable))
+	else if (Cast<AFGBuildableGeneratorFuel>(newBuildable))
 	{
 		return true;
 	}
-	if (Cast<AFGBuildableGeneratorNuclear>(newBuildable))
+	else if (Cast<AFGBuildableGeneratorNuclear>(newBuildable))
 	{
-		return true;
-	}
-	if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter && baseStorageTeleporterClass && newBuildable->IsA(baseStorageTeleporterClass))
-	{
-		if (auto storageTeleporter = Cast<AFGBuildableFactory>(newBuildable))
-		{
-			addTeleporter(storageTeleporter);
-		}
-
 		return true;
 	}
 
@@ -3669,82 +3526,50 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 
 void AEfficiencyCheckerLogic::addEfficiencyBuilding(class AEfficiencyCheckerBuilding* checker)
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allEfficiencyBuildings.Add(checker);
 
-	checker->OnEndPlay.Add(removeEffiencyBuildingDelegate);
+	checker->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
 }
 
 void AEfficiencyCheckerLogic::removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason)
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allEfficiencyBuildings.Remove(Cast<AEfficiencyCheckerBuilding>(actor));
 
-	actor->OnEndPlay.Remove(removeEffiencyBuildingDelegate);
+	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
 }
 
 void AEfficiencyCheckerLogic::addBelt(AFGBuildableConveyorBelt* belt)
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allBelts.Add(belt);
 
-	belt->OnEndPlay.Add(removeBeltDelegate);
+	belt->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
 }
 
 void AEfficiencyCheckerLogic::removeBelt(AActor* actor, EEndPlayReason::Type reason)
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allBelts.Remove(Cast<AFGBuildableConveyorBelt>(actor));
 
-	actor->OnEndPlay.Remove(removeBeltDelegate);
+	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
 }
 
 void AEfficiencyCheckerLogic::addPipe(AFGBuildablePipeline* pipe)
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allPipes.Add(pipe);
 
-	pipe->OnEndPlay.Add(removePipeDelegate);
+	pipe->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic:: removePipe);
 }
 
 void AEfficiencyCheckerLogic::removePipe(AActor* actor, EEndPlayReason::Type reason)
 {
-	FScopeLock ScopeLock(&eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allPipes.Remove(Cast<AFGBuildablePipeline>(actor));
 
-	actor->OnEndPlay.Remove(removePipeDelegate);
-}
-
-void AEfficiencyCheckerLogic::addTeleporter(AFGBuildableFactory* teleporter)
-{
-	FScopeLock ScopeLock(&eclCritical);
-	allTeleporters.Add(teleporter);
-
-	teleporter->OnEndPlay.Add(removeTeleporterDelegate);
-}
-
-void AEfficiencyCheckerLogic::removeTeleporter(AActor* teleporter, EEndPlayReason::Type reason)
-{
-	FScopeLock ScopeLock(&eclCritical);
-	allTeleporters.Remove(Cast<AFGBuildableFactory>(teleporter));
-
-	teleporter->OnEndPlay.Remove(removeTeleporterDelegate);
-}
-
-void AEfficiencyCheckerLogic::addUndergroundInputBelt(AFGBuildableStorage* undergroundInputBelt)
-{
-	FScopeLock ScopeLock(&eclCritical);
-	allUndergroundInputBelts.Add(undergroundInputBelt);
-
-	undergroundInputBelt->OnEndPlay.Add(removeUndergroundInputBeltDelegate);
-}
-
-void AEfficiencyCheckerLogic::removeUndergroundInputBelt(AActor* undergroundInputBelt, EEndPlayReason::Type reason)
-{
-	FScopeLock ScopeLock(&eclCritical);
-	allUndergroundInputBelts.Remove(Cast<AFGBuildableStorage>(undergroundInputBelt));
-
-	undergroundInputBelt->OnEndPlay.Remove(removeUndergroundInputBeltDelegate);
+	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic:: removePipe);
 }
 
 float AEfficiencyCheckerLogic::getPipeSpeed(AFGBuildablePipeline* pipe)
@@ -3781,6 +3606,8 @@ void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
 	TSet<AActor*>& actors
 )
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	
 	auto outputsProperty = CastField<FArrayProperty>(undergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 	if (outputsProperty)
 	{
@@ -3807,9 +3634,10 @@ void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
 			}
 		}
 	}
-	else
+	else if (commonInfoSubsystem->baseUndergroundSplitterOutputClass &&
+		undergroundBelt->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass))
 	{
-		for (auto inputUndergroundBelt : singleton->allUndergroundInputBelts)
+		for (auto inputUndergroundBelt : commonInfoSubsystem->allUndergroundInputBelts)
 		{
 			outputsProperty = CastField<FArrayProperty>(inputUndergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 			if (outputsProperty)
@@ -3897,6 +3725,8 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 	bool& overflow
 )
 {
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+
 	TArray<UFGFactoryConnectionComponent*> tempComponents;
 	smartSplitter->GetComponents(tempComponents);
 
@@ -3994,12 +3824,14 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			return;
 		}
 
-		if (singleton->noneItemDescriptors.Intersect(it->second.allowedItems).Num())
+		if (commonInfoSubsystem->noneItemDescriptors.Intersect(it->second.allowedItems).Num())
 		{
 			// No item is valid. Empty it all
 			it->second.allowedItems.Empty();
 		}
-		else if (singleton->wildCardItemDescriptors.Intersect(it->second.allowedItems).Num() || singleton->overflowItemDescriptors.Intersect(it->second.allowedItems).Num())
+		else if (commonInfoSubsystem->wildCardItemDescriptors.Intersect(it->second.allowedItems).Num() || commonInfoSubsystem->overflowItemDescriptors.Intersect(
+			it->second.allowedItems
+			).Num())
 		{
 			// Add all current restrictItems as valid items
 			it->second.allowedItems.Empty();
@@ -4026,7 +3858,7 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			return;
 		}
 
-		if (singleton->anyUndefinedItemDescriptors.Intersect(it->second.allowedItems).Num())
+		if (commonInfoSubsystem->anyUndefinedItemDescriptors.Intersect(it->second.allowedItems).Num())
 		{
 			it->second.deniedFiltered = true;
 			it->second.deniedItems.Append(definedItems);
@@ -4077,5 +3909,5 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

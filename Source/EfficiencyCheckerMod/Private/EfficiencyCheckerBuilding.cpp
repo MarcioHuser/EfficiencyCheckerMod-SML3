@@ -10,23 +10,23 @@
 #include "Buildables/FGBuildableSplitterSmart.h"
 #include "Components/WidgetComponent.h"
 #include "EfficiencyCheckerRCO.h"
-#include "EfficiencyChecker_ConfigStruct.h"
 #include "FGFactoryConnectionComponent.h"
 #include "FGPipeConnectionComponent.h"
 #include "FGPipeSubsystem.h"
 #include "Logic/EfficiencyCheckerLogic.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
+#include "Util/ECMOptimize.h"
+#include "Util/ECMLogging.h"
 
 #include <map>
 
 #include "Logic/CollectSettings.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
 #include "Net/UnrealNetwork.h"
+#include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off)
+#pragma optimize("", off)
 #endif
 
 // Sets default values
@@ -58,7 +58,7 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 	// {
 	//     EC_LOG(*getTagName(),TEXT("Adding to list!"));
 	//
-	//     FScopeLock ScopeLock(&AEfficiencyCheckerLogic::eclCritical);
+	//     FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	//     AEfficiencyCheckerLogic::allEfficiencyBuildings.Add(this);
 	// }
 
@@ -173,7 +173,7 @@ void AEfficiencyCheckerBuilding::EndPlay(const EEndPlayReason::Type endPlayReaso
 	// {
 	//     EC_LOG(*getTagName(), TEXT("Removing from list!"));
 	//
-	//     FScopeLock ScopeLock(&AEfficiencyCheckerLogic::eclCritical);
+	//     FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	//     AEfficiencyCheckerLogic::allEfficiencyBuildings.Remove(this);
 	// }
 
@@ -574,7 +574,7 @@ void AEfficiencyCheckerBuilding::UpdateBuildings(AFGBuildable* newBuildable)
 	}
 
 	// Update all EfficiencyCheckerBuildings
-	FScopeLock ScopeLock(&AEfficiencyCheckerLogic::singleton->eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 	// Trigger all buildings
 	for (auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
@@ -603,7 +603,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 	CollectSettings collectSettings;
 	collectSettings.SetLimitedThroughputPtr(&out_limitedThroughput);
-	collectSettings.SetInjectedItemsPtr(&out_injectedItems);
+	// collectSettings.SetInjectedItemsPtr(&out_injectedItems);
 	collectSettings.SetConnectedPtr(&connected);
 	collectSettings.SetMachineStatusIncludeType(machineStatusIncludeType);
 	collectSettings.SetResourceForm(resourceForm);
@@ -675,7 +675,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			collectSettings.GetCurrentFilter().allowedFiltered = true;
 			collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
 
-			collectSettings.GetInjectedItems().Add(fluidItem);
+			// collectSettings.GetInjectedItems().Add(fluidItem);
 		}
 	}
 	else if (resourceForm == EResourceForm::RF_SOLID)
@@ -702,7 +702,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		//     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFGBuildableConveyorBelt::StaticClass(), allBelts);
 		// }
 
-		FScopeLock ScopeLock(&AEfficiencyCheckerLogic::singleton->eclCritical);
+		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 		for (auto conveyorActor : AEfficiencyCheckerLogic::singleton->allBelts)
 		{
@@ -809,15 +809,17 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			TArray<TSubclassOf<UFGItemDescriptor>> allItems;
 			UFGBlueprintFunctionLibrary::Cheat_GetAllDescriptors(allItems);
 
+			auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+
 			for (auto item : allItems)
 			{
 				if (!item ||
 					!UFGBlueprintFunctionLibrary::CanBeOnConveyor(item) ||
 					UFGItemDescriptor::GetForm(item) != EResourceForm::RF_SOLID ||
-					AEfficiencyCheckerLogic::singleton->wildCardItemDescriptors.Contains(item) ||
-					AEfficiencyCheckerLogic::singleton->overflowItemDescriptors.Contains(item) ||
-					AEfficiencyCheckerLogic::singleton->noneItemDescriptors.Contains(item) ||
-					AEfficiencyCheckerLogic::singleton->anyUndefinedItemDescriptors.Contains(item)
+					commonInfoSubsystem->wildCardItemDescriptors.Contains(item) ||
+					commonInfoSubsystem->overflowItemDescriptors.Contains(item) ||
+					commonInfoSubsystem->noneItemDescriptors.Contains(item) ||
+					commonInfoSubsystem->anyUndefinedItemDescriptors.Contains(item)
 					)
 				{
 					continue;;
@@ -842,7 +844,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		//     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFGBuildablePipeline::StaticClass(), allPipes);
 		// }
 
-		FScopeLock ScopeLock(&AEfficiencyCheckerLogic::singleton->eclCritical);
+		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 		for (auto pipeActor : AEfficiencyCheckerLogic::singleton->allPipes)
 		{
@@ -907,7 +909,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 					collectSettings.GetCurrentFilter().allowedFiltered = true;
 					collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
 
-					collectSettings.GetInjectedItems().Add(fluidItem);
+					// collectSettings.GetInjectedItems().Add(fluidItem);
 				}
 
 				initialThroughtputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
@@ -962,10 +964,15 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			{
 				for (auto entry : collectSettings.GetRequiredOutput())
 				{
-					collectSettings.GetInjectedItems().Add(entry.first);
+					// collectSettings.GetInjectedItems().Add(entry.first);
 					collectSettings.GetInjectedInput()[entry.first];
 				}
 			}
+		}
+
+		for (const auto& entry : collectSettings.GetInjectedInput())
+		{
+			out_injectedItems.Add(entry.first);
 		}
 	}
 	else
@@ -983,7 +990,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				collectSettings.GetLimitedThroughput(),
 				collectSettings.GetSeenActors(),
 				collectSettings.GetConnected(),
-				collectSettings.GetInjectedItems(),
+				out_injectedItems,
 				collectSettings.GetCurrentFilter().allowedItems,
 				collectSettings.GetBuildableSubsystem(),
 				collectSettings.GetLevel(),
@@ -995,9 +1002,9 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 			limitedThroughputIn = collectSettings.GetLimitedThroughput();
 
-			if (collectSettings.GetInjectedItems().Num())
+			if (injectedItems.Num())
 			{
-				collectSettings.GetInjectedInput()[*collectSettings.GetInjectedItems().begin()] = injectedInput;
+				collectSettings.GetInjectedInput()[*injectedItems.begin()] = out_injectedInput;
 			}
 		}
 
@@ -1015,7 +1022,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				collectSettings.GetLimitedThroughput(),
 				collectSettings.GetSeenActors(),
 				collectSettings.GetConnected(),
-				collectSettings.GetInjectedItems(),
+				out_injectedItems,
 				collectSettings.GetBuildableSubsystem(),
 				collectSettings.GetLevel(),
 				collectSettings.GetOverflow(),
@@ -1026,9 +1033,9 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 			limitedThroughputOut = collectSettings.GetLimitedThroughput();
 
-			if (collectSettings.GetInjectedItems().Num())
+			if (injectedItems.Num())
 			{
-				collectSettings.GetRequiredOutput()[*collectSettings.GetInjectedItems().begin()] = requiredOutput;
+				collectSettings.GetRequiredOutput()[*injectedItems.begin()] = out_requiredOutput;
 			}
 		}
 	}
@@ -1173,10 +1180,13 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 		TArray<FProductionDetail> producers;
 		TArray<FProductionDetail> consumers;
 
+		float tempInjectedInput = 0;
+		float tempRequiredOutput = 0;
+
 		GetConnectedProduction(
-			injectedInput,
+			tempInjectedInput,
 			limitedThroughput,
-			requiredOutput,
+			tempRequiredOutput,
 			injectedItemsSet,
 			connectedBuildables,
 			producers,
@@ -1184,6 +1194,15 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 			overflow,
 			includeProductionDetails
 			);
+
+		if (!customInjectedInput)
+		{
+			injectedInput = tempInjectedInput;
+		}
+		if (!customRequiredOutput)
+		{
+			requiredOutput = tempRequiredOutput;
+		}
 
 		injectedItems = injectedItemsSet.Array();
 
@@ -1325,7 +1344,7 @@ void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableF
 		);
 
 	// Update all EfficiencyCheckerBuildings that connects to this building
-	FScopeLock ScopeLock(&AEfficiencyCheckerLogic::singleton->eclCritical);
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 	for (auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
 	{
@@ -1412,5 +1431,5 @@ void AEfficiencyCheckerBuilding::UpdateItem_Implementation
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

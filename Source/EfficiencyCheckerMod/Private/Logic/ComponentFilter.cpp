@@ -1,22 +1,31 @@
 ﻿#include "Logic/ComponentFilter.h"
-#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/ECMOptimize.h"
 #include "Logic/EfficiencyCheckerLogic.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
+#include "Subsystems/CommonInfoSubsystem.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 bool FComponentFilter::itemIsAllowed(const TSubclassOf<UFGItemDescriptor>& item) const
 {
-	return (!allowedFiltered ||
-			allowedItems.Contains(item) ||
-			allowedItems.Intersect(AEfficiencyCheckerLogic::singleton->overflowItemDescriptors).Num() ||
-			allowedItems.Intersect(AEfficiencyCheckerLogic::singleton->wildCardItemDescriptors).Num()) &&
-		(!deniedFiltered ||
-			!deniedItems.Contains(item) &&
-			deniedItems.Intersect(AEfficiencyCheckerLogic::singleton->overflowItemDescriptors).Num() &&
-			deniedItems.Intersect(AEfficiencyCheckerLogic::singleton->wildCardItemDescriptors).Num());
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	
+	if (allowedFiltered &&
+		!allowedItems.Contains(item) &&
+		allowedItems.Intersect(commonInfoSubsystem->overflowItemDescriptors).IsEmpty() &&
+		allowedItems.Intersect(commonInfoSubsystem->wildCardItemDescriptors).IsEmpty())
+	{
+		return false;
+	}
+
+	if (deniedFiltered && deniedItems.Contains(item))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 TSet<TSubclassOf<UFGItemDescriptor>> FComponentFilter::filterItems(const TSet<TSubclassOf<UFGItemDescriptor>>& items) const
@@ -68,5 +77,5 @@ FComponentFilter FComponentFilter::combineFilters(const FComponentFilter& filter
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

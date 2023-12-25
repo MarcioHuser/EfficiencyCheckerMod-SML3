@@ -1,11 +1,10 @@
 ﻿#include "Util/EfficiencyCheckerConfiguration.h"
-#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/ECMOptimize.h"
 #include "EfficiencyCheckerBuilding.h"
-#include "EfficiencyChecker_ConfigStruct.h"
 #include "Buildables/FGBuildableFrackingActivator.h"
 #include "Buildables/FGBuildableGeneratorFuel.h"
 #include "Patching/NativeHookManager.h"
-#include "Util/Logging.h"
+#include "Util/ECMLogging.h"
 
 FEfficiencyChecker_ConfigStruct AEfficiencyCheckerConfiguration::configuration;
 
@@ -29,46 +28,87 @@ void AEfficiencyCheckerConfiguration::SetEfficiencyCheckerConfiguration(const FE
 	EC_LOG_Display(TEXT("updateTimeout = "), configuration.updateTimeout);
 	EC_LOG_Display(TEXT("logicVersion = "), configuration.logicVersion);
 
+	static auto hooked = false;
+	static FDelegateHandle AFGBuildableFactory_SetPendingPotential;
+	static FDelegateHandle AFGBuildableFrackingActivator_SetPendingPotential;
+	static FDelegateHandle AFGBuildableGeneratorFuel_SetPendingPotential;
+
+#if UE_BUILD_SHIPPING
 	if (configuration.autoUpdate)
 	{
-		EC_LOG_Display(TEXT("Hooking AFGBuildableFactory::SetPendingPotential"));
-
+		if (!hooked)
 		{
-			void* ObjectInstance = GetMutableDefault<AFGBuildableFactory>();
+			hooked = true;
 
-			SUBSCRIBE_METHOD_VIRTUAL_AFTER(
-				AFGBuildableFactory::SetPendingPotential,
-				ObjectInstance,
-				[](AFGBuildableFactory * factory, float potential) {
-				AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
-				}
-				);
-		}
+			{
+				void* ObjectInstance = GetMutableDefault<AFGBuildableFactory>();
 
-		{
-			void* ObjectInstance = GetMutableDefault<AFGBuildableFrackingActivator>();
+				AFGBuildableFactory_SetPendingPotential = SUBSCRIBE_METHOD_VIRTUAL_AFTER(
+					AFGBuildableFactory::SetPendingPotential,
+					ObjectInstance,
+					[](AFGBuildableFactory * factory, float potential) {
+					AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
+					}
+					);
+			}
 
-			SUBSCRIBE_METHOD_VIRTUAL_AFTER(
-				AFGBuildableFrackingActivator::SetPendingPotential,
-				ObjectInstance,
-				[](AFGBuildableFrackingActivator * factory, float potential) {
-				AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
-				}
-				);
-		}
+			{
+				void* ObjectInstance = GetMutableDefault<AFGBuildableFrackingActivator>();
 
-		{
-			void* ObjectInstance = GetMutableDefault<AFGBuildableGeneratorFuel>();
+				AFGBuildableFrackingActivator_SetPendingPotential = SUBSCRIBE_METHOD_VIRTUAL_AFTER(
+					AFGBuildableFrackingActivator::SetPendingPotential,
+					ObjectInstance,
+					[](AFGBuildableFrackingActivator * factory, float potential) {
+					AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
+					}
+					);
+			}
 
-			SUBSCRIBE_METHOD_VIRTUAL_AFTER(
-				AFGBuildableGeneratorFuel::SetPendingPotential,
-				ObjectInstance,
-				[](AFGBuildableGeneratorFuel * factory, float potential) {
-				AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
-				}
-				);
+			{
+				void* ObjectInstance = GetMutableDefault<AFGBuildableGeneratorFuel>();
+
+				AFGBuildableGeneratorFuel_SetPendingPotential = SUBSCRIBE_METHOD_VIRTUAL_AFTER(
+					AFGBuildableGeneratorFuel::SetPendingPotential,
+					ObjectInstance,
+					[](AFGBuildableGeneratorFuel * factory, float potential) {
+					AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
+					}
+					);
+			}
 		}
 	}
+	else
+	{
+		if (hooked)
+		{
+			hooked = false;
+
+			if (AFGBuildableFactory_SetPendingPotential.IsValid())
+			{
+				UNSUBSCRIBE_METHOD(
+					AFGBuildableFactory::SetPendingPotential,
+					AFGBuildableFactory_SetPendingPotential
+					);
+			}
+
+			if (AFGBuildableFrackingActivator_SetPendingPotential.IsValid())
+			{
+				UNSUBSCRIBE_METHOD(
+					AFGBuildableFrackingActivator::SetPendingPotential,
+					AFGBuildableFrackingActivator_SetPendingPotential
+					);
+			}
+
+			if (AFGBuildableGeneratorFuel_SetPendingPotential.IsValid())
+			{
+				UNSUBSCRIBE_METHOD(
+					AFGBuildableGeneratorFuel::SetPendingPotential,
+					AFGBuildableGeneratorFuel_SetPendingPotential
+					);
+			}
+		}
+	}
+#endif
 
 	EC_LOG_Display(TEXT("==="));
 }

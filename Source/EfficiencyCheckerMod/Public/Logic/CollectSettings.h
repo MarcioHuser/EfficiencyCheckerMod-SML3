@@ -40,7 +40,7 @@ public:
 
 #define GET_SET_WRAPPER_SIMPLE(Type, Name, name, defaultValue) GET_SET_WRAPPER(Type, Type, Type*, Name, name, defaultValue)
 
-#define MAP_ITEM_INT32 std::map<TSubclassOf<class UFGItemDescriptor>, int32>
+#define MAP_ITEM_FLOAT std::map<TSubclassOf<class UFGItemDescriptor>, float>
 #define MAP_ACTOR_ITEM std::map<AActor*, TSet<TSubclassOf<class UFGItemDescriptor>>>
 
 	GET_SET_WRAPPER_SIMPLE(EResourceForm, ResourceForm, resourceForm, EResourceForm::RF_INVALID)
@@ -60,7 +60,7 @@ public:
 		return total;
 	}
 
-	GET_SET_WRAPPER(MAP_ITEM_INT32, const MAP_ITEM_INT32&, MAP_ITEM_INT32*, InjectedInput, injectedInput, MAP_ITEM_INT32())
+	GET_SET_WRAPPER(MAP_ITEM_FLOAT, const MAP_ITEM_FLOAT&, MAP_ITEM_FLOAT*, InjectedInput, injectedInput, MAP_ITEM_FLOAT())
 	GET_SET_WRAPPER_SIMPLE(float, LimitedThroughput, limitedThroughput, 0)
 	GET_SET_WRAPPER_SIMPLE(bool, CustomRequiredOutput, customRequiredOutput, false)
 
@@ -77,17 +77,17 @@ public:
 		return total;
 	}
 
-	GET_SET_WRAPPER(MAP_ITEM_INT32, const MAP_ITEM_INT32&, MAP_ITEM_INT32*, RequiredOutput, requiredOutput, MAP_ITEM_INT32())
+	GET_SET_WRAPPER(MAP_ITEM_FLOAT, const MAP_ITEM_FLOAT&, MAP_ITEM_FLOAT*, RequiredOutput, requiredOutput, MAP_ITEM_FLOAT())
 	GET_SET_WRAPPER(MAP_ACTOR_ITEM, const MAP_ACTOR_ITEM&, MAP_ACTOR_ITEM*, SeenActors, seenActors, MAP_ACTOR_ITEM())
 	GET_SET_WRAPPER(TSet<class AFGBuildable*>, const TSet<class AFGBuildable*>&, TSet<class AFGBuildable*>*, Connected, connected, TSet<class AFGBuildable*>())
-	GET_SET_WRAPPER(
-		TSet<TSubclassOf<class UFGItemDescriptor>>,
-		const TSet<TSubclassOf<class UFGItemDescriptor>>&,
-		TSet<TSubclassOf<class UFGItemDescriptor>>*,
-		InjectedItems,
-		injectedItems,
-		TSet<TSubclassOf<class UFGItemDescriptor>>()
-		)
+	// GET_SET_WRAPPER(
+	// 	TSet<TSubclassOf<class UFGItemDescriptor>>,
+	// 	const TSet<TSubclassOf<class UFGItemDescriptor>>&,
+	// 	TSet<TSubclassOf<class UFGItemDescriptor>>*,
+	// 	InjectedItems,
+	// 	injectedItems,
+	// 	TSet<TSubclassOf<class UFGItemDescriptor>>()
+	// 	)
 	GET_SET_WRAPPER(FComponentFilter, const FComponentFilter&, FComponentFilter*, CurrentFilter, currentFilter, FComponentFilter())
 	GET_SET_WRAPPER(class AFGBuildableSubsystem*, class AFGBuildableSubsystem* const, class AFGBuildableSubsystem**, BuildableSubsystem, buildableSubsystem, nullptr)
 	GET_SET_WRAPPER_SIMPLE(int, Level, level, 0)

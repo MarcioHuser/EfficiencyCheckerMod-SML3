@@ -36,9 +36,9 @@ public:
 	FShowStatsWidgetEvent OnShowStatsWidget;
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
-	virtual bool CheckValidHit
+	virtual AFGBuildable* CheckValidHit
 	(
-		UPARAM(DisplayName = "Buildable") AFGBuildable* buildable,
+		UPARAM(DisplayName = "Actor") AActor* actor,
 		UPARAM(DisplayName = "Form") EResourceForm& out_form
 	);
 

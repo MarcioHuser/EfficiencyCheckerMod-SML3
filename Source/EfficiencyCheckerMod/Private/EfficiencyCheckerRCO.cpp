@@ -5,12 +5,11 @@
 #include "EfficiencyCheckerBuilding.h"
 #include "FGPlayerController.h"
 #include "Net/UnrealNetwork.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
-#include "EfficiencyChecker_ConfigStruct.h"
+#include "Util/ECMOptimize.h"
+#include "Util/ECMLogging.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 void UEfficiencyCheckerRCO::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -175,5 +174,5 @@ bool UEfficiencyCheckerRCO::PrimaryFirePressedPC_Validate(class AEfficiencyCheck
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

@@ -10,11 +10,12 @@
 #include "EfficiencyCheckerBuilding.h"
 #include "FGConstructDisqualifier.h"
 #include "FGPipeConnectionComponent.h"
-#include "Util/EfficiencyCheckerOptimize.h"
-#include "Util/Logging.h"
+#include "Util/EfficiencyCheckerConfiguration.h"
+#include "Util/ECMOptimize.h"
+#include "Util/ECMLogging.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 FString AEfficiencyCheckerHologram::getAuthorityAndPlayer(const AActor* actor)
@@ -171,7 +172,7 @@ void AEfficiencyCheckerHologram::AdjustForGround(FVector& out_adjustedLocation, 
 		{
 			nearestCoord = efficiencyChecker->GetActorLocation();
 
-			out_adjustedLocation = efficiencyChecker->GetActorLocation() + FVector(0, 0, 200); // Two metters above the origin
+			out_adjustedLocation = efficiencyChecker->GetActorLocation() + FVector(0, 0, 200); // Two meters above the origin
 
 			out_adjustedRotation = efficiencyChecker->GetActorRotation().Add(0, rotationDelta * 90, 0);
 
@@ -578,5 +579,5 @@ AEfficiencyCheckerBuilding* AEfficiencyCheckerHologram::GetCheckerBuildable() co
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on)
+#pragma optimize("", on)
 #endif

@@ -1,8 +1,8 @@
 ﻿#include "Logic/CollectSettings.h"
-#include "Util/EfficiencyCheckerOptimize.h"
+#include "Util/ECMOptimize.h"
 
 #ifndef OPTIMIZE
-#pragma optimize( "", off )
+#pragma optimize("", off )
 #endif
 
 CollectSettings::CollectSettings()
@@ -25,7 +25,7 @@ CollectSettings::CollectSettings(CollectSettings& baseCollectSettings)
 
 	connectedPtr = &baseCollectSettings.GetConnected();
 
-	injectedItemsPtr = &baseCollectSettings.GetInjectedItems();
+	// injectedItemsPtr = &baseCollectSettings.GetInjectedItems();
 
 	currentFilterPtr = &baseCollectSettings.GetCurrentFilter();
 
@@ -43,5 +43,5 @@ CollectSettings::CollectSettings(CollectSettings& baseCollectSettings)
 }
 
 #ifndef OPTIMIZE
-#pragma optimize( "", on )
+#pragma optimize("", on )
 #endif

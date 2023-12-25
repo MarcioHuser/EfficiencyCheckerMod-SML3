@@ -1,6 +1,8 @@
-<h1 style="color: red">The latest version is compatible with Update 8.2</h1>
+<h1 style="color: red">I am aware of the different FOV scaling issue with the hand tool. Sadly, I don't have the necessary knowledge to fix it nor any time to learn how to. So, it will stay as it is</h1>
 
 <h2>See if your production is under-flowing!</h2>
+
+<h3 style="color: red">Code has been refactored for better internal maintenance. Please let me know if something isn't working like it used to</h3>
 
 <hr/>
 <b>ATTENTION:</b> this mod is not compatible with Refined Power and other mods with custom machines that does not implement Attachments (like Splitters/Mergers), "Factories"
@@ -146,19 +148,28 @@ Get <a href="https://ficsit.app/mod/8d8gk4imvFanRs">FicsIt-Networks</a>
 <br/>
 <br/>
 
-<h3>Note:</h3>
-I am aware that, sometimes, the display panel "freezes" and will not update with the values. I haven't found a solution for that, yet.
-To solve it you can either rebuild the Checker; OR just walk way and return later, as most of the time it will resume working by itself
-
-<br/>
-<br/>
-
 <br/>
 <br/>
 
 ### Changelog
+- Version 2.4.7
+    - Mod updated due to changes in MarcioCommonLibs
+
+- Version 2.4.6
+    - Restored compatibility with FicsIt-Networks
+    - The Checker Buildings can also be used as a power pole with 2 connections, each
+    - The custom inject input and required output were not being shown at the Checkers
+
+- Version 2.4.5
+    - The checkers and hand tool incorretly add up as required output all the items from a recipe for those requiring two or more items
+
+- Version 2.4.4
+    - The checkers and hand tool were not considering fraction values, giving wrong results
+
 - Version 2.4.3
-    - Completed the supporte for smart/programmable modules from Modular Load Balancers
+    - Refactored code for better internal maintenance. Please let me know if something isn't working like it used to
+    - Completed the support for smart/programmable modules from Modular Load Balancers
+    - Added support for <a href="https://ficsit.app/mod/CounterLimiter">Throughput Counter and Limiter</a>
 
 - Version 2.4.2
     - Added basic compatibility for <a href="https://ficsit.app/mod/LoadBalancers">Modular Load Balancers</a>
