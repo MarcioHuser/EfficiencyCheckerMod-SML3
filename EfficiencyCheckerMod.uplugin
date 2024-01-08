@@ -1,14 +1,14 @@
 {
   "FileVersion": 3,
   "Version": 2,
-  "VersionName": "2.4.7",
-  "SemVersion": "2.4.7",
+  "VersionName": "2.4.8",
+  "SemVersion": "2.4.8",
   "FriendlyName": "Efficiency Checker Mod",
   "Description": "See if your production is under-flowing! Now with a hand tool, too!",
   "Category": "Modding",
   "CreatedBy": "Marcio Neves",
   "CreatedByURL": "https://ficsit.app/user/27uDm1v7WoUoDX",
-  "DocsURL": "https://ficsit.app/mod/ZNFaaRV4ow5M4",
+  "DocsURL": "https://ficsit.app/mod/EfficiencyCheckerMod",
   "MarketplaceURL": "",
   "SupportURL": "",
   "CanContainContent": true,
@@ -30,7 +30,7 @@
     },
     {
       "Name": "MarcioCommonLibs",
-      "SemVersion": "^1.2.3",
+      "SemVersion": "^1.2.5",
       "Enabled": true
     }
   ]

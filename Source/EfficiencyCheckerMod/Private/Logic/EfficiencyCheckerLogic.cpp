@@ -471,8 +471,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 			AFGBuildable* buildable = conveyorAttachment = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
-				commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
+			if (!buildable && commonInfoSubsystem->IsUndergroundSplitter(owner))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -529,12 +528,12 @@ void AEfficiencyCheckerLogic::collectInput
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->IsStorageTeleporter(owner))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
 
-			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->IsModularLoadBalancer(owner))
 			{
 				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
@@ -2099,8 +2098,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 			AFGBuildable* buildable = Cast<AFGBuildableConveyorAttachment>(owner);
 
-			if (!buildable && (commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
-				commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
+			if (!buildable && commonInfoSubsystem->IsUndergroundSplitter(owner))
 			{
 				buildable = undergroundBelt = Cast<AFGBuildableStorage>(owner);
 			}
@@ -2121,12 +2119,12 @@ void AEfficiencyCheckerLogic::collectOutput
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->IsStorageTeleporter(owner))
 			{
 				buildable = storageTeleporter = Cast<AFGBuildableFactory>(owner);
 			}
 
-			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->IsModularLoadBalancer(owner))
 			{
 				buildable = modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader"));
 			}
@@ -3607,7 +3605,7 @@ void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
 )
 {
 	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-	
+
 	auto outputsProperty = CastField<FArrayProperty>(undergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 	if (outputsProperty)
 	{
@@ -3634,8 +3632,7 @@ void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
 			}
 		}
 	}
-	else if (commonInfoSubsystem->baseUndergroundSplitterOutputClass &&
-		undergroundBelt->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass))
+	else if (commonInfoSubsystem->IsUndergroundSplitterOutput(undergroundBelt))
 	{
 		for (auto inputUndergroundBelt : commonInfoSubsystem->allUndergroundInputBelts)
 		{

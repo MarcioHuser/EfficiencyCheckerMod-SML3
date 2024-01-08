@@ -71,7 +71,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 {
 	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
 
-	if(!commonInfoSubsystem)
+	if (!commonInfoSubsystem)
 	{
 		return;
 	}
@@ -176,7 +176,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				continue;
 			}
 
-			if (commonInfoSubsystem->baseCounterLimiterClass && owner->IsA(commonInfoSubsystem->baseCounterLimiterClass))
+			if (commonInfoSubsystem->IsCounterLimiter(owner))
 			{
 				auto buildable = Cast<AFGBuildable>(owner);
 
@@ -217,9 +217,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 			std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
 
-			if (!buildable &&
-				(commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
-					commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
+			if (!buildable && commonInfoSubsystem->IsUndergroundSplitter(owner))
 			{
 				if (auto undergroundBelt = Cast<AFGBuildableStorage>(owner))
 				{
@@ -230,7 +228,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->IsStorageTeleporter(owner))
 			{
 				if (auto storageTeleporter = Cast<AFGBuildableFactory>(owner))
 				{
@@ -240,7 +238,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				}
 			}
 
-			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->IsModularLoadBalancer(owner))
 			{
 				if (auto modularLoadBalancer = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader")))
 				{
@@ -698,8 +696,8 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 {
 	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-	
-	if(!commonInfoSubsystem)
+
+	if (!commonInfoSubsystem)
 	{
 		return;
 	}
@@ -823,7 +821,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				continue;
 			}
 
-			if (commonInfoSubsystem->baseCounterLimiterClass && owner->IsA(commonInfoSubsystem->baseCounterLimiterClass))
+			if (commonInfoSubsystem->IsCounterLimiter(owner))
 			{
 				auto buildable = Cast<AFGBuildable>(owner);
 
@@ -864,9 +862,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 			std::map<UFGFactoryConnectionComponent*, FComponentFilter> inputComponents, outputComponents;
 
-			if (!buildable &&
-				(commonInfoSubsystem->baseUndergroundSplitterInputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass) ||
-					commonInfoSubsystem->baseUndergroundSplitterOutputClass && owner->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass)))
+			if (!buildable && commonInfoSubsystem->IsUndergroundSplitter(owner))
 			{
 				if (auto undergroundBelt = Cast<AFGBuildableStorage>(owner))
 				{
@@ -877,7 +873,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 			}
 
 			if (!AEfficiencyCheckerConfiguration::configuration.ignoreStorageTeleporter &&
-				!buildable && commonInfoSubsystem->baseStorageTeleporterClass && owner->IsA(commonInfoSubsystem->baseStorageTeleporterClass))
+				!buildable && commonInfoSubsystem->IsStorageTeleporter(owner))
 			{
 				auto storageTeleporter = Cast<AFGBuildableFactory>(owner);
 				buildable = storageTeleporter;
@@ -888,7 +884,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				}
 			}
 
-			if (!buildable && commonInfoSubsystem->baseModularLoadBalancerClass && owner->IsA(commonInfoSubsystem->baseModularLoadBalancerClass))
+			if (!buildable && commonInfoSubsystem->IsModularLoadBalancer(owner))
 			{
 				if (auto modularLoadBalancerGroupLeader = FReflectionHelper::GetObjectPropertyValue<AFGBuildableFactory>(owner, TEXT("GroupLeader")))
 				{
@@ -1812,13 +1808,12 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 )
 {
 	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-	
+
 	getFactoryConnectionComponents(undergroundBelt, inputComponents, outputComponents);
 
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	
-	if (commonInfoSubsystem->baseUndergroundSplitterInputClass &&
-		undergroundBelt->IsA(commonInfoSubsystem->baseUndergroundSplitterInputClass))
+
+	if (commonInfoSubsystem->IsUndergroundSplitterInput(undergroundBelt))
 	{
 		auto outputsProperty = CastField<FArrayProperty>(undergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 		if (!outputsProperty)
@@ -1852,8 +1847,7 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 			}
 		}
 	}
-	else if (commonInfoSubsystem->baseUndergroundSplitterOutputClass &&
-		undergroundBelt->IsA(commonInfoSubsystem->baseUndergroundSplitterOutputClass))
+	else if (commonInfoSubsystem->IsUndergroundSplitterOutput(undergroundBelt))
 	{
 		for (auto inputUndergroundBelt : commonInfoSubsystem->allUndergroundInputBelts)
 		{
@@ -2677,7 +2671,7 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 )
 {
 	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-	
+
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
 

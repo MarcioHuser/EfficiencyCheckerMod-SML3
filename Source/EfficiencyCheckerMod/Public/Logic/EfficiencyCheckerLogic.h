@@ -74,28 +74,11 @@ public:
 
 	static float getPipeSpeed(class AFGBuildablePipeline* pipe);
 
-	// TSet<TSubclassOf<class UFGItemDescriptor>> nuclearWasteItemDescriptors;
-	// TSet<TSubclassOf<class UFGItemDescriptor>> noneItemDescriptors;
-	// TSet<TSubclassOf<class UFGItemDescriptor>> wildCardItemDescriptors;
-	// TSet<TSubclassOf<class UFGItemDescriptor>> anyUndefinedItemDescriptors;
-	// TSet<TSubclassOf<class UFGItemDescriptor>> overflowItemDescriptors;
-
 	static AEfficiencyCheckerLogic* singleton;
-	// UClass* baseStorageTeleporterClass = nullptr;
-	// UClass* baseUndergroundSplitterInputClass = nullptr;
-	// UClass* baseUndergroundSplitterOutputClass = nullptr;
-	// UClass* baseModularLoadBalancerClass = nullptr;
-	// UClass* baseBuildableFactorySimpleProducerClass = nullptr;
-	// UClass* baseCounterLimiterClass = nullptr;
 
 	TSet<class AEfficiencyCheckerBuilding*> allEfficiencyBuildings;
 	TSet<class AFGBuildableConveyorBelt*> allBelts;
 	TSet<class AFGBuildablePipeline*> allPipes;
-
-	// FActorEndPlaySignature::FDelegate removeEffiencyBuildingDelegate;
-	// FActorEndPlaySignature::FDelegate removeBeltDelegate;
-	// FActorEndPlaySignature::FDelegate removePipeDelegate;
-	// FActorEndPlaySignature::FDelegate removeUndergroundInputBeltDelegate;
 
 	virtual void addEfficiencyBuilding(class AEfficiencyCheckerBuilding* actor);
 	virtual void addBelt(class AFGBuildableConveyorBelt* actor);
