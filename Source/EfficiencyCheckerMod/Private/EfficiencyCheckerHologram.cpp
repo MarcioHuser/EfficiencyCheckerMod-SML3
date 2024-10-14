@@ -218,8 +218,8 @@ void AEfficiencyCheckerHologram::AdjustForGround(FVector& out_adjustedLocation, 
 			}
 
 			// Check if it too close to an edge
-			if (splitOffset <= 150 && !pipeline->GetPipeConnection0()->IsConnected() ||
-				pipeline->GetLength() - 150 <= splitOffset && !pipeline->GetPipeConnection1()->IsConnected())
+			if ((splitOffset <= 150 && !pipeline->GetPipeConnection0()->IsConnected()) ||
+				(pipeline->GetLength() - 150 <= splitOffset && !pipeline->GetPipeConnection1()->IsConnected()))
 			{
 				const auto closestPipeConnection = splitOffset <= 150 ? pipeline->GetPipeConnection0() : pipeline->GetPipeConnection1();
 
@@ -441,8 +441,8 @@ void AEfficiencyCheckerHologram::CheckValidPlacement()
 				AddConstructDisqualifier(UFGCDPipeAttachmentTooSharpTurn::StaticClass());
 			}
 		}
-		else if (splitOffset <= 150 && pipeline->GetPipeConnection0()->IsConnected() ||
-			pipeline->GetLength() - 150 <= splitOffset && pipeline->GetPipeConnection1()->IsConnected())
+		else if ((splitOffset <= 150 && pipeline->GetPipeConnection0()->IsConnected()) ||
+			(pipeline->GetLength() - 150 <= splitOffset && pipeline->GetPipeConnection1()->IsConnected()))
 		{
 			if (pipeline->GetPipeConnection0()->IsConnected())
 			{

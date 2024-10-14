@@ -245,6 +245,7 @@ public:
 
 protected:
 	static void setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential);
+	static void setPendingProductionBoostCallback(class AFGBuildableFactory* buildable, float productionBoost);
 
 	void addOnDestroyBindings(const TSet<AFGBuildable*>& buildings);
 	void removeOnDestroyBindings(const TSet<AFGBuildable*>& buildings);

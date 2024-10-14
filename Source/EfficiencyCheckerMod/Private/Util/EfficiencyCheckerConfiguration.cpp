@@ -30,6 +30,7 @@ void AEfficiencyCheckerConfiguration::SetEfficiencyCheckerConfiguration(const FE
 
 	static auto hooked = false;
 	static FDelegateHandle AFGBuildableFactory_SetPendingPotential;
+	static FDelegateHandle AFGBuildableFactory_SetPendingProductionBoost;
 	static FDelegateHandle AFGBuildableFrackingActivator_SetPendingPotential;
 	static FDelegateHandle AFGBuildableGeneratorFuel_SetPendingPotential;
 
@@ -48,6 +49,14 @@ void AEfficiencyCheckerConfiguration::SetEfficiencyCheckerConfiguration(const FE
 					ObjectInstance,
 					[](AFGBuildableFactory * factory, float potential) {
 					AEfficiencyCheckerBuilding::setPendingPotentialCallback(factory, potential);
+					}
+					);
+
+				AFGBuildableFactory_SetPendingProductionBoost = SUBSCRIBE_METHOD_VIRTUAL_AFTER(
+					AFGBuildableFactory::SetPendingProductionBoost,
+					ObjectInstance,
+					[](AFGBuildableFactory * factory, float productionBoost) {
+					AEfficiencyCheckerBuilding::setPendingProductionBoostCallback(factory, productionBoost);
 					}
 					);
 			}
@@ -88,6 +97,14 @@ void AEfficiencyCheckerConfiguration::SetEfficiencyCheckerConfiguration(const FE
 				UNSUBSCRIBE_METHOD(
 					AFGBuildableFactory::SetPendingPotential,
 					AFGBuildableFactory_SetPendingPotential
+					);
+			}
+
+			if (AFGBuildableFactory_SetPendingProductionBoost.IsValid())
+			{
+				UNSUBSCRIBE_METHOD(
+					AFGBuildableFactory::SetPendingProductionBoost,
+					AFGBuildableFactory_SetPendingProductionBoost
 					);
 			}
 

@@ -22,6 +22,7 @@
 #include "Logic/CollectSettings.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
 #include "Net/UnrealNetwork.h"
+#include "Async/Async.h"
 #include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
@@ -131,7 +132,7 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 
 		pipelineToSplit = nullptr;
 
-		if (AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
+		if ((AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT) ||
 			autoUpdateMode == EAutoUpdateType::AUT_ENABLED)
 		{
 			lastUpdated = GetWorld()->GetTimeSeconds();
@@ -149,7 +150,7 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 			checkTick_ = true;
 			//checkFactoryTick_ = true;
 		}
-		else if (GetBuildTime() < GetWorld()->GetTimeSeconds())
+		else if  (CreationTime < GetWorld()->GetTimeSeconds())
 		{
 			SetActorTickEnabled(true);
 			SetActorTickInterval(0);
@@ -277,7 +278,7 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 				{
 					auto playerTranslation = pawn->GetActorLocation();
 
-					if (!(AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
+					if (!((AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT) ||
 							autoUpdateMode == EAutoUpdateType::AUT_ENABLED) ||
 						FVector::Dist(playerTranslation, GetActorLocation()) <= AEfficiencyCheckerConfiguration::configuration.autoUpdateDistance)
 					{
@@ -708,7 +709,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		{
 			auto conveyor = Cast<AFGBuildableConveyorBelt>(conveyorActor);
 
-			if (!IsValid(conveyor) || currentConveyor && conveyor->GetBuildTime() < currentConveyor->GetBuildTime())
+			if (!IsValid(conveyor) || (currentConveyor && conveyor->CreationTime < currentConveyor->CreationTime))
 			{
 				EC_LOG_Display_Condition(*getTagName(), TEXT("Conveyor "), *conveyor->GetName(), anchorPoint.X, TEXT(" was skipped"));
 
@@ -850,7 +851,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		{
 			auto pipe = Cast<AFGBuildablePipeline>(pipeActor);
 
-			if (!IsValid(pipe) || currentPipe && pipe->GetBuildTime() < currentPipe->GetBuildTime())
+			if (!IsValid(pipe) || (currentPipe && pipe->CreationTime < currentPipe->CreationTime))
 			{
 				EC_LOG_Display_Condition(*getTagName(), TEXT("Pipe "), *pipe->GetName(), anchorPoint.X, TEXT(" was skipped"));
 
@@ -1212,7 +1213,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 		SetActorTickEnabled(false);
 		//mFactoryTickFunction.SetTickFunctionEnable(false);
 
-		if (AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT ||
+		if ((AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT) ||
 			autoUpdateMode == EAutoUpdateType::AUT_ENABLED)
 		{
 			// Remove bindings for all that are on connectionsToUnbind but not on connectedBuildables
@@ -1341,6 +1342,32 @@ void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableF
 		*GetPathNameSafe(buildable),
 		TEXT(" to "),
 		potential
+		);
+
+	// Update all EfficiencyCheckerBuildings that connects to this building
+	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+
+	for (auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
+	{
+		if (efficiencyBuilding->HasAuthority() && efficiencyBuilding->connectedBuildables.Contains(buildable))
+		{
+			efficiencyBuilding->Server_UpdateConnectedProduction(true, false, 0, true, false, 0);
+		}
+	}
+}
+
+void AEfficiencyCheckerBuilding::setPendingProductionBoostCallback(class AFGBuildableFactory* buildable, float productionBoost)
+{
+	if (!AEfficiencyCheckerLogic::singleton)
+	{
+		return;
+	}
+
+	EC_LOG_Display_Condition(
+		TEXT("setPendingProductionBoost of building "),
+		*GetPathNameSafe(buildable),
+		TEXT(" to "),
+		productionBoost
 		);
 
 	// Update all EfficiencyCheckerBuildings that connects to this building

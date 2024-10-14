@@ -185,7 +185,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	collectSettings.SetTimeout(t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout);
 
 	EC_LOG_Warning_Condition(
-		__FUNCTION__ TEXT(": time = "),
+		FUNCTIONSTR TEXT(": time = "),
 		t,
 		TEXT(" / timeout = "),
 		collectSettings.GetTimeout(),

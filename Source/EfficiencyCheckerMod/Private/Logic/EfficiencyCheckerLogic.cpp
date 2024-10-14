@@ -42,6 +42,7 @@
 #include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildableManufacturer.h"
 #include "Buildables/FGBuildablePipeline.h"
+#include "Kismet/GameplayStatics.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
 #include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
@@ -116,7 +117,7 @@ void AEfficiencyCheckerLogic::Terminate()
 
 bool AEfficiencyCheckerLogic::containsActor(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor)
 {
-	return seenActors.contains(actor);
+	return seenActors.find(actor) != seenActors.end();
 }
 
 bool AEfficiencyCheckerLogic::actorContainsItem
@@ -179,7 +180,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 		auto owner = connector->GetOwner();
 
-		if (!owner || seenActors.contains(owner))
+		if (!owner || seenActors.find(owner) != seenActors.end())
 		{
 			return;
 		}
@@ -304,6 +305,8 @@ void AEfficiencyCheckerLogic::collectInput
 						EC_LOG_Display_Condition(*indent, TEXT("Item amount = "), item.Amount);
 						EC_LOG_Display_Condition(*indent, TEXT("Current potential = "), manufacturer->GetCurrentPotential());
 						EC_LOG_Display_Condition(*indent, TEXT("Pending potential = "), manufacturer->GetPendingPotential());
+						EC_LOG_Display_Condition(*indent, TEXT("Current production boost = "), manufacturer->GetCurrentProductionBoost());
+						EC_LOG_Display_Condition(*indent, TEXT("Pending production boost = "), manufacturer->GetPendingProductionBoost());
 						EC_LOG_Display_Condition(
 							*indent,
 							TEXT("Production cycle time = "),
@@ -311,7 +314,7 @@ void AEfficiencyCheckerLogic::collectInput
 							);
 						EC_LOG_Display_Condition(*indent, TEXT("Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 
-						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60 /
+						float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * manufacturer->GetPendingProductionBoost() * 60 /
 							manufacturer->GetDefaultProductionCycleTime();
 
 						if (resourceForm == EResourceForm::RF_LIQUID || resourceForm == EResourceForm::RF_GAS)
@@ -394,6 +397,8 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					EC_LOG_Display(*indent, TEXT("Current potential = "), extractor->GetCurrentPotential());
 					EC_LOG_Display(*indent, TEXT("Pending potential = "), extractor->GetPendingPotential());
+					EC_LOG_Display(*indent, TEXT("Current production boost = "), extractor->GetCurrentProductionBoost());
+					EC_LOG_Display(*indent, TEXT("Pending production boost = "), extractor->GetPendingProductionBoost());
 					EC_LOG_Display(*indent, TEXT("Default cycle time = "), extractor->GetDefaultExtractCycleTime());
 					EC_LOG_Display(*indent, TEXT("Production cycle time = "), extractor->GetProductionCycleTime());
 					EC_LOG_Display(*indent, TEXT("Production cycle time for potential = "), extractor->CalcProductionCycleTimeForPotential(extractor->GetPendingPotential()));
@@ -411,9 +416,10 @@ void AEfficiencyCheckerLogic::collectInput
 				{
 					auto itemsPerCycle = extractor->GetNumExtractedItemsPerCycle();
 					auto pendingPotential = extractor->GetPendingPotential();
+					auto pendingProductionBoost = extractor->GetPendingProductionBoost();
 					auto defaultExtractCycleTime = extractor->GetDefaultExtractCycleTime();
 
-					itemAmountPerMinute = itemsPerCycle * pendingPotential * 60 /
+					itemAmountPerMinute = itemsPerCycle * pendingPotential * pendingProductionBoost * 60 /
 						(speedMultiplier * defaultExtractCycleTime);
 
 					if (resourceForm == EResourceForm::RF_LIQUID || resourceForm == EResourceForm::RF_GAS)
@@ -603,8 +609,8 @@ void AEfficiencyCheckerLogic::collectInput
 									*station->GetStationIdentifier()->GetStationName().ToString()
 									);
 
-								if (i == 0 && connectedPlatform->IsOrientationReversed() ||
-									i == 1 && !connectedPlatform->IsOrientationReversed())
+								if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
+									(i == 1 && !connectedPlatform->IsOrientationReversed()))
 								{
 									stationOffsets.insert(offsetDistance);
 									EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
@@ -760,8 +766,8 @@ void AEfficiencyCheckerLogic::collectInput
 
 									seenPlatforms.Add(stopCargo);
 
-									auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
-									                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+									auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
+									                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
 										                              ? offsetDistance
 										                              : -offsetDistance;
 
@@ -1282,11 +1288,11 @@ void AEfficiencyCheckerLogic::collectInput
 					EC_LOG_Error_Condition(*indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
-					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
-						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
-						getConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
-						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
-						otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER))
+					((otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
+							otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
+							getConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY) ||
+						(pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
+							otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER)))
 				{
 					connected.Add(buildable);
 
@@ -1517,8 +1523,8 @@ void AEfficiencyCheckerLogic::collectInput
 								*station->GetStationIdentifier()->GetStationName().ToString()
 								);
 
-							if (i == 0 && connectedPlatform->IsOrientationReversed() ||
-								i == 1 && !connectedPlatform->IsOrientationReversed())
+							if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
+								(i == 1 && !connectedPlatform->IsOrientationReversed()))
 							{
 								stationOffsets.insert(offsetDistance);
 								EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
@@ -1674,8 +1680,8 @@ void AEfficiencyCheckerLogic::collectInput
 
 								seenPlatforms.Add(stopCargo);
 
-								auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
-								                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+								auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
+								                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
 									                              ? offsetDistance
 									                              : -offsetDistance;
 
@@ -2014,14 +2020,14 @@ void AEfficiencyCheckerLogic::collectOutput
 					{
 						auto itemForm = UFGItemDescriptor::GetForm(item.ItemClass);
 
-						if (itemForm == EResourceForm::RF_SOLID && resourceForm != EResourceForm::RF_SOLID ||
-							(itemForm == EResourceForm::RF_LIQUID || itemForm == EResourceForm::RF_GAS) &&
-							resourceForm != EResourceForm::RF_LIQUID && resourceForm != EResourceForm::RF_GAS)
+						if ((itemForm == EResourceForm::RF_SOLID && resourceForm != EResourceForm::RF_SOLID) ||
+							((itemForm == EResourceForm::RF_LIQUID || itemForm == EResourceForm::RF_GAS) &&
+								resourceForm != EResourceForm::RF_LIQUID && resourceForm != EResourceForm::RF_GAS))
 						{
 							continue;
 						}
 
-						if (!injectedItems.Contains(item.ItemClass) || seenActors.contains(manufacturer) && seenActors[manufacturer].Contains(item.ItemClass))
+						if (!injectedItems.Contains(item.ItemClass) || (seenActors.find(manufacturer) != seenActors.end() && seenActors[manufacturer].Contains(item.ItemClass)))
 						{
 							continue;
 						}
@@ -2194,8 +2200,8 @@ void AEfficiencyCheckerLogic::collectOutput
 									*station->GetStationIdentifier()->GetStationName().ToString()
 									);
 
-								if (i == 0 && connectedPlatform->IsOrientationReversed() ||
-									i == 1 && !connectedPlatform->IsOrientationReversed())
+								if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
+									(i == 1 && !connectedPlatform->IsOrientationReversed()))
 								{
 									stationOffsets.insert(offsetDistance);
 									EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
@@ -2346,8 +2352,8 @@ void AEfficiencyCheckerLogic::collectOutput
 										continue;
 									}
 
-									auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
-									                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+									auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
+									                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
 										                              ? offsetDistance
 										                              : -offsetDistance;
 
@@ -2758,11 +2764,11 @@ void AEfficiencyCheckerLogic::collectOutput
 					EC_LOG_Error_Condition(*indent, *owner->GetName(), TEXT(" has no other connection"));
 				}
 				else if (otherConnections.Num() == 1 &&
-					(otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
-						otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
-						getConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY ||
-						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
-						otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER))
+					((otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_CONSUMER &&
+							otherConnections[0]->GetPipeConnectionType() != EPipeConnectionType::PCT_PRODUCER &&
+							getConnectedPipeConnectionType(otherConnections[0]) == EPipeConnectionType::PCT_ANY) ||
+						(pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
+							otherConnections[0]->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER)))
 				{
 					connected.Add(buildable);
 
@@ -2995,8 +3001,8 @@ void AEfficiencyCheckerLogic::collectOutput
 								*station->GetStationIdentifier()->GetStationName().ToString()
 								);
 
-							if (i == 0 && connectedPlatform->IsOrientationReversed() ||
-								i == 1 && !connectedPlatform->IsOrientationReversed())
+							if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
+								(i == 1 && !connectedPlatform->IsOrientationReversed()))
 							{
 								stationOffsets.insert(offsetDistance);
 								EC_LOG_Display_Condition(*indent, TEXT("        offset distance = "), offsetDistance);
@@ -3150,8 +3156,8 @@ void AEfficiencyCheckerLogic::collectOutput
 									continue;
 								}
 
-								auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
-								                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+								auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
+								                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
 									                              ? offsetDistance
 									                              : -offsetDistance;
 
@@ -3789,14 +3795,14 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			*GetPathNameSafe(rule.ItemClass)
 			);
 
-		if (!outputComponentsMapByIndex.contains(rule.OutputIndex))
+		if (outputComponentsMapByIndex.find(rule.OutputIndex) == outputComponentsMapByIndex.end())
 		{
 			// The connector is not connect or is not valid
 			continue;
 		}
 
 		auto connection = outputComponentsMapByIndex[rule.OutputIndex];
-		if (!tempOutputComponents.contains(connection))
+		if (tempOutputComponents.find(connection) != tempOutputComponents.end())
 		{
 			// Invalid connector index
 			continue;
@@ -3835,8 +3841,8 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			it->second.allowedFiltered = false;
 		}
 
-		if (direction == EFactoryConnectionDirection::FCD_INPUT && it->second.allowedFiltered ||
-			direction == EFactoryConnectionDirection::FCD_OUTPUT && it->second.allowedFiltered && it->first == connector)
+		if ((direction == EFactoryConnectionDirection::FCD_INPUT && it->second.allowedFiltered) ||
+			(direction == EFactoryConnectionDirection::FCD_OUTPUT && it->second.allowedFiltered && it->first == connector))
 		{
 			it->second.allowedItems = it->second.allowedItems.Intersect(currentFilter.allowedItems);
 		}

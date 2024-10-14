@@ -1,7 +1,7 @@
 ﻿#include "EfficiencyCheckerRCO.h"
 
 #include "Logic/EfficiencyCheckerLogic.h"
-#include "EFficiencyCheckerEquipment.h"
+#include "EfficiencyCheckerEquipment.h"
 #include "EfficiencyCheckerBuilding.h"
 #include "FGPlayerController.h"
 #include "Net/UnrealNetwork.h"

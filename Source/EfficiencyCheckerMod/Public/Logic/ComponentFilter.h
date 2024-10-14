@@ -8,6 +8,10 @@ struct EFFICIENCYCHECKERMOD_API FComponentFilter
 {
 	GENERATED_BODY()
 public:
+	virtual ~FComponentFilter()
+	{
+	}
+
 	virtual bool itemIsAllowed(const TSubclassOf<UFGItemDescriptor>& item) const;
 
 	virtual TSet<TSubclassOf<UFGItemDescriptor>> filterItems(const TSet<TSubclassOf<UFGItemDescriptor>>& items) const;

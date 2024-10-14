@@ -67,6 +67,27 @@ void lodAttachmentConnector(CollectSettings& collectSettings, UFGConnectionCompo
 		);
 }
 
+inline void applyDiscounts(const FString& indent, const MAP_ITEM_FLOAT& itemsToDiscount, MAP_ITEM_FLOAT& itemAmountMap, EResourceForm form)
+{
+	for (const auto& entry : itemsToDiscount)
+	{
+		if (itemAmountMap.find(entry.first) == itemAmountMap.end())
+		{
+			// The given item is not being used
+			continue;
+		}
+
+		EC_LOG_Display_Condition(
+			*indent,
+			TEXT("Discounting "),
+			entry.second,
+			form == EResourceForm::RF_LIQUID || form == EResourceForm::RF_GAS ? TEXT(" m³/minute") : TEXT(" items/minute")
+			);
+
+		itemAmountMap[entry.first] -= entry.second;
+	}
+}
+
 void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 {
 	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
@@ -75,6 +96,31 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 	{
 		return;
 	}
+
+	MAP_ITEM_FLOAT itemsToDiscount;
+
+	// auto applyDiscounts = [&itemsToDiscount, &collectSettings]()
+	// {
+	// 	for (const auto& entry : itemsToDiscount)
+	// 	{
+	// 		if (collectSettings.GetInjectedInput().find(entry.first) == collectSettings.GetInjectedInput().end())
+	// 		{
+	// 			// Given item is not being injected
+	// 			continue;
+	// 		}
+	//
+	// 		EC_LOG_Display_Condition(
+	// 			*collectSettings.GetIndent(),
+	// 			TEXT("Discounting "),
+	// 			entry.second,
+	// 			collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS
+	// 			? TEXT(" m³/minute")
+	// 			: TEXT(" items/minute")
+	// 			);
+	//
+	// 		collectSettings.GetInjectedInput()[entry.first] -= entry.second;
+	// 	}
+	// };
 
 	for (;;)
 	{
@@ -85,7 +131,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 		auto owner = collectSettings.GetConnector()->GetOwner();
 
-		if (!owner || collectSettings.GetSeenActors().contains(owner))
+		if (!owner || collectSettings.GetSeenActors().find(owner) != collectSettings.GetSeenActors().end())
 		{
 			return;
 		}
@@ -464,10 +510,12 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 									continue;
 								}
 
-								collectSettings.GetInjectedInput()[entry.first] -= entry.second;
+								itemsToDiscount[entry.first] += entry.second;
 							}
 						}
 					}
+
+					applyDiscounts(collectSettings.GetIndent(), itemsToDiscount, collectSettings.GetInjectedInput(), collectSettings.GetResourceForm());
 				}
 
 				collectSettings.GetConnected().Add(buildable);
@@ -528,8 +576,8 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				}
 				else if (allConnections.Num() == 1 &&
 					(!anyDirectionComponents.IsEmpty() ||
-						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
-						firstAnyDirection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER)
+						(pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER &&
+							firstAnyDirection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER))
 					)
 				{
 					// Just pass-through
@@ -633,16 +681,16 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 						if (tempCollectSettings.GetInjectedInputTotal() > 0)
 						{
-							EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Discounting "), tempCollectSettings.GetInjectedInputTotal(), TEXT(" m³/minute"));
-
 							if (!collectSettings.GetCustomInjectedInput() && !collectSettings.GetInjectedInput().empty())
 							{
 								auto item = collectSettings.GetInjectedInput().begin()->first;
 
-								collectSettings.GetInjectedInput()[item] -= tempCollectSettings.GetInjectedInput()[item];
+								itemsToDiscount[item] += tempCollectSettings.GetInjectedInput()[item];
 							}
 						}
 					}
+
+					applyDiscounts(collectSettings.GetIndent(), itemsToDiscount, collectSettings.GetInjectedInput(), collectSettings.GetResourceForm());
 
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *owner->GetName(), TEXT(" limited at "), collectSettings.GetLimitedThroughput(), TEXT(" m³/minute"));
 				}
@@ -708,6 +756,31 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 	// {
 	// 	injectedItems.Add(entry.first);
 	// }
+
+	MAP_ITEM_FLOAT itemsToDiscount;
+
+	// auto applyDiscounts = [&itemsToDiscount, &collectSettings]()
+	// {
+	// 	for (const auto& entry : itemsToDiscount)
+	// 	{
+	// 		if (collectSettings.GetRequiredOutput().find(entry.first) == collectSettings.GetRequiredOutput().end())
+	// 		{
+	// 			// Given item is not being injected
+	// 			continue;
+	// 		}
+	//
+	// 		EC_LOG_Display_Condition(
+	// 			*collectSettings.GetIndent(),
+	// 			TEXT("Discounting "),
+	// 			entry.second,
+	// 			collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS
+	// 			? TEXT(" m³/minute")
+	// 			: TEXT(" items/minute")
+	// 			);
+	//
+	// 		collectSettings.GetRequiredOutput()[entry.first] -= entry.second;
+	// 	}
+	// };
 
 	for (;;)
 	{
@@ -1101,10 +1174,12 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 									continue;
 								}
 
-								collectSettings.GetRequiredOutput()[entry.first] -= entry.second;
+								itemsToDiscount[entry.first] += entry.second;
 							}
 						}
 					}
+
+					applyDiscounts(collectSettings.GetIndent(), itemsToDiscount, collectSettings.GetRequiredOutput(), collectSettings.GetResourceForm());
 				}
 
 				return;
@@ -1167,8 +1242,8 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				}
 				else if (allConnections.Num() == 1 &&
 					(!anyDirectionComponents.IsEmpty() ||
-						pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
-						firstAnyDirection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER)
+						(pipeConnection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER &&
+							firstAnyDirection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER))
 					)
 				{
 					// Just pass-through
@@ -1278,10 +1353,12 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 							{
 								auto item = *collectSettings.GetRequiredOutput().begin()->first;
 
-								collectSettings.GetRequiredOutput()[item] -= tempCollectSettings.GetRequiredOutput()[item];
+								itemsToDiscount[item] += tempCollectSettings.GetRequiredOutput()[item];
 							}
 						}
 					}
+
+					applyDiscounts(collectSettings.GetIndent(), itemsToDiscount, collectSettings.GetRequiredOutput(), collectSettings.GetResourceForm());
 
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), *owner->GetName(), TEXT(" limited at "), collectSettings.GetLimitedThroughput(), TEXT(" m³/minute"));
 				}
@@ -1420,6 +1497,8 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Item amount = "), item.Amount);
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Current potential = "), manufacturer->GetCurrentPotential());
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Pending potential = "), manufacturer->GetPendingPotential());
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Current production boost = "), manufacturer->GetCurrentProductionBoost());
+					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Pending production boost = "), manufacturer->GetPendingProductionBoost());
 					EC_LOG_Display_Condition(
 						*collectSettings.GetIndent(),
 						TEXT("    Production cycle time = "),
@@ -1427,7 +1506,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						);
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Recipe duration = "), UFGRecipe::GetManufacturingDuration(recipeClass));
 
-					float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * 60 /
+					float itemAmountPerMinute = item.Amount * manufacturer->GetPendingPotential() * manufacturer->GetPendingProductionBoost() * 60 /
 						manufacturer->GetDefaultProductionCycleTime();
 
 					if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
@@ -1463,14 +1542,14 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 				{
 					auto itemForm = UFGItemDescriptor::GetForm(item.ItemClass);
 
-					if (itemForm == EResourceForm::RF_SOLID && collectSettings.GetResourceForm() != EResourceForm::RF_SOLID ||
-						(itemForm == EResourceForm::RF_LIQUID || itemForm == EResourceForm::RF_GAS) &&
-						collectSettings.GetResourceForm() != EResourceForm::RF_LIQUID && collectSettings.GetResourceForm() != EResourceForm::RF_GAS)
+					if ((itemForm == EResourceForm::RF_SOLID && collectSettings.GetResourceForm() != EResourceForm::RF_SOLID) ||
+						((itemForm == EResourceForm::RF_LIQUID || itemForm == EResourceForm::RF_GAS) &&
+							collectSettings.GetResourceForm() != EResourceForm::RF_LIQUID && collectSettings.GetResourceForm() != EResourceForm::RF_GAS))
 					{
 						continue;
 					}
 
-					if (!collectSettings.GetInjectedInput().empty() && !collectSettings.GetInjectedInput().contains(item.ItemClass))
+					if (!collectSettings.GetInjectedInput().empty() && collectSettings.GetInjectedInput().find(item.ItemClass) == collectSettings.GetInjectedInput().end())
 					{
 						// Item is not being inject by anyone. Ignore this
 						continue;
@@ -1583,6 +1662,8 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 		{
 			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Current potential = "), extractor->GetCurrentPotential());
 			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Pending potential = "), extractor->GetPendingPotential());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Current production boost = "), extractor->GetCurrentProductionBoost());
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Pending production boost = "), extractor->GetPendingProductionBoost());
 			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Default cycle time = "), extractor->GetDefaultExtractCycleTime());
 			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Production cycle time = "), extractor->GetProductionCycleTime());
 			EC_LOG_Display(
@@ -1606,9 +1687,10 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 		{
 			auto itemsPerCycle = extractor->GetNumExtractedItemsPerCycle();
 			auto pendingPotential = extractor->GetPendingPotential();
+			auto pendingProductionBoost = extractor->GetPendingProductionBoost();
 			auto defaultExtractCycleTime = extractor->GetDefaultExtractCycleTime();
 
-			itemAmountPerMinute = itemsPerCycle * pendingPotential * 60 /
+			itemAmountPerMinute = itemsPerCycle * pendingPotential * pendingProductionBoost * 60 /
 				(speedMultiplier * defaultExtractCycleTime);
 
 			if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
@@ -1642,7 +1724,7 @@ void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* ge
 	if ((generatorFuel->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
 		(!generatorFuel->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
 	{
-		if (collectSettings.GetInjectedInput().contains(generatorFuel->GetSupplementalResourceClass()) &&
+		if (collectSettings.GetInjectedInput().find(generatorFuel->GetSupplementalResourceClass()) != collectSettings.GetInjectedInput().end() &&
 			!collectSettings.GetSeenActors()[generatorFuel].Contains(generatorFuel->GetSupplementalResourceClass()))
 		{
 			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
@@ -1748,11 +1830,11 @@ void AEfficiencyCheckerLogic2::getFactoryConnectionComponents
 		     )
 		)
 	{
-		if (!inputComponents.contains(component) && component->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
+		if (inputComponents.find(component) == inputComponents.end() && component->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
 		{
 			inputComponents[component];
 		}
-		else if (!outputComponents.contains(component) && component->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
+		else if (outputComponents.find(component) == outputComponents.end() && component->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
 		{
 			outputComponents[component];
 		}
@@ -1840,7 +1922,8 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 					outputComponents,
 					[outputComponents](UFGFactoryConnectionComponent* connection)
 					{
-						return !outputComponents.contains(connection) && connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT;
+						return outputComponents.find(connection) == outputComponents.end() && connection->IsConnected() && connection->GetDirection() ==
+							EFactoryConnectionDirection::FCD_OUTPUT;
 						// Is output connection
 					}
 					);
@@ -1882,7 +1965,8 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 				outputComponents,
 				[outputComponents](UFGFactoryConnectionComponent* connection)
 				{
-					return !outputComponents.contains(connection) && connection->IsConnected() && connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT;
+					return outputComponents.find(connection) == outputComponents.end() && connection->IsConnected() && connection->GetDirection() ==
+						EFactoryConnectionDirection::FCD_INPUT;
 					// Is input connection
 				}
 				);
@@ -2002,8 +2086,8 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 					*station->GetStationIdentifier()->GetStationName().ToString()
 					);
 
-				if (i == 0 && connectedPlatform->IsOrientationReversed() ||
-					i == 1 && !connectedPlatform->IsOrientationReversed())
+				if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
+					(i == 1 && !connectedPlatform->IsOrientationReversed()))
 				{
 					stationOffsets.insert(offsetDistance);
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
@@ -2159,8 +2243,8 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 
 					seenPlatforms.Add(stopCargo);
 
-					auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
-					                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+					auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
+					                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
 						                              ? offsetDistance
 						                              : -offsetDistance;
 
@@ -2292,8 +2376,8 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 					*station->GetStationIdentifier()->GetStationName().ToString()
 					);
 
-				if (i == 0 && connectedPlatform->IsOrientationReversed() ||
-					i == 1 && !connectedPlatform->IsOrientationReversed())
+				if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
+					(i == 1 && !connectedPlatform->IsOrientationReversed()))
 				{
 					stationOffsets.insert(offsetDistance);
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
@@ -2447,8 +2531,8 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 						continue;
 					}
 
-					auto adjustedOffsetDistance = i == 0 && !stop.Station->GetStation()->IsOrientationReversed()
-					                              || i == 1 && stop.Station->GetStation()->IsOrientationReversed()
+					auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
+					                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
 						                              ? offsetDistance
 						                              : -offsetDistance;
 
@@ -2682,12 +2766,14 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 	for (const auto& entry : tempOutputComponents)
 	{
 		FRegexMatcher m(AEfficiencyCheckerLogic::indexPattern, entry.first->GetName());
-		if (m.FindNext())
+		if (!m.FindNext())
 		{
-			auto index = FCString::Atoi(*m.GetCaptureGroup(1)) - 1;
-
-			outputComponentsMapByIndex[index] = entry.first;
+			continue;
 		}
+
+		auto index = FCString::Atoi(*m.GetCaptureGroup(1)) - 1;
+
+		outputComponentsMapByIndex[index] = entry.first;
 	}
 
 	// Already restricted. Restrict further
@@ -2695,7 +2781,7 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 	{
 		auto rule = smartSplitter->GetSortRuleAt(x);
 
-		if (!outputComponentsMapByIndex.contains(rule.OutputIndex))
+		if (outputComponentsMapByIndex.find(rule.OutputIndex) == outputComponentsMapByIndex.end())
 		{
 			// The connector is not connect or is not valid
 			continue;
@@ -2749,8 +2835,10 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 			entry.second.allowedFiltered = false;
 			entry.second.allowedItems.Empty();
 		}
-
-		definedItems.Append(entry.second.allowedItems);
+		else
+		{
+			definedItems.Append(entry.second.allowedItems);
+		}
 	}
 
 	// Second pass
@@ -2804,15 +2892,15 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 			tempOutputComponents.end(),
 			[](const auto& entry)
 			{
-				return !entry.second.allowedFiltered || !entry.second.allowedItems.IsEmpty();
+				return entry.second.allowedFiltered || !entry.second.allowedItems.IsEmpty();
 			}
-			) != tempOutputComponents.end())
+			) == tempOutputComponents.end())
 	{
 		// Nothing will flow through. Return
 		return;
 	}
 
-	definedItems = definedItems.Difference(commonInfoSubsystem->noneItemDescriptors);
+	// definedItems = definedItems.Difference(commonInfoSubsystem->noneItemDescriptors);
 
 	auto allFiltered = std::find_if(
 		tempOutputComponents.begin(),
@@ -2825,7 +2913,8 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 
 	for (auto& it : tempInputComponents)
 	{
-		if (!definedItems.Intersect(commonInfoSubsystem->anyUndefinedItemDescriptors).IsEmpty() ||
+		if (definedItems.IsEmpty() ||
+			!definedItems.Intersect(commonInfoSubsystem->anyUndefinedItemDescriptors).IsEmpty() ||
 			!definedItems.Intersect(commonInfoSubsystem->wildCardItemDescriptors).IsEmpty() ||
 			!definedItems.Intersect(commonInfoSubsystem->overflowItemDescriptors).IsEmpty())
 		{

@@ -10,20 +10,22 @@ public class EfficiencyCheckerMod : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		bLegacyPublicIncludePaths = false;
-		
+
 		PublicIncludePaths.AddRange(
-			new string[] {
+			new string[]
+			{
 				// ... add public include paths required here ...
 			}
-			);
+		);
 
 		PrivateIncludePaths.AddRange(
-			new string[] {
+			new string[]
+			{
 				// ... add other private include paths required here ...
 			}
-			);
-			
-		
+		);
+
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -47,28 +49,36 @@ public class EfficiencyCheckerMod : ModuleRules
 				"Json",
 				// ... add other public dependencies that you statically link with here ...
 			}
-			);
-			
-		PublicDependencyModuleNames.AddRange(new string[] {"FactoryGame", "SML", "MarcioCommonLibs"});
-			
-		
+		);
+
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"FactoryGame",
+			"SML",
+			"MarcioCommonLibs",
+			"AbstractInstance",
+			"DummyHeaders",
+		});
+
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"RenderCore",
 				// ... add private dependencies that you statically link with here ...	
 			}
-			);
-		
-		
+		);
+
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
 				// ... add any modules that your module loads dynamically here ...
 			}
-			);
-			
-		var factoryGamePchPath = new DirectoryReference(Path.Combine(Target.ProjectFile.Directory.ToString(), "Source", "FactoryGame", "Public", "FactoryGame.h"));
-        PrivatePCHHeaderFile = factoryGamePchPath.MakeRelativeTo(new DirectoryReference(ModuleDirectory));
+		);
+
+		// var factoryGamePchPath = new DirectoryReference(Path.Combine(Target.ProjectFile.Directory.ToString(), "Source",
+		// 	"FactoryGame", "Public"));
+		// PrivatePCHHeaderFile = factoryGamePchPath.MakeRelativeTo(new DirectoryReference(ModuleDirectory));
 	}
 }
