@@ -10,6 +10,7 @@
 #include "Buildables/FGBuildableConveyorAttachment.h"
 #include "Buildables/FGBuildableConveyorBelt.h"
 #include "Buildables/FGBuildableDockingStation.h"
+#include "Buildables/FGBuildableDroneStation.h"
 #include "Buildables/FGBuildableFrackingActivator.h"
 #include "Buildables/FGBuildableGeneratorFuel.h"
 #include "Buildables/FGBuildableGeneratorNuclear.h"
@@ -31,6 +32,7 @@
 
 #include <set>
 
+#include "FGTrainPlatformConnection.h"
 #include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildablePipelinePump.h"
 #include "Buildables/FGBuildableSplitterSmart.h"
@@ -88,10 +90,8 @@ inline void applyDiscounts(const FString& indent, const MAP_ITEM_FLOAT& itemsToD
 	}
 }
 
-void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
+void AEfficiencyCheckerLogic2::collectInput(ACommonInfoSubsystem* commonInfoSubsystem, CollectSettings& collectSettings)
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 	if (!commonInfoSubsystem)
 	{
 		return;
@@ -184,6 +184,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 			if (manufacturer)
 			{
 				handleManufacturer(
+					commonInfoSubsystem,
 					manufacturer,
 					collectSettings,
 					true
@@ -198,6 +199,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 			if (extractor)
 			{
 				handleExtractor(
+					commonInfoSubsystem,
 					extractor,
 					collectSettings
 					);
@@ -269,7 +271,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				{
 					buildable = undergroundBelt;
 
-					handleUndergroundBeltsComponents(undergroundBelt, collectSettings, inputComponents, outputComponents);
+					handleUndergroundBeltsComponents(commonInfoSubsystem, undergroundBelt, collectSettings, inputComponents, outputComponents);
 				}
 			}
 
@@ -280,7 +282,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				{
 					buildable = storageTeleporter;
 
-					handleStorageTeleporter(storageTeleporter, collectSettings, inputComponents, outputComponents, true);
+					handleStorageTeleporter(commonInfoSubsystem, storageTeleporter, collectSettings, inputComponents, outputComponents, true);
 				}
 			}
 
@@ -300,7 +302,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				{
 					buildable = splitterSmart;
 
-					handleSmartSplitterComponents(splitterSmart, collectSettings, inputComponents, outputComponents, true);
+					handleSmartSplitterComponents(commonInfoSubsystem, splitterSmart, collectSettings, inputComponents, outputComponents, true);
 				}
 			}
 
@@ -320,6 +322,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 					buildable = storageContainer;
 
 					handleContainerComponents(
+						commonInfoSubsystem,
 						storageContainer,
 						storageContainer->GetStorageInventory(),
 						collectSettings,
@@ -336,7 +339,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 				{
 					buildable = cargoPlatform;
 
-					handleTrainPlatformCargoBelt(cargoPlatform, collectSettings, inputComponents, outputComponents, true);
+					handleTrainPlatformCargoBelt(commonInfoSubsystem, cargoPlatform, collectSettings, inputComponents, outputComponents, true);
 				}
 			}
 
@@ -347,6 +350,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 					buildable = dockingStation;
 
 					handleContainerComponents(
+						commonInfoSubsystem,
 						dockingStation,
 						dockingStation->GetInventory(),
 						collectSettings,
@@ -358,6 +362,25 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 							return !component->GetName().Equals(TEXT("Input0"), ESearchCase::IgnoreCase);
 						}
 						);
+				}
+			}
+
+			if (!buildable)
+			{
+				if (auto droneStation = Cast<AFGBuildableDroneStation>(owner))
+				{
+					buildable = droneStation;
+
+					collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), droneStation->GetInfo()->GetAverageIncomingItemRate()));
+
+					auto pairedStation = droneStation->GetInfo()->GetPairedStation();
+					if (pairedStation)
+					{
+					}
+					else
+					{
+						auto connectedStations = droneStation->GetInfo()->GetConnectedStations();
+					}
 				}
 			}
 
@@ -437,7 +460,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 
-						collectInput(tempCollectSettings);
+						collectInput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -492,7 +515,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
 						// tempCollectSettings.SetInjectedItems(tempCollectSettings.GetCurrentFilter().allowedItems, true);
 
-						collectOutput(tempCollectSettings);
+						collectOutput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -505,7 +528,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 
 							for (const auto& entry : tempCollectSettings.GetRequiredOutput())
 							{
-								if (!collectSettings.GetCurrentFilter().itemIsAllowed(entry.first))
+								if (!collectSettings.GetCurrentFilter().itemIsAllowed(commonInfoSubsystem, entry.first))
 								{
 									continue;
 								}
@@ -619,7 +642,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 
-						collectInput(tempCollectSettings);
+						collectInput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -672,7 +695,7 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
 
-						collectOutput(tempCollectSettings);
+						collectOutput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -741,10 +764,8 @@ void AEfficiencyCheckerLogic2::collectInput(CollectSettings& collectSettings)
 	}
 }
 
-void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
+void AEfficiencyCheckerLogic2::collectOutput(ACommonInfoSubsystem* commonInfoSubsystem, CollectSettings& collectSettings)
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 	if (!commonInfoSubsystem)
 	{
 		return;
@@ -868,6 +889,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 			if (manufacturer)
 			{
 				handleManufacturer(
+					commonInfoSubsystem,
 					manufacturer,
 					collectSettings,
 					false
@@ -941,7 +963,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				{
 					buildable = undergroundBelt;
 
-					handleUndergroundBeltsComponents(undergroundBelt, collectSettings, inputComponents, outputComponents);
+					handleUndergroundBeltsComponents(commonInfoSubsystem, undergroundBelt, collectSettings, inputComponents, outputComponents);
 				}
 			}
 
@@ -953,7 +975,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 				if (storageTeleporter)
 				{
-					handleStorageTeleporter(storageTeleporter, collectSettings, inputComponents, outputComponents, false);
+					handleStorageTeleporter(commonInfoSubsystem, storageTeleporter, collectSettings, inputComponents, outputComponents, false);
 				}
 			}
 
@@ -973,7 +995,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				{
 					buildable = splitterSmart;
 
-					handleSmartSplitterComponents(splitterSmart, collectSettings, inputComponents, outputComponents, false);
+					handleSmartSplitterComponents(commonInfoSubsystem, splitterSmart, collectSettings, inputComponents, outputComponents, false);
 				}
 			}
 
@@ -993,6 +1015,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 					buildable = storageContainer;
 
 					handleContainerComponents(
+						commonInfoSubsystem,
 						storageContainer,
 						storageContainer->GetStorageInventory(),
 						collectSettings,
@@ -1009,7 +1032,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 				{
 					buildable = cargoPlatform;
 
-					handleTrainPlatformCargoBelt(cargoPlatform, collectSettings, inputComponents, outputComponents, false);
+					handleTrainPlatformCargoBelt(commonInfoSubsystem, cargoPlatform, collectSettings, inputComponents, outputComponents, false);
 				}
 			}
 
@@ -1020,6 +1043,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 					buildable = dockingStation;
 
 					handleContainerComponents(
+						commonInfoSubsystem,
 						dockingStation,
 						dockingStation->GetInventory(),
 						collectSettings,
@@ -1031,6 +1055,25 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 							return !component->GetName().Equals(TEXT("Input0"), ESearchCase::IgnoreCase);
 						}
 						);
+				}
+			}
+
+			if (!buildable)
+			{
+				if (auto droneStation = Cast<AFGBuildableDroneStation>(owner))
+				{
+					buildable = droneStation;
+
+					collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), droneStation->GetInfo()->GetAverageOutgoingItemRate()));
+
+					auto pairedStation = droneStation->GetInfo()->GetPairedStation();
+					if (pairedStation)
+					{
+					}
+					else
+					{
+						auto connectedStations = droneStation->GetInfo()->GetConnectedStations();
+					}
 				}
 			}
 
@@ -1101,7 +1144,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
 
-						collectOutput(tempCollectSettings);
+						collectOutput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -1156,7 +1199,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
 						// tempCollectSettings.SetInjectedItems(injectedItems, true);
 
-						collectInput(tempCollectSettings);
+						collectInput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -1169,7 +1212,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 							for (const auto& entry : tempCollectSettings.GetInjectedInput())
 							{
-								if (!collectSettings.GetCurrentFilter().itemIsAllowed(entry.first))
+								if (!collectSettings.GetCurrentFilter().itemIsAllowed(commonInfoSubsystem, entry.first))
 								{
 									continue;
 								}
@@ -1285,7 +1328,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 
-						collectOutput(tempCollectSettings);
+						collectOutput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -1338,7 +1381,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
 
-						collectInput(tempCollectSettings);
+						collectInput(commonInfoSubsystem, tempCollectSettings);
 
 						if (collectSettings.GetOverflow())
 						{
@@ -1392,6 +1435,7 @@ void AEfficiencyCheckerLogic2::collectOutput(CollectSettings& collectSettings)
 
 void AEfficiencyCheckerLogic2::handleManufacturer
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	class AFGBuildableManufacturer* const manufacturer,
 	CollectSettings& collectSettings,
 	bool collectForInput
@@ -1489,7 +1533,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 
 					auto item = products[FMath::Max(outputIndex, 0)];
 
-					if (!collectSettings.GetCurrentFilter().itemIsAllowed(item.ItemClass))
+					if (!collectSettings.GetCurrentFilter().itemIsAllowed(commonInfoSubsystem, item.ItemClass))
 					{
 						return;
 					}
@@ -1556,7 +1600,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						// EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Item is not being inject"));
 					}
 
-					if (!collectSettings.GetCurrentFilter().itemIsAllowed(item.ItemClass) ||
+					if (!collectSettings.GetCurrentFilter().itemIsAllowed(commonInfoSubsystem, item.ItemClass) ||
 						actorContainsItem(collectSettings.GetSeenActors(), manufacturer, item.ItemClass))
 					{
 						continue;
@@ -1609,7 +1653,12 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 	}
 }
 
-void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* extractor, CollectSettings& collectSettings)
+void AEfficiencyCheckerLogic2::handleExtractor
+(
+	ACommonInfoSubsystem* commonInfoSubsystem,
+	AFGBuildableResourceExtractor* extractor,
+	CollectSettings& collectSettings
+)
 {
 	if ((extractor->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
 		(!extractor->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
@@ -1648,7 +1697,7 @@ void AEfficiencyCheckerLogic2::handleExtractor(AFGBuildableResourceExtractor* ex
 			item = extractor->GetOutputInventory()->GetAllowedItemOnIndex(0);
 		}
 
-		if (!item || !collectSettings.GetCurrentFilter().itemIsAllowed(item))
+		if (!item || !collectSettings.GetCurrentFilter().itemIsAllowed(commonInfoSubsystem, item))
 		{
 			return;
 		}
@@ -1883,14 +1932,13 @@ void AEfficiencyCheckerLogic2::getPipeConnectionComponents
 
 void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	AFGBuildableStorage* undergroundBelt,
 	CollectSettings& collectSettings,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents
 )
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 	getFactoryConnectionComponents(undergroundBelt, inputComponents, outputComponents);
 
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
@@ -1976,6 +2024,7 @@ void AEfficiencyCheckerLogic2::handleUndergroundBeltsComponents
 
 void AEfficiencyCheckerLogic2::handleContainerComponents
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	AFGBuildable* buildable,
 	UFGInventoryComponent* inventory,
 	CollectSettings& collectSettings,
@@ -1993,7 +2042,7 @@ void AEfficiencyCheckerLogic2::handleContainerComponents
 
 	for (const auto& stack : stacks)
 	{
-		if (!collectSettings.GetCurrentFilter().itemIsAllowed(stack.Item.GetItemClass()))
+		if (!collectSettings.GetCurrentFilter().itemIsAllowed(commonInfoSubsystem, stack.Item.GetItemClass()))
 		{
 			continue;
 		}
@@ -2011,6 +2060,7 @@ void AEfficiencyCheckerLogic2::handleContainerComponents
 
 void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	AFGBuildableTrainPlatformCargo* trainPlatformCargo,
 	CollectSettings& collectSettings,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
@@ -2018,7 +2068,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 	bool collectForInput
 )
 {
-	handleContainerComponents(trainPlatformCargo, trainPlatformCargo->GetInventory(), collectSettings, inputComponents, outputComponents, collectForInput);
+	handleContainerComponents(commonInfoSubsystem, trainPlatformCargo, trainPlatformCargo->GetInventory(), collectSettings, inputComponents, outputComponents, collectForInput);
 
 	if (collectForInput)
 	{
@@ -2043,11 +2093,16 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 
 		TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-		for (auto connectedPlatform = trainPlatformCargo->GetConnectedPlatformInDirectionOf(i);
-		     connectedPlatform;
-		     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+		TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+		trainPlatformCargo->GetComponents(railComponents);
+
+		for (auto platformConnection = railComponents[i]->GetConnectedTo();
+		     platformConnection;
+		     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 		     ++offsetDistance)
 		{
+			auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
 				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -2086,8 +2141,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 					*station->GetStationIdentifier()->GetStationName().ToString()
 					);
 
-				if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
-					(i == 1 && !connectedPlatform->IsOrientationReversed()))
+				if (platformConnection == station->GetStationOutputConnection())
 				{
 					stationOffsets.insert(offsetDistance);
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
@@ -2215,11 +2269,19 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 
 				TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-				for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
-				     connectedPlatform;
-				     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+				auto platformConnection = stop.Station->GetStation()->GetStationOutputConnection();
+				if (i)
+				{
+					platformConnection = stop.Station->GetStation()->GetConnectionInOppositeDirection(platformConnection);
+				}
+
+				for (platformConnection = platformConnection->GetConnectedTo();
+				     platformConnection;
+				     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 				     ++offsetDistance)
 				{
+					auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 					if (collectSettings.GetTimeout() < time(NULL))
 					{
 						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platformst!"));
@@ -2243,10 +2305,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 
 					seenPlatforms.Add(stopCargo);
 
-					auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
-					                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
-						                              ? offsetDistance
-						                              : -offsetDistance;
+					auto adjustedOffsetDistance = i ? -offsetDistance : offsetDistance;
 
 					if (stationOffsets.find(adjustedOffsetDistance) == stationOffsets.end())
 					{
@@ -2335,11 +2394,16 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 
 		TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-		for (auto connectedPlatform = trainPlatformCargo->GetConnectedPlatformInDirectionOf(i);
-		     connectedPlatform;
-		     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+		TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+		trainPlatformCargo->GetComponents(railComponents);
+
+		for (auto platformConnection = railComponents[i]->GetConnectedTo();
+		     platformConnection;
+		     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 		     ++offsetDistance)
 		{
+			auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
 				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -2376,8 +2440,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 					*station->GetStationIdentifier()->GetStationName().ToString()
 					);
 
-				if ((i == 0 && connectedPlatform->IsOrientationReversed()) ||
-					(i == 1 && !connectedPlatform->IsOrientationReversed()))
+				if (platformConnection == station->GetStationOutputConnection())
 				{
 					stationOffsets.insert(offsetDistance);
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
@@ -2505,11 +2568,19 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 
 				TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-				for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
-				     connectedPlatform;
-				     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+				auto platformConnection = stop.Station->GetStation()->GetStationOutputConnection();
+				if (i)
+				{
+					platformConnection = stop.Station->GetStation()->GetConnectionInOppositeDirection(platformConnection);
+				}
+
+				for (platformConnection = platformConnection->GetConnectedTo();
+				     platformConnection;
+				     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 				     ++offsetDistance)
 				{
+					auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 					if (collectSettings.GetTimeout() < time(NULL))
 					{
 						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -2531,10 +2602,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 						continue;
 					}
 
-					auto adjustedOffsetDistance = (i == 0 && !stop.Station->GetStation()->IsOrientationReversed())
-					                              || (i == 1 && stop.Station->GetStation()->IsOrientationReversed())
-						                              ? offsetDistance
-						                              : -offsetDistance;
+					auto adjustedOffsetDistance = i ? -offsetDistance : offsetDistance;
 
 					if (stationOffsets.find(adjustedOffsetDistance) == stationOffsets.end())
 					{
@@ -2584,6 +2652,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 
 void AEfficiencyCheckerLogic2::handleStorageTeleporter
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	AFGBuildable* storageTeleporter,
 	CollectSettings& collectSettings,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
@@ -2595,8 +2664,6 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 	auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
 	getFactoryConnectionComponents(storageTeleporter, inputComponents, outputComponents);
-
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
 
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
@@ -2747,6 +2814,7 @@ void AEfficiencyCheckerLogic2::handleModularLoadBalancerComponents
 
 void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	AFGBuildableSplitterSmart* smartSplitter,
 	CollectSettings& collectSettings,
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
@@ -2754,8 +2822,6 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 	bool collectForInput
 )
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
 	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
 

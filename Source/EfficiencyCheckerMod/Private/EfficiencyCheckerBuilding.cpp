@@ -150,7 +150,7 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 			checkTick_ = true;
 			//checkFactoryTick_ = true;
 		}
-		else if  (CreationTime < GetWorld()->GetTimeSeconds())
+		else if (CreationTime < GetWorld()->GetTimeSeconds())
 		{
 			SetActorTickEnabled(true);
 			SetActorTickInterval(0);
@@ -625,6 +625,8 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	// in_overflow = false;
 	collectSettings.SetOverflow(false);
 
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get(GetWorld());
+
 	if (innerPipelineAttachment)
 	{
 		auto attachmentPipeConnections = innerPipelineAttachment->GetPipeConnections();
@@ -810,8 +812,6 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			TArray<TSubclassOf<UFGItemDescriptor>> allItems;
 			UFGBlueprintFunctionLibrary::Cheat_GetAllDescriptors(allItems);
 
-			auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 			for (auto item : allItems)
 			{
 				if (!item ||
@@ -943,7 +943,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			collectSettings.SetConnector(inputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputIn);
 
-			AEfficiencyCheckerLogic2::collectInput(collectSettings);
+			AEfficiencyCheckerLogic2::collectInput(commonInfoSubsystem, collectSettings);
 
 			limitedThroughputIn = collectSettings.GetLimitedThroughput();
 			out_injectedInput = collectSettings.GetInjectedInputTotal();
@@ -956,7 +956,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			collectSettings.SetConnector(outputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputOut);
 
-			AEfficiencyCheckerLogic2::collectOutput(collectSettings);
+			AEfficiencyCheckerLogic2::collectOutput(commonInfoSubsystem, collectSettings);
 
 			limitedThroughputOut = collectSettings.GetLimitedThroughput();
 			out_requiredOutput = collectSettings.GetRequiredOutputTotal();
@@ -984,6 +984,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			collectSettings.SetLimitedThroughput(limitedThroughputIn);
 
 			AEfficiencyCheckerLogic::singleton->collectInput(
+				commonInfoSubsystem,
 				collectSettings.GetResourceForm(),
 				collectSettings.GetCustomInjectedInput(),
 				inputConnector,
@@ -1017,6 +1018,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			collectSettings.SetLimitedThroughput(limitedThroughputOut);
 
 			AEfficiencyCheckerLogic::singleton->collectOutput(
+				commonInfoSubsystem,
 				collectSettings.GetResourceForm(),
 				collectSettings.GetConnector(),
 				out_requiredOutput,

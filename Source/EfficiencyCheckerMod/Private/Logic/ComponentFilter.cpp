@@ -8,10 +8,8 @@
 #pragma optimize("", off )
 #endif
 
-bool FComponentFilter::itemIsAllowed(const TSubclassOf<UFGItemDescriptor>& item) const
+bool FComponentFilter::itemIsAllowed(ACommonInfoSubsystem* commonInfoSubsystem, const TSubclassOf<UFGItemDescriptor>& item) const
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-	
 	if (allowedFiltered &&
 		!allowedItems.Contains(item) &&
 		allowedItems.Intersect(commonInfoSubsystem->overflowItemDescriptors).IsEmpty() &&

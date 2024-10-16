@@ -38,6 +38,7 @@
 
 #include "AkComponent.h"
 #include "EfficiencyCheckerBuilding.h"
+#include "FGTrainPlatformConnection.h"
 #include "../../../../../MarcioCommonLibs/Source/MarcioCommonLibs/Public/Util/MarcioCommonLibsUtils.h"
 #include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildableManufacturer.h"
@@ -150,6 +151,7 @@ void AEfficiencyCheckerLogic::addAllItemsToActor
 
 void AEfficiencyCheckerLogic::collectInput
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	EResourceForm resourceForm,
 	bool customInjectedInput,
 	class UFGConnectionComponent* connector,
@@ -167,8 +169,6 @@ void AEfficiencyCheckerLogic::collectInput
 	int machineStatusIncludeType
 )
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 	TSet<TSubclassOf<UFGItemDescriptor>> restrictItems = in_restrictItems;
 
 	for (;;)
@@ -566,11 +566,16 @@ void AEfficiencyCheckerLogic::collectInput
 
 						TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-						for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
-						     connectedPlatform;
-						     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+						TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+						cargoPlatform->GetComponents(railComponents);
+
+						for (auto platformConnection = railComponents[i]->GetConnectedTo();
+						     platformConnection;
+						     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 						     ++offsetDistance)
 						{
+							auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 							if (timeout < time(NULL))
 							{
 								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -738,11 +743,16 @@ void AEfficiencyCheckerLogic::collectInput
 
 								TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-								for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
-								     connectedPlatform;
-								     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+								TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+								cargoPlatform->GetComponents(railComponents);
+
+								for (auto platformConnection = railComponents[i]->GetConnectedTo();
+								     platformConnection;
+								     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 								     ++offsetDistance)
 								{
+									auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 									if (timeout < time(NULL))
 									{
 										EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platformst!"));
@@ -1044,6 +1054,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						float previousLimit = out_limitedThroughput;
 						collectInput(
+							commonInfoSubsystem,
 							resourceForm,
 							customInjectedInput,
 							connection->GetConnection(),
@@ -1131,6 +1142,7 @@ void AEfficiencyCheckerLogic::collectInput
 						}
 
 						collectOutput(
+							commonInfoSubsystem,
 							resourceForm,
 							connection->GetConnection(),
 							discountedInput,
@@ -1337,6 +1349,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 						float previousLimit = out_limitedThroughput;
 						collectInput(
+							commonInfoSubsystem,
 							resourceForm,
 							customInjectedInput,
 							connection->GetConnection(),
@@ -1422,6 +1435,7 @@ void AEfficiencyCheckerLogic::collectInput
 							}
 
 							collectOutput(
+								commonInfoSubsystem,
 								resourceForm,
 								connection->GetConnection(),
 								discountedInput,
@@ -1482,11 +1496,16 @@ void AEfficiencyCheckerLogic::collectInput
 
 					TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-					for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
-					     connectedPlatform;
-					     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+					TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+					cargoPlatform->GetComponents(railComponents);
+
+					for (auto platformConnection = railComponents[i]->GetConnectedTo();
+					     platformConnection;
+					     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 					     ++offsetDistance)
 					{
+						auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 						if (timeout < time(NULL))
 						{
 							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -1652,11 +1671,16 @@ void AEfficiencyCheckerLogic::collectInput
 
 							TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-							for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
-							     connectedPlatform;
-							     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+							TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+							cargoPlatform->GetComponents(railComponents);
+
+							for (auto platformConnection = railComponents[i]->GetConnectedTo();
+							     platformConnection;
+							     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 							     ++offsetDistance)
 							{
+								auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 								if (timeout < time(NULL))
 								{
 									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -1749,6 +1773,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 					float previousLimit = out_limitedThroughput;
 					collectInput(
+						commonInfoSubsystem,
 						resourceForm,
 						customInjectedInput,
 						connection->GetConnection(),
@@ -1820,6 +1845,7 @@ void AEfficiencyCheckerLogic::collectInput
 					}
 
 					collectOutput(
+						commonInfoSubsystem,
 						resourceForm,
 						connection->GetConnection(),
 						discountedInput,
@@ -1908,6 +1934,7 @@ void AEfficiencyCheckerLogic::collectInput
 
 void AEfficiencyCheckerLogic::collectOutput
 (
+	ACommonInfoSubsystem* commonInfoSubsystem,
 	EResourceForm resourceForm,
 	class UFGConnectionComponent* connector,
 	float& out_requiredOutput,
@@ -1923,8 +1950,6 @@ void AEfficiencyCheckerLogic::collectOutput
 	int32 machineStatusIncludeType
 )
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
-
 	TSet<TSubclassOf<UFGItemDescriptor>> injectedItems = in_injectedItems;
 
 	for (;;)
@@ -2159,11 +2184,16 @@ void AEfficiencyCheckerLogic::collectOutput
 
 						TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-						for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
-						     connectedPlatform;
-						     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+						TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+						cargoPlatform->GetComponents(railComponents);
+
+						for (auto platformConnection = railComponents[i]->GetConnectedTo();
+						     platformConnection;
+						     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 						     ++offsetDistance)
 						{
+							auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 							if (timeout < time(NULL))
 							{
 								EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -2326,11 +2356,16 @@ void AEfficiencyCheckerLogic::collectOutput
 
 								TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-								for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
-								     connectedPlatform;
-								     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+								TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+								cargoPlatform->GetComponents(railComponents);
+
+								for (auto platformConnection = railComponents[i]->GetConnectedTo();
+								     platformConnection;
+								     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 								     ++offsetDistance)
 								{
+									auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 									if (timeout < time(NULL))
 									{
 										EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -2599,6 +2634,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							float previousLimit = out_limitedThroughput;
 							collectOutput(
+								commonInfoSubsystem,
 								resourceForm,
 								connection->GetConnection(),
 								out_requiredOutput,
@@ -2666,6 +2702,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							auto tempInjectedItems = injectedItems;
 
 							collectInput(
+								commonInfoSubsystem,
 								resourceForm,
 								false,
 								connection->GetConnection(),
@@ -2814,6 +2851,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 						float previousLimit = out_limitedThroughput;
 						collectOutput(
+							commonInfoSubsystem,
 							resourceForm,
 							connection->GetConnection(),
 							out_requiredOutput,
@@ -2899,6 +2937,7 @@ void AEfficiencyCheckerLogic::collectOutput
 							// }
 
 							collectInput(
+								commonInfoSubsystem,
 								resourceForm,
 								false,
 								connection->GetConnection(),
@@ -2960,11 +2999,16 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-					for (auto connectedPlatform = cargoPlatform->GetConnectedPlatformInDirectionOf(i);
-					     connectedPlatform;
-					     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+					TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+					cargoPlatform->GetComponents(railComponents);
+
+					for (auto platformConnection = railComponents[i]->GetConnectedTo();
+					     platformConnection;
+					     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 					     ++offsetDistance)
 					{
+						auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 						if (timeout < time(NULL))
 						{
 							EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -3130,11 +3174,16 @@ void AEfficiencyCheckerLogic::collectOutput
 
 							TSet<AFGBuildableTrainPlatform*> seenPlatforms;
 
-							for (auto connectedPlatform = stop.Station->GetStation()->GetConnectedPlatformInDirectionOf(i);
-							     connectedPlatform;
-							     connectedPlatform = connectedPlatform->GetConnectedPlatformInDirectionOf(i),
+							TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
+							cargoPlatform->GetComponents(railComponents);
+
+							for (auto platformConnection = railComponents[i]->GetConnectedTo();
+							     platformConnection;
+							     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
 							     ++offsetDistance)
 							{
+								auto connectedPlatform = platformConnection->GetPlatformOwner();
+
 								if (timeout < time(NULL))
 								{
 									EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
@@ -3224,6 +3273,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 					float previousLimit = out_limitedThroughput;
 					collectOutput(
+						commonInfoSubsystem,
 						resourceForm,
 						connection->GetConnection(),
 						out_requiredOutput,
@@ -3610,7 +3660,7 @@ void AEfficiencyCheckerLogic::collectUndergroundBeltsComponents
 	TSet<AActor*>& actors
 )
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get(undergroundBelt->GetWorld());
 
 	auto outputsProperty = CastField<FArrayProperty>(undergroundBelt->GetClass()->FindPropertyByName("Outputs"));
 	if (outputsProperty)
@@ -3728,7 +3778,7 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 	bool& overflow
 )
 {
-	auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get(smartSplitter->GetWorld());
 
 	TArray<UFGFactoryConnectionComponent*> tempComponents;
 	smartSplitter->GetComponents(tempComponents);

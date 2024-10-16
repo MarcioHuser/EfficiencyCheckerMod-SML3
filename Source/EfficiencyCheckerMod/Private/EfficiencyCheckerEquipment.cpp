@@ -99,6 +99,8 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 	float initialThroughtputLimit = 0;
 	//bool overflow = false;
 
+	auto commonInfoSubsystem = ACommonInfoSubsystem::Get(GetWorld());
+
 	if (targetBuildable)
 	{
 		auto conveyor = Cast<AFGBuildableConveyorBase>(targetBuildable);
@@ -113,8 +115,6 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 
 			TArray<TSubclassOf<UFGItemDescriptor>> allItems;
 			UFGBlueprintFunctionLibrary::Cheat_GetAllDescriptors(allItems);
-
-			auto commonInfoSubsystem = ACommonInfoSubsystem::Get();
 
 			for (auto item : allItems)
 			{
@@ -208,7 +208,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			collectSettings.SetConnector(inputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputIn);
 
-			AEfficiencyCheckerLogic2::collectInput(collectSettings);
+			AEfficiencyCheckerLogic2::collectInput(commonInfoSubsystem, collectSettings);
 
 			limitedThroughputIn = collectSettings.GetLimitedThroughput();
 		}
@@ -222,7 +222,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			collectSettings.SetConnector(outputConnector);
 			collectSettings.SetLimitedThroughput(limitedThroughputOut);
 
-			AEfficiencyCheckerLogic2::collectOutput(collectSettings);
+			AEfficiencyCheckerLogic2::collectOutput(commonInfoSubsystem, collectSettings);
 
 			limitedThroughputOut = collectSettings.GetLimitedThroughput();
 		}
@@ -237,6 +237,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			float injectedInput = 0;
 
 			AEfficiencyCheckerLogic::collectInput(
+				commonInfoSubsystem,
 				collectSettings.GetResourceForm(),
 				collectSettings.GetCustomInjectedInput(),
 				inputConnector,
@@ -274,6 +275,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			collectSettings.SetLimitedThroughput(limitedThroughputOut);
 
 			AEfficiencyCheckerLogic::collectOutput(
+				commonInfoSubsystem,
 				collectSettings.GetResourceForm(),
 				collectSettings.GetConnector(),
 				requiredOutput,

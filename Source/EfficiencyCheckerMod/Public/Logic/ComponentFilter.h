@@ -12,7 +12,7 @@ public:
 	{
 	}
 
-	virtual bool itemIsAllowed(const TSubclassOf<UFGItemDescriptor>& item) const;
+	virtual bool itemIsAllowed(class ACommonInfoSubsystem* commonInfoSubsystem, const TSubclassOf<UFGItemDescriptor>& item) const;
 
 	virtual TSet<TSubclassOf<UFGItemDescriptor>> filterItems(const TSet<TSubclassOf<UFGItemDescriptor>>& items) const;
 

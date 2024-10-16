@@ -19,9 +19,9 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerLogic2 : public AActor
 public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	static void collectInput(class CollectSettings& collectSettings);
+	static void collectInput(class ACommonInfoSubsystem* commonInfoSubsystem, class CollectSettings& collectSettings);
 
-	static void collectOutput(class CollectSettings& collectSettings);
+	static void collectOutput(class ACommonInfoSubsystem* commonInfoSubsystem, class CollectSettings& collectSettings);
 
 	static bool (*containsActor)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor);
 	static bool (*actorContainsItem)(const std::map<AActor*, TSet<TSubclassOf<UFGItemDescriptor>>>& seenActors, AActor* actor, const TSubclassOf<UFGItemDescriptor>& item);
@@ -33,14 +33,24 @@ public:
 
 	static void handleManufacturer
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		class AFGBuildableManufacturer* const manufacturer,
 		class CollectSettings& collectSettings,
 		bool collectForInput
 	);
 
-	static void handleExtractor(class AFGBuildableResourceExtractor* extractor, class CollectSettings& collectSettings);
+	static void handleExtractor
+	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
+		class AFGBuildableResourceExtractor* extractor,
+		class CollectSettings& collectSettings
+	);
 
-	static void handleGeneratorFuel(class AFGBuildableGeneratorFuel* generatorFuel, CollectSettings& collectSettings);
+	static void handleGeneratorFuel
+	(
+		class AFGBuildableGeneratorFuel* generatorFuel,
+		CollectSettings& collectSettings
+	);
 
 	static void getFactoryConnectionComponents
 	(
@@ -61,6 +71,7 @@ public:
 
 	static void handleUndergroundBeltsComponents
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		class AFGBuildableStorage* undergroundBelt,
 		class CollectSettings& collectSettings,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
@@ -69,6 +80,7 @@ public:
 
 	static void handleContainerComponents
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		class AFGBuildable* buildable,
 		class UFGInventoryComponent* inventory,
 		class CollectSettings& collectSettings,
@@ -80,6 +92,7 @@ public:
 
 	static void handleTrainPlatformCargoBelt
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		class AFGBuildableTrainPlatformCargo* trainPlatformCargo,
 		class CollectSettings& collectSettings,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
@@ -98,6 +111,7 @@ public:
 
 	static void handleStorageTeleporter
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		class AFGBuildable* storageTeleporter,
 		class CollectSettings& collectSettings,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
@@ -116,6 +130,7 @@ public:
 
 	static void handleSmartSplitterComponents
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		class AFGBuildableSplitterSmart* smartSplitter,
 		class CollectSettings& collectSettings,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,

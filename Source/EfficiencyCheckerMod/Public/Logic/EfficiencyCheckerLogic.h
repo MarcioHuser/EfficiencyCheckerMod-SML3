@@ -31,6 +31,7 @@ public:
 
 	static void collectInput
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		EResourceForm resourceForm,
 		bool customInjectedInput,
 		class UFGConnectionComponent* connector,
@@ -50,6 +51,7 @@ public:
 
 	static void collectOutput
 	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
 		EResourceForm resourceForm,
 		class UFGConnectionComponent* connector,
 		float& out_requiredOutput,
