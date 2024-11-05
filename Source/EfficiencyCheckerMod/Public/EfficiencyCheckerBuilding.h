@@ -227,6 +227,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	EPlacementType placementType = EPlacementType::PT_GROUND;
 
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
+	TEnumAsByte<ETraceTypeQuery> traceChannel;
+
 	FString _TAG_NAME = TEXT("EfficiencyCheckerBuilding: ");
 
 	// inline static FString

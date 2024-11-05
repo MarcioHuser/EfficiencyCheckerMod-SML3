@@ -32,15 +32,15 @@ public:
 	virtual void PrimaryFirePressed(class AFGBuildable* targetBuildable);
 	virtual void PrimaryFirePressed_Server(class AFGBuildable* targetBuildable);
 
-	UPROPERTY(BlueprintAssignable, Category = "EfficiencyChecker")
-	FShowStatsWidgetEvent OnShowStatsWidget;
-
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
 	virtual AFGBuildable* CheckValidHit
 	(
 		UPARAM(DisplayName = "Actor") AActor* actor,
 		UPARAM(DisplayName = "Form") EResourceForm& out_form
 	);
+
+	UPROPERTY(BlueprintAssignable, Category = "EfficiencyChecker")
+	FShowStatsWidgetEvent OnShowStatsWidget;
 
 	UFUNCTION(Category = "EfficiencyChecker", NetMulticast, Reliable)
 	virtual void ShowStatsWidget

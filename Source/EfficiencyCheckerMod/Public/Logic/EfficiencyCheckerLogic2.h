@@ -147,6 +147,16 @@ public:
 		TSet<class UFGPipeConnectionComponent*>& outputComponents
 	);
 
+	static void handleDroneStation
+	(
+		class ACommonInfoSubsystem* commonInfoSubsystem,
+		class AFGBuildableDroneStation* droneStation,
+		class CollectSettings& collectSettings,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+		bool collectForInput
+		);
+
 	static UFGPipeConnectionComponent*
 	getFirstItem(const TSet<UFGPipeConnectionComponent*>& connections)
 	{
@@ -159,4 +169,6 @@ public:
 
 		return firstItem;
 	}
+
+	static UFGFactoryConnectionComponent* getComponentByIndex(std::map<UFGFactoryConnectionComponent*, FComponentFilter> componentsMap, int index);
 };

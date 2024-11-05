@@ -60,7 +60,6 @@
 //
 // FCriticalSection AEfficiencyCheckerLogic::eclCritical;
 
-const FRegexPattern AEfficiencyCheckerLogic::indexPattern(TEXT("(\\d+)$"));
 AEfficiencyCheckerLogic* AEfficiencyCheckerLogic::singleton = nullptr;
 
 // TSet<class AEfficiencyCheckerBuilding*> AEfficiencyCheckerLogic::allEfficiencyBuildings;
@@ -110,8 +109,8 @@ void AEfficiencyCheckerLogic::Terminate()
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
 	allEfficiencyBuildings.Empty();
-	allBelts.Empty();
-	allPipes.Empty();
+	// allBelts.Empty();
+	// allPipes.Empty();
 
 	singleton = nullptr;
 }
@@ -3532,7 +3531,7 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	}
 	else if (auto belt = Cast<AFGBuildableConveyorBelt>(newBuildable))
 	{
-		addBelt(belt);
+		// addBelt(belt);
 
 		return true;
 	}
@@ -3546,7 +3545,7 @@ bool AEfficiencyCheckerLogic::IsValidBuildable(AFGBuildable* newBuildable)
 	}
 	else if (auto pipe = Cast<AFGBuildablePipeline>(newBuildable))
 	{
-		addPipe(pipe);
+		// addPipe(pipe);
 
 		return true;
 	}
@@ -3583,48 +3582,62 @@ void AEfficiencyCheckerLogic::addEfficiencyBuilding(class AEfficiencyCheckerBuil
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 	allEfficiencyBuildings.Add(checker);
 
-	checker->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
+	// checker->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
 }
 
-void AEfficiencyCheckerLogic::removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason)
-{
-	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	allEfficiencyBuildings.Remove(Cast<AEfficiencyCheckerBuilding>(actor));
+// void AEfficiencyCheckerLogic::removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason)
+// {
+// 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+// 	allEfficiencyBuildings.Remove(Cast<AEfficiencyCheckerBuilding>(actor));
+//
+// 	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
+// }
 
-	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic::removeEfficiencyBuilding);
-}
+// void AEfficiencyCheckerLogic::addBelt(AFGBuildableConveyorBelt* belt)
+// {
+// 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+// 	allBelts.Add(belt);
+//
+// 	belt->OnDestroyed.AddDynamic(this, &AEfficiencyCheckerLogic::destroyBelt);
+// 	belt->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
+// }
+//
+// void AEfficiencyCheckerLogic::removeBelt(AActor* actor, EEndPlayReason::Type reason)
+// {
+// 	destroyBelt(actor);
+// }
+//
+// void AEfficiencyCheckerLogic::destroyBelt(AActor* actor)
+// {
+// 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+// 	allBelts.Remove(Cast<AFGBuildableConveyorBelt>(actor));
+// 	
+// 	actor->OnDestroyed.RemoveDynamic(this, &AEfficiencyCheckerLogic::destroyBelt);
+// 	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
+// }
 
-void AEfficiencyCheckerLogic::addBelt(AFGBuildableConveyorBelt* belt)
-{
-	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	allBelts.Add(belt);
-
-	belt->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
-}
-
-void AEfficiencyCheckerLogic::removeBelt(AActor* actor, EEndPlayReason::Type reason)
-{
-	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	allBelts.Remove(Cast<AFGBuildableConveyorBelt>(actor));
-
-	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic::removeBelt);
-}
-
-void AEfficiencyCheckerLogic::addPipe(AFGBuildablePipeline* pipe)
-{
-	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	allPipes.Add(pipe);
-
-	pipe->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic:: removePipe);
-}
-
-void AEfficiencyCheckerLogic::removePipe(AActor* actor, EEndPlayReason::Type reason)
-{
-	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	allPipes.Remove(Cast<AFGBuildablePipeline>(actor));
-
-	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic:: removePipe);
-}
+// void AEfficiencyCheckerLogic::addPipe(AFGBuildablePipeline* pipe)
+// {
+// 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+// 	allPipes.Add(pipe);
+//
+// 	pipe->OnDestroyed.AddDynamic(this, &AEfficiencyCheckerLogic:: destroyPipe);
+// 	pipe->OnEndPlay.AddDynamic(this, &AEfficiencyCheckerLogic:: removePipe);
+// }
+//
+// void AEfficiencyCheckerLogic::removePipe(AActor* actor, EEndPlayReason::Type reason)
+// {
+// 	destroyPipe(actor);
+// }
+//
+// void AEfficiencyCheckerLogic::destroyPipe(AActor* actor)
+// {
+// 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+// 	allPipes.Remove(Cast<AFGBuildablePipeline>(actor));
+//
+// 	actor->OnDestroyed.RemoveDynamic(this, &AEfficiencyCheckerLogic:: destroyPipe);
+// 	actor->OnEndPlay.RemoveDynamic(this, &AEfficiencyCheckerLogic:: removePipe);
+// }
 
 float AEfficiencyCheckerLogic::getPipeSpeed(AFGBuildablePipeline* pipe)
 {
@@ -3805,21 +3818,17 @@ void AEfficiencyCheckerLogic::collectSmartSplitterComponents
 			continue;
 		}
 
-		FRegexMatcher m(indexPattern, connection->GetName());
-		if (m.FindNext())
+		auto index = UMarcioCommonLibsUtils::getIndexFromName(connection->GetName());
+		if (index >= 0)
 		{
 			if (connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT)
 			{
 				// It is an input connector
-				auto index = FCString::Atoi(*m.GetCaptureGroup(1));
-
 				tempInputComponents[connection].allowedFiltered = false;
 			}
 			else if (connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT)
 			{
 				// It is an output connector
-				auto index = FCString::Atoi(*m.GetCaptureGroup(1));
-
 				tempOutputComponents[connection].allowedFiltered = false;
 
 				outputComponentsMapByIndex[index] = connection;

@@ -23,6 +23,7 @@
 #include "Logic/EfficiencyCheckerLogic2.h"
 #include "Net/UnrealNetwork.h"
 #include "Async/Async.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
 
@@ -55,13 +56,6 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 	EC_LOG_Display_Condition(getTagName(), TEXT("BeginPlay"));
 
 	Super::BeginPlay();
-
-	// {
-	//     EC_LOG(*getTagName(),TEXT("Adding to list!"));
-	//
-	//     FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	//     AEfficiencyCheckerLogic::allEfficiencyBuildings.Add(this);
-	// }
 
 	auto arrows = GetComponentsByTag(UStaticMeshComponent::StaticClass(), TEXT("DirectionArrow"));
 	for (auto arrow : arrows)
@@ -171,12 +165,13 @@ void AEfficiencyCheckerBuilding::EndPlay(const EEndPlayReason::Type endPlayReaso
 {
 	Super::EndPlay(endPlayReason);
 
-	// {
-	//     EC_LOG(*getTagName(), TEXT("Removing from list!"));
-	//
-	//     FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
-	//     AEfficiencyCheckerLogic::allEfficiencyBuildings.Remove(this);
-	// }
+	if (AEfficiencyCheckerLogic::singleton)
+	{
+		EC_LOG_Display_Condition(*getTagName(), TEXT("Removing from list!"));
+
+		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
+		AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings.Remove(this);
+	}
 
 	if (HasAuthority())
 	{
@@ -642,16 +637,12 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				continue;
 			}
 
-			if (!inputConnector)
-			{
-				inputConnector = pipeConnection;
-			}
-			else if (!outputConnector)
-			{
-				outputConnector = pipeConnection;
-			}
+			// Do not use itself as the starting location
+			auto otherPipeConnection = pipeConnection->GetConnection();
 
-			auto pipe = Cast<AFGBuildablePipeline>(pipeConnection->GetConnection()->GetOwner());
+			outputConnector = inputConnector = otherPipeConnection;
+
+			auto pipe = Cast<AFGBuildablePipeline>(otherPipeConnection->GetOwner());
 
 			if (pipe)
 			{
@@ -667,10 +658,9 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				}
 			}
 
-			if (!fluidItem)
-			{
-				fluidItem = pipeConnection->GetFluidDescriptor();
-			}
+			fluidItem = pipeConnection->GetFluidDescriptor();
+
+			break;
 		}
 
 		if (fluidItem)
@@ -678,7 +668,10 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			collectSettings.GetCurrentFilter().allowedFiltered = true;
 			collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
 
-			// collectSettings.GetInjectedItems().Add(fluidItem);
+			// collectSettings.GetInjectedInput()[fluidItem];
+			// collectSettings.GetRequiredOutput()[fluidItem];
+
+			collectSettings.SetResourceForm(UFGItemDescriptor::GetForm(fluidItem));
 		}
 	}
 	else if (resourceForm == EResourceForm::RF_SOLID)
@@ -697,6 +690,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			);
 
 		AFGBuildableConveyorBelt* currentConveyor = nullptr;
+		FVector currenNearestCoord;
 
 		// TArray<AActor*> allBelts;
 		//
@@ -705,46 +699,47 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		//     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFGBuildableConveyorBelt::StaticClass(), allBelts);
 		// }
 
+		// Find intersecting belt
+		TArray<AActor*> actorsToIgnore;
+		actorsToIgnore.Add(this);
+
+		TArray<struct FHitResult> hits;
+
+		UKismetSystemLibrary::SphereTraceMulti(
+			GetWorld(),
+			anchorPoint,
+			// Look from half meter below
+			anchorPoint,
+			50,
+			// to half meter above
+			traceChannel,
+			false,
+			actorsToIgnore,
+			EDrawDebugTrace::None,
+			hits,
+			true
+			);
+
 		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
-		for (auto conveyorActor : AEfficiencyCheckerLogic::singleton->allBelts)
+		for (const auto& hit : hits)
 		{
-			auto conveyor = Cast<AFGBuildableConveyorBelt>(conveyorActor);
-
-			if (!IsValid(conveyor) || (currentConveyor && conveyor->CreationTime < currentConveyor->CreationTime))
+			auto conveyor = Cast<AFGBuildableConveyorBelt>(hit.GetActor());
+			if (!conveyor)
 			{
-				EC_LOG_Display_Condition(*getTagName(), TEXT("Conveyor "), *conveyor->GetName(), anchorPoint.X, TEXT(" was skipped"));
-
 				continue;
 			}
 
-			//FVector connection0Location = conveyor->GetConnection0()->GetConnectorLocation();
-			//FVector connection1Location = conveyor->GetConnection1()->GetConnectorLocation();
-
-			//EC_LOG_Display_Condition(*getTagName(), TEXT("    connection 0: X = "), connection0Location.X,TEXT( " / Y = "), connection0Location.Y,TEXT( " / Z = "), connection0Location.Z);
-			//EC_LOG_Display_Condition(*getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y,TEXT( " / Z = "), connection1Location.Z);
-
-			//if (!inputConveyor && FVector::PointsAreNear(connection0Location, anchorPoint, 1)) {
-			//EC_LOG_Display_Condition(*getTagName(), TEXT("Found input "),  *conveyor->GetName());
-			//EC_LOG_Display_Condition(*getTagName(),TEXT( "    connection 0: X = "), connection0Location.X,TEXT( " / Y = "), connection0Location.Y, TEXT(" / Z = "), connection0Location.Z);
-			//EC_LOG_Display_Condition(*getTagName(),TEXT( "    distance = "), FVector::Dist(connection0Location, anchorPoint));
-
-			//	inputConveyor = conveyor;
-			//} else if (!outputConveyor && FVector::PointsAreNear(connection0Location, anchorPoint, 1)) {
-			//EC_LOG_Display_Condition(*getTagName(), TEXT("Found output "),  *conveyor->GetName());
-			//EC_LOG_Display_Condition(*getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y, TEXT(" / Z = "), connection1Location.Z);
-			//EC_LOG_Display_Condition(*getTagName(), TEXT("    distance = "), FVector::Dist(connection1Location, anchorPoint));
-
-			//	outputConveyor = conveyor;
-			//}
-			//else
-			//{
 			FVector nearestCoord;
 			FVector direction;
 			conveyor->GetLocationAndDirectionAtOffset(conveyor->FindOffsetClosestToLocation(anchorPoint), nearestCoord, direction);
 
-			if (FVector::PointsAreNear(nearestCoord, anchorPoint, 50))
+			if (FVector::PointsAreNear(nearestCoord, anchorPoint, 50) && (
+				!currentConveyor || FVector::Distance(nearestCoord, anchorPoint) < FVector::Distance(currenNearestCoord, anchorPoint)
+			))
 			{
+				currenNearestCoord = nearestCoord;
+
 				auto connection0Location = conveyor->GetConnection0()->GetConnectorLocation();
 				auto connection1Location = conveyor->GetConnection1()->GetConnectorLocation();
 
@@ -786,26 +781,75 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 				initialThroughtputLimit = conveyor->GetSpeed() / 2;
 			}
-			//}
-			//
-			//if (!inputConveyor && !outputConveyor &&
-			//	FVector::Coincident(connection1Location - connection0Location, anchorPoint - connection0Location) &&
-			//	FVector::Dist(anchorPoint, connection0Location) <= FVector::Dist(connection1Location, connection0Location)) {
-			//	EC_LOG_Display_Condition(*getTagName(), TEXT("Found input and output "),  *conveyor->GetName());
-			//	EC_LOG_Display_Condition(*getTagName(), TEXT("    connection 0: X = "), connection0Location.X, TEXT(" / Y = "), connection0Location.Y, TEXT(" / Z = "), connection0Location.Z);
-			//	EC_LOG_Display_Condition(*getTagName(), TEXT("    connection 1: X = "), connection1Location.X, TEXT(" / Y = "), connection1Location.Y, TEXT(" / Z = "), connection1Location.Z);
-			//	EC_LOG_Display_Condition(*getTagName(), TEXT("    coincident = "), (connection1Location - connection0Location) | (anchorPoint - connection0Location));
-			//	EC_LOG_Display_Condition(*getTagName(), TEXT("    connectors distance = "), FVector::Dist(connection1Location, connection0Location));
-			//	EC_LOG_Display_Condition(*getTagName(), TEXT("    anchor distance = "), FVector::Dist(anchorPoint, connection0Location));
-
-			//	inputConveyor = conveyor;
-			//	outputConveyor = conveyor;
-			//}
-
-			//if (inputConveyor && outputConveyor) {
-			//	break;
-			//}
 		}
+
+		// if (!currentConveyor)
+		// {
+		// 	for (auto conveyorActor : AEfficiencyCheckerLogic::singleton->allBelts)
+		// 	{
+		// 		if (!IsValid(conveyorActor))
+		// 		{
+		// 			continue;
+		// 		}
+		//
+		// 		auto conveyor = Cast<AFGBuildableConveyorBelt>(conveyorActor);
+		//
+		// 		if ((currentConveyor && conveyor->CreationTime < currentConveyor->CreationTime))
+		// 		{
+		// 			EC_LOG_Display_Condition(*getTagName(), TEXT("Conveyor "), *conveyor->GetName(), anchorPoint.X, TEXT(" was skipped"));
+		//
+		// 			continue;
+		// 		}
+		//
+		// 		FVector nearestCoord;
+		// 		FVector direction;
+		// 		conveyor->GetLocationAndDirectionAtOffset(conveyor->FindOffsetClosestToLocation(anchorPoint), nearestCoord, direction);
+		//
+		// 		if (FVector::PointsAreNear(nearestCoord, anchorPoint, 50))
+		// 		{
+		// 			auto connection0Location = conveyor->GetConnection0()->GetConnectorLocation();
+		// 			auto connection1Location = conveyor->GetConnection1()->GetConnectorLocation();
+		//
+		// 			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+		// 			{
+		// 				EC_LOG_Display(*getTagName(), TEXT("Found intersecting conveyor "), *conveyor->GetName());
+		// 				EC_LOG_Display(
+		// 					*getTagName(),
+		// 					TEXT("    connection 0: X = "),
+		// 					connection0Location.X,
+		// 					TEXT(" / Y = "),
+		// 					connection0Location.Y,
+		// 					TEXT(" / Z = "),
+		// 					connection0Location.Z
+		// 					);
+		// 				EC_LOG_Display(
+		// 					*getTagName(),
+		// 					TEXT("    connection 1: X = "),
+		// 					connection1Location.X,
+		// 					TEXT(" / Y = "),
+		// 					connection1Location.Y,
+		// 					TEXT(" / Z = "),
+		// 					connection1Location.Z
+		// 					);
+		// 				EC_LOG_Display(
+		// 					*getTagName(),
+		// 					TEXT("    nearest location: X = "),
+		// 					nearestCoord.X,
+		// 					TEXT(" / Y = "),
+		// 					nearestCoord.Y,
+		// 					TEXT(" / Z = "),
+		// 					nearestCoord.Z
+		// 					);
+		// 			}
+		//
+		// 			currentConveyor = conveyor;
+		// 			inputConnector = conveyor->GetConnection0();
+		// 			outputConnector = conveyor->GetConnection1();
+		//
+		// 			initialThroughtputLimit = conveyor->GetSpeed() / 2;
+		// 		}
+		// 	}
+		// }
 
 		if (inputConnector || outputConnector)
 		{
@@ -838,31 +882,63 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		EC_LOG_Display_Condition(*getTagName(), TEXT("Anchor point: X = "), anchorPoint.X, TEXT(" / Y = "), anchorPoint.Y, TEXT(" / Z = "), anchorPoint.Z);
 
 		AFGBuildablePipeline* currentPipe = nullptr;
+		FVector currenNearestCoord;
 
-		// TArray<AActor*> allPipes;
-		// if (IsInGameThread())
-		// {
-		//     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFGBuildablePipeline::StaticClass(), allPipes);
-		// }
+		// Find intersecting pipe
+		TArray<AActor*> actorsToIgnore;
+		actorsToIgnore.Add(this);
+
+		TArray<struct FHitResult> hits;
+
+		UKismetSystemLibrary::SphereTraceMulti(
+			GetWorld(),
+			anchorPoint,
+			anchorPoint,
+			50,
+			traceChannel,
+			false,
+			actorsToIgnore,
+			EDrawDebugTrace::None,
+			hits,
+			true
+			);
 
 		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
-		for (auto pipeActor : AEfficiencyCheckerLogic::singleton->allPipes)
+		for (const auto& hit : hits)
 		{
-			auto pipe = Cast<AFGBuildablePipeline>(pipeActor);
-
-			if (!IsValid(pipe) || (currentPipe && pipe->CreationTime < currentPipe->CreationTime))
+			auto pipe = Cast<AFGBuildablePipeline>(hit.GetActor());
+			if (!pipe)
 			{
-				EC_LOG_Display_Condition(*getTagName(), TEXT("Pipe "), *pipe->GetName(), anchorPoint.X, TEXT(" was skipped"));
-
 				continue;
 			}
 
 			auto connection0Location = pipe->GetPipeConnection0()->GetConnectorLocation();
 			auto connection1Location = pipe->GetPipeConnection1()->GetConnectorLocation();
 
-			if (FVector::PointsAreNear(connection0Location, anchorPoint, 1) ||
-				FVector::PointsAreNear(connection1Location, anchorPoint, 1))
+			auto atConnection = FVector::PointsAreNear(connection0Location, anchorPoint, 1) ||
+				FVector::PointsAreNear(connection1Location, anchorPoint, 1);
+
+			auto closestLocation = false;
+
+			if (!atConnection)
+			{
+				// Check if the pipe pass throught, instead of connecting with the wall checker
+				FVector nearestCoord;
+				FVector direction;
+				pipe->GetLocationAndDirectionAtOffset(pipe->FindOffsetClosestToLocation(anchorPoint), nearestCoord, direction);
+
+				closestLocation = FVector::PointsAreNear(nearestCoord, anchorPoint, 50) && (
+					!currentPipe || FVector::Distance(nearestCoord, anchorPoint) < FVector::Distance(currenNearestCoord, anchorPoint)
+				);
+
+				if (closestLocation)
+				{
+					currenNearestCoord = nearestCoord;
+				}
+			}
+
+			if (atConnection || closestLocation)
 			{
 				if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
 				{
@@ -890,17 +966,15 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				currentPipe = pipe;
 				if (pipe->GetPipeConnection0()->IsConnected())
 				{
-					inputConnector = pipe->GetPipeConnection0();
-					outputConnector = pipe->GetPipeConnection0();
+					outputConnector = inputConnector = pipe->GetPipeConnection0();
 				}
 				else if (pipe->GetPipeConnection1()->IsConnected())
 				{
-					inputConnector = pipe->GetPipeConnection1();
-					outputConnector = pipe->GetPipeConnection1();
+					outputConnector = inputConnector = pipe->GetPipeConnection1();
 				}
 
 				TSubclassOf<UFGItemDescriptor> fluidItem = pipe->GetPipeConnection0()->GetFluidDescriptor();
-				if (! fluidItem)
+				if (!fluidItem)
 				{
 					fluidItem = pipe->GetPipeConnection1()->GetFluidDescriptor();
 				}
@@ -910,14 +984,102 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 					collectSettings.GetCurrentFilter().allowedFiltered = true;
 					collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
 
-					// collectSettings.GetInjectedItems().Add(fluidItem);
+					// collectSettings.GetInjectedInput()[fluidItem];
+					// collectSettings.GetRequiredOutput()[fluidItem];
+
+					collectSettings.SetResourceForm(UFGItemDescriptor::GetForm(fluidItem));
 				}
 
 				initialThroughtputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
 
-				break;
+				if (atConnection)
+				{
+					break;
+				}
 			}
 		}
+
+		// if (!currentPipe) {
+		// 	for (auto pipeActor : AEfficiencyCheckerLogic::singleton->allPipes)
+		// 	{
+		// 		if (!IsValid(pipeActor))
+		// 		{
+		// 			continue;
+		// 		}
+		//
+		// 		auto pipe = Cast<AFGBuildablePipeline>(pipeActor);
+		//
+		// 		if (currentPipe && pipe->CreationTime < currentPipe->CreationTime)
+		// 		{
+		// 			EC_LOG_Display_Condition(*getTagName(), TEXT("Pipe "), *pipe->GetName(), anchorPoint.X, TEXT(" was skipped"));
+		//
+		// 			continue;
+		// 		}
+		//
+		// 		auto connection0Location = pipe->GetPipeConnection0()->GetConnectorLocation();
+		// 		auto connection1Location = pipe->GetPipeConnection1()->GetConnectorLocation();
+		//
+		// 		if (FVector::PointsAreNear(connection0Location, anchorPoint, 1) ||
+		// 			FVector::PointsAreNear(connection1Location, anchorPoint, 1))
+		// 		{
+		// 			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+		// 			{
+		// 				EC_LOG_Display(*getTagName(), TEXT("Found connected pipe "), *pipe->GetName());
+		// 				EC_LOG_Display(
+		// 					*getTagName(),
+		// 					TEXT("    connection 0: X = "),
+		// 					connection0Location.X,
+		// 					TEXT(" / Y = "),
+		// 					connection0Location.Y,
+		// 					TEXT(" / Z = "),
+		// 					connection0Location.Z
+		// 					);
+		// 				EC_LOG_Display(
+		// 					*getTagName(),
+		// 					TEXT("    connection 1: X = "),
+		// 					connection1Location.X,
+		// 					TEXT(" / Y = "),
+		// 					connection1Location.Y,
+		// 					TEXT(" / Z = "),
+		// 					connection1Location.Z
+		// 					);
+		// 			}
+		//
+		// 			currentPipe = pipe;
+		// 			if (pipe->GetPipeConnection0()->IsConnected())
+		// 			{
+		// 				inputConnector = pipe->GetPipeConnection0();
+		// 				outputConnector = pipe->GetPipeConnection0();
+		// 			}
+		// 			else if (pipe->GetPipeConnection1()->IsConnected())
+		// 			{
+		// 				inputConnector = pipe->GetPipeConnection1();
+		// 				outputConnector = pipe->GetPipeConnection1();
+		// 			}
+		//
+		// 			TSubclassOf<UFGItemDescriptor> fluidItem = pipe->GetPipeConnection0()->GetFluidDescriptor();
+		// 			if (! fluidItem)
+		// 			{
+		// 				fluidItem = pipe->GetPipeConnection1()->GetFluidDescriptor();
+		// 			}
+		//
+		// 			if (fluidItem)
+		// 			{
+		// 				collectSettings.GetCurrentFilter().allowedFiltered = true;
+		// 				collectSettings.GetCurrentFilter().allowedItems.Add(fluidItem);
+		//
+		// 				collectSettings.GetInjectedInput()[fluidItem];
+		// 				collectSettings.GetRequiredOutput()[fluidItem];
+		//
+		// 				// collectSettings.GetInjectedItems().Add(fluidItem);
+		// 			}
+		//
+		// 			initialThroughtputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
+		//
+		// 			break;
+		// 		}
+		// 	}
+		// }
 	}
 
 	float limitedThroughputIn = customInjectedInput ? injectedInput : initialThroughtputLimit;

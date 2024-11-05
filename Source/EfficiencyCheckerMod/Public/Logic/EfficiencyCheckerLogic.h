@@ -16,8 +16,6 @@ class EFFICIENCYCHECKERMOD_API AEfficiencyCheckerLogic : public AActor
 	GENERATED_BODY()
 
 public:
-	static const FRegexPattern indexPattern;
-
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyCheckerLogic")
@@ -79,21 +77,25 @@ public:
 	static AEfficiencyCheckerLogic* singleton;
 
 	TSet<class AEfficiencyCheckerBuilding*> allEfficiencyBuildings;
-	TSet<class AFGBuildableConveyorBelt*> allBelts;
-	TSet<class AFGBuildablePipeline*> allPipes;
+	// TSet<class AFGBuildableConveyorBelt*> allBelts;
+	// TSet<class AFGBuildablePipeline*> allPipes;
 
 	virtual void addEfficiencyBuilding(class AEfficiencyCheckerBuilding* actor);
-	virtual void addBelt(class AFGBuildableConveyorBelt* actor);
-	virtual void addPipe(class AFGBuildablePipeline* actor);
+	// virtual void addBelt(class AFGBuildableConveyorBelt* actor);
+	// virtual void addPipe(class AFGBuildablePipeline* actor);
 
 	UFUNCTION()
 	virtual void handleBuildableConstructed(class AFGBuildable* buildable);
-	UFUNCTION()
-	virtual void removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason);
-	UFUNCTION()
-	virtual void removeBelt(AActor* actor, EEndPlayReason::Type reason);
-	UFUNCTION()
-	virtual void removePipe(AActor* actor, EEndPlayReason::Type reason);
+	// UFUNCTION()
+	// virtual void removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason);
+	// UFUNCTION()
+	// virtual void removeBelt(AActor* actor, EEndPlayReason::Type reason);
+	// UFUNCTION()
+	// virtual void destroyBelt(AActor* actor);
+	// UFUNCTION()
+	// virtual void removePipe(AActor* actor, EEndPlayReason::Type reason);
+	// UFUNCTION()
+	// virtual void destroyPipe(AActor* actor);
 
 	static EPipeConnectionType getConnectedPipeConnectionType(class UFGPipeConnectionComponent* component);
 

@@ -33,11 +33,13 @@
 #include <set>
 
 #include "FGTrainPlatformConnection.h"
+#include "ScreenPass.h"
 #include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildablePipelinePump.h"
 #include "Buildables/FGBuildableSplitterSmart.h"
 #include "Reflection/BlueprintReflectionLibrary.h"
 #include "Subsystems/CommonInfoSubsystem.h"
+#include "Util/MarcioCommonLibsUtils.h"
 
 #ifndef OPTIMIZE
 #pragma optimize("", off )
@@ -371,16 +373,14 @@ void AEfficiencyCheckerLogic2::collectInput(ACommonInfoSubsystem* commonInfoSubs
 				{
 					buildable = droneStation;
 
-					collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), droneStation->GetInfo()->GetAverageIncomingItemRate()));
-
-					auto pairedStation = droneStation->GetInfo()->GetPairedStation();
-					if (pairedStation)
-					{
-					}
-					else
-					{
-						auto connectedStations = droneStation->GetInfo()->GetConnectedStations();
-					}
+					handleDroneStation(
+						commonInfoSubsystem,
+						droneStation,
+						collectSettings,
+						inputComponents,
+						outputComponents,
+						true
+						);
 				}
 			}
 
@@ -1064,16 +1064,14 @@ void AEfficiencyCheckerLogic2::collectOutput(ACommonInfoSubsystem* commonInfoSub
 				{
 					buildable = droneStation;
 
-					collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), droneStation->GetInfo()->GetAverageOutgoingItemRate()));
-
-					auto pairedStation = droneStation->GetInfo()->GetPairedStation();
-					if (pairedStation)
-					{
-					}
-					else
-					{
-						auto connectedStations = droneStation->GetInfo()->GetConnectedStations();
-					}
+					handleDroneStation(
+						commonInfoSubsystem,
+						droneStation,
+						collectSettings,
+						inputComponents,
+						outputComponents,
+						false
+						);
 				}
 			}
 
@@ -1502,20 +1500,8 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						names.Sort(
 							[](const FString& x, const FString& y)
 							{
-								auto index1 = -1;
-								auto index2 = -1;
-
-								FRegexMatcher m1(AEfficiencyCheckerLogic::indexPattern, x);
-								if (m1.FindNext())
-								{
-									index1 = FCString::Atoi(*m1.GetCaptureGroup(1)) - 1;
-								}
-
-								FRegexMatcher m2(AEfficiencyCheckerLogic::indexPattern, y);
-								if (m2.FindNext())
-								{
-									index2 = FCString::Atoi(*m2.GetCaptureGroup(1)) - 1;
-								}
+								auto index1 = UMarcioCommonLibsUtils::getIndexFromName(x);
+								auto index2 = UMarcioCommonLibsUtils::getIndexFromName(y);
 
 								auto order = index1 - index2;
 
@@ -1543,6 +1529,11 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Pending potential = "), manufacturer->GetPendingPotential());
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Current production boost = "), manufacturer->GetCurrentProductionBoost());
 					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("    Pending production boost = "), manufacturer->GetPendingProductionBoost());
+					EC_LOG_Display_Condition(
+						*collectSettings.GetIndent(),
+						TEXT("    Default production cycle time = "),
+						manufacturer->GetDefaultProductionCycleTime()
+						);
 					EC_LOG_Display_Condition(
 						*collectSettings.GetIndent(),
 						TEXT("    Production cycle time = "),
@@ -1606,11 +1597,16 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 						continue;
 					}
 
-					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+					if (IS_EC_LOG_LEVEL(ELogVerbosity::Display))
 					{
 						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Item amount = "), item.Amount);
 						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Current potential = "), manufacturer->GetCurrentPotential());
 						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("    Pending potential = "), manufacturer->GetPendingPotential());
+						EC_LOG_Display(
+							*collectSettings.GetIndent(),
+							TEXT("    Default production cycle time = "),
+							manufacturer->GetDefaultProductionCycleTime()
+							);
 						EC_LOG_Display(
 							*collectSettings.GetIndent(),
 							TEXT("    Production cycle time = "),
@@ -2831,13 +2827,11 @@ void AEfficiencyCheckerLogic2::handleSmartSplitterComponents
 
 	for (const auto& entry : tempOutputComponents)
 	{
-		FRegexMatcher m(AEfficiencyCheckerLogic::indexPattern, entry.first->GetName());
-		if (!m.FindNext())
+		auto index = UMarcioCommonLibsUtils::getIndexFromName(entry.first->GetName()) - 1;
+		if (index < 0)
 		{
 			continue;
 		}
-
-		auto index = FCString::Atoi(*m.GetCaptureGroup(1)) - 1;
 
 		outputComponentsMapByIndex[index] = entry.first;
 	}
@@ -3031,14 +3025,14 @@ void AEfficiencyCheckerLogic2::handleFluidIntegrant
 	TSet<class UFGPipeConnectionComponent*>& outputComponents
 )
 {
-	auto pipeConnection = Cast<UFGPipeConnectionComponent>(collectSettings.GetConnector());
+	auto pipePump = Cast<AFGBuildablePipelinePump>(fluidIntegrant);
 
 	getPipeConnectionComponents(
 		Cast<AFGBuildable>(fluidIntegrant),
 		anyDirectionComponents,
 		inputComponents,
 		outputComponents,
-		[&collectSettings](UFGPipeConnectionComponent* connection)
+		[&collectSettings, pipePump](UFGPipeConnectionComponent* connection)
 		{
 			return collectSettings.GetSeenActors().size() == 1 || connection != collectSettings.GetConnector();
 		}
@@ -3049,9 +3043,7 @@ void AEfficiencyCheckerLogic2::handleFluidIntegrant
 		collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), getPipeSpeed(pipeline)));
 	}
 
-	auto pipePump = Cast<AFGBuildablePipelinePump>(fluidIntegrant);
-
-	if (pipePump && anyDirectionComponents.IsEmpty() && inputComponents.Num() == 1 && outputComponents.Num() == 1)
+	if (pipePump && anyDirectionComponents.IsEmpty() && (inputComponents.Num() == 1 || outputComponents.Num() == 1))
 	{
 		if (pipePump->GetUserFlowLimit() == 0)
 		{
@@ -3060,18 +3052,20 @@ void AEfficiencyCheckerLogic2::handleFluidIntegrant
 		}
 		else if (pipePump->GetUserFlowLimit() > 0)
 		{
-			auto firstOutput = getFirstItem(outputComponents);
-
-			auto pipe1 = Cast<AFGBuildablePipeline>(getFirstItem(inputComponents)->GetPipeConnection()->GetOwner());
-			auto pipe2 = Cast<AFGBuildablePipeline>(getFirstItem(outputComponents)->GetPipeConnection()->GetOwner());
+			auto pipe1 = !inputComponents.IsEmpty()
+				             ? getPipeSpeed(Cast<AFGBuildablePipeline>(getFirstItem(inputComponents)->GetPipeConnection()->GetOwner()))
+				             : FLT_MAX;
+			auto pipe2 = !outputComponents.IsEmpty()
+				             ? getPipeSpeed(Cast<AFGBuildablePipeline>(getFirstItem(outputComponents)->GetPipeConnection()->GetOwner()))
+				             : FLT_MAX;
 
 			collectSettings.SetLimitedThroughput(
 				FMath::Min(
 					collectSettings.GetLimitedThroughput(),
 					UFGBlueprintFunctionLibrary::RoundFloatWithPrecision(
 						FMath::Min(
-							getPipeSpeed(pipe1),
-							getPipeSpeed(pipe2)
+							pipe1,
+							pipe2
 							) * pipePump->GetUserFlowLimit() / pipePump->GetDefaultFlowLimit(),
 						4
 						)
@@ -3089,6 +3083,152 @@ void AEfficiencyCheckerLogic2::handleFluidIntegrant
 				);
 		}
 	}
+}
+
+void AEfficiencyCheckerLogic2::handleDroneStation
+(
+	ACommonInfoSubsystem* commonInfoSubsystem,
+	AFGBuildableDroneStation* droneStation,
+	CollectSettings& collectSettings,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
+	bool collectForInput
+)
+{
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents;
+	std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents;
+
+	getFactoryConnectionComponents(droneStation, tempInputComponents, tempOutputComponents);
+
+	if (!collectForInput && collectSettings.GetConnector() == getComponentByIndex(tempInputComponents, 0))
+	{
+		// It is the fuel component
+		auto activeFuelInfo = droneStation->GetInfo()->GetActiveFuelInfo();
+
+		// Find a valid fuel type
+		auto droneFuelInfo = droneStation->GetInfo()->GetDroneFuelInformation().FindByPredicate(
+			[&collectSettings](const auto& fuelType)
+			{
+				return collectSettings.GetInjectedInput().find(fuelType.FuelItemDescriptor) != collectSettings.GetInjectedInput().end();
+			}
+			);
+
+		if (droneFuelInfo)
+		{
+			if (activeFuelInfo.FuelItemDescriptor == droneFuelInfo->FuelItemDescriptor)
+			{
+				// Get estimated fuel consumption
+				collectSettings.GetRequiredOutput()[droneFuelInfo->FuelItemDescriptor] += activeFuelInfo.EstimatedFuelCostRate;
+			}
+			else
+			{
+				// Get estimated fuel consumption
+				collectSettings.GetRequiredOutput()[droneFuelInfo->FuelItemDescriptor] += droneFuelInfo->EstimatedFuelCostRate;
+			}
+		}
+
+		addAllItemsToActor(collectSettings, droneStation);
+	}
+	else
+	{
+		TArray<AFGDroneStationInfo*> connectedStations;
+
+		auto pairedStation = droneStation->GetInfo()->GetPairedStation();
+		if (pairedStation)
+		{
+			connectedStations.Add(pairedStation);
+		}
+		else
+		{
+			connectedStations = droneStation->GetInfo()->GetConnectedStations();
+		}
+
+		float limitedThroughput = 0;
+
+		if (collectForInput)
+		{
+			if (pairedStation)
+			{
+				limitedThroughput = droneStation->GetInfo()->GetAverageIncomingItemRate();
+			}
+
+			for (const auto& it : tempOutputComponents)
+			{
+				outputComponents[it.first];
+			}
+
+			collectSettings.GetSeenActors()[droneStation];
+		}
+		else
+		{
+			if (pairedStation)
+			{
+				limitedThroughput = droneStation->GetInfo()->GetAverageOutgoingItemRate();
+			}
+
+			auto input = getComponentByIndex(tempInputComponents, 1);
+
+			if (input)
+			{
+				inputComponents[input];
+			}
+
+			addAllItemsToActor(collectSettings, droneStation);
+		}
+
+		for (auto connectedStation : connectedStations)
+		{
+			if (collectForInput)
+			{
+				if (!pairedStation)
+				{
+					limitedThroughput = connectedStation->GetAverageOutgoingItemRate();
+				}
+
+				std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents2;
+				std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempOutputComponents2;
+
+				getFactoryConnectionComponents(connectedStation->GetStation(), tempInputComponents2, tempOutputComponents2);
+
+				auto input = getComponentByIndex(tempInputComponents2, 1);
+
+				if (input)
+				{
+					inputComponents[input];
+				}
+
+				collectSettings.GetSeenActors()[connectedStation];
+			}
+			else
+			{
+				if (!pairedStation)
+				{
+					limitedThroughput = connectedStation->GetAverageIncomingItemRate();
+				}
+
+				std::map<UFGFactoryConnectionComponent*, FComponentFilter> tempInputComponents2;
+
+				getFactoryConnectionComponents(connectedStation->GetStation(), tempInputComponents2, outputComponents);
+
+				addAllItemsToActor(collectSettings, connectedStation);
+			}
+		}
+
+		collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), limitedThroughput));
+	}
+}
+
+UFGFactoryConnectionComponent* AEfficiencyCheckerLogic2::getComponentByIndex(std::map<UFGFactoryConnectionComponent*, FComponentFilter> componentsMap, int index)
+{
+	for (const auto& entry : componentsMap)
+	{
+		if (index >= 0 && UMarcioCommonLibsUtils::getIndexFromName(entry.first->GetName()) == index)
+		{
+			return entry.first;
+		}
+	}
+
+	return nullptr;
 }
 
 void AEfficiencyCheckerLogic2::addAllItemsToActor
