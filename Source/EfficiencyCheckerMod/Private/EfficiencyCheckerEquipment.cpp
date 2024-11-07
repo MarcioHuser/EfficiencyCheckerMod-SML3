@@ -340,7 +340,7 @@ AFGBuildable* AEfficiencyCheckerEquipment::CheckValidHit(AActor* actor, EResourc
 	else if (actor->IsA(AFGBuildableConveyorBase::StaticClass()) ||
 		actor->IsA(AFGBuildableConveyorLift::StaticClass()))
 	{
-		out_form = EResourceForm::RF_LIQUID;
+		out_form = EResourceForm::RF_SOLID;
 	}
 	else
 	{

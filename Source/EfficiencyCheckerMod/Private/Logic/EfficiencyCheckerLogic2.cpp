@@ -2075,6 +2075,8 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 		addAllItemsToActor(collectSettings, trainPlatformCargo);
 	}
 
+	collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), trainPlatformCargo->GetCurrentItemTransferRate() * 60));
+
 	auto trackId = trainPlatformCargo->GetTrackGraphID();
 
 	auto railroadSubsystem = AFGRailroadSubsystem::Get(trainPlatformCargo->GetWorld());
@@ -2365,6 +2367,8 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 	{
 		addAllItemsToActor(collectSettings, trainPlatformCargo);
 	}
+
+	collectSettings.SetLimitedThroughput(FMath::Min(collectSettings.GetLimitedThroughput(), trainPlatformCargo->GetCurrentItemTransferRate() * 60 / 1000));
 
 	// Add all local pipes
 	TSet<class UFGPipeConnectionComponent*> anyDirection;
