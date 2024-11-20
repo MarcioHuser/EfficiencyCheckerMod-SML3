@@ -2083,6 +2083,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 
 	// Determine offsets from all the connected stations
 	std::set<int> stationOffsets;
+	
 	TSet<AFGBuildableRailroadStation*> destinationStations;
 
 	for (auto i = 0; i <= 1; i++)
@@ -2663,12 +2664,31 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 	// Find all others of the same type
 	auto currentStorageID = FReflectionHelper::GetPropertyValue<FStrProperty>(storageTeleporter, TEXT("StorageID"));
 
+	EC_LOG_Display_Condition(
+		/**getTimeStamp(),*/
+		*collectSettings.GetIndent(),
+		TEXT("Collecting storage teleporters with StorageID = "),
+		*currentStorageID
+		);
+
 	getFactoryConnectionComponents(storageTeleporter, inputComponents, outputComponents);
 
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
+	int teleporterIndex = 0;
+
+	EC_LOG_Display_Condition(
+		/**getTimeStamp(),*/
+		*collectSettings.GetIndent(),
+		TEXT("Checking "),
+		commonInfoSubsystem->allTeleporters.Num(),
+		TEXT(" storage teleporters")
+		);
+
 	for (auto testTeleporter : commonInfoSubsystem->allTeleporters)
 	{
+		teleporterIndex++;
+
 		if (collectSettings.GetTimeout() < time(NULL))
 		{
 			EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating storage teleporters!"));
@@ -2677,7 +2697,20 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 			return;
 		}
 
-		if (!IsValid(testTeleporter) || testTeleporter == storageTeleporter)
+		if (!IsValid(testTeleporter))
+		{
+			EC_LOG_Display_Condition(
+				/**getTimeStamp(),*/
+				*collectSettings.GetIndent(),
+				TEXT("    - "),
+				teleporterIndex,
+				TEXT(")    Storage Teleporter is invalid")
+				);
+
+			continue;
+		}
+
+		if (testTeleporter == storageTeleporter)
 		{
 			continue;
 		}
@@ -2685,6 +2718,15 @@ void AEfficiencyCheckerLogic2::handleStorageTeleporter
 		auto storageID = FReflectionHelper::GetPropertyValue<FStrProperty>(testTeleporter, TEXT("StorageID"));
 		if (storageID != currentStorageID)
 		{
+			EC_LOG_Display_Condition(
+				/**getTimeStamp(),*/
+				*collectSettings.GetIndent(),
+				TEXT("    - "),
+				teleporterIndex,
+				TEXT(")    Storage Teleporter has different StorageID: "),
+				*storageID
+				);
+
 			continue;
 		}
 

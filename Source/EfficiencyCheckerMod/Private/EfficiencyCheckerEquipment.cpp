@@ -19,6 +19,7 @@
 #include "Resources/FGNoneDescriptor.h"
 #include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/EfficiencyCheckerConfiguration.h"
+#include "Util/MarcioCommonLibsUtils.h"
 
 #ifndef OPTIMIZE
 #pragma optimize("", off )
@@ -345,6 +346,17 @@ AFGBuildable* AEfficiencyCheckerEquipment::CheckValidHit(AActor* actor, EResourc
 	else
 	{
 		return nullptr;
+	}
+
+	if (actor)
+	{
+		if (auto playerController = Cast<AFGPlayerController>(GetInstigatorController()))
+		{
+			if (playerController->WasInputKeyJustPressed(EKeys::NumPadZero))
+			{
+				UMarcioCommonLibsUtils::DumpUnknownClass(actor);
+			}
+		}
 	}
 
 	return Cast<AFGBuildable>(actor);
