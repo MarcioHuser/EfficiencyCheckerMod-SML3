@@ -2064,7 +2064,15 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 	bool collectForInput
 )
 {
-	handleContainerComponents(commonInfoSubsystem, trainPlatformCargo, trainPlatformCargo->GetInventory(), collectSettings, inputComponents, outputComponents, collectForInput);
+	handleContainerComponents(
+		commonInfoSubsystem,
+		trainPlatformCargo,
+		trainPlatformCargo->GetInventory(),
+		collectSettings,
+		inputComponents,
+		outputComponents,
+		collectForInput
+		);
 
 	if (collectForInput)
 	{
@@ -2082,91 +2090,10 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 	auto railroadSubsystem = AFGRailroadSubsystem::Get(trainPlatformCargo->GetWorld());
 
 	// Determine offsets from all the connected stations
-	std::set<int> stationOffsets;
-	
+	TSet<int> stationOffsets;
 	TSet<AFGBuildableRailroadStation*> destinationStations;
 
-	for (auto i = 0; i <= 1; i++)
-	{
-		auto offsetDistance = 1;
-
-		TSet<AFGBuildableTrainPlatform*> seenPlatforms;
-
-		TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
-		trainPlatformCargo->GetComponents(railComponents);
-
-		for (auto platformConnection = railComponents[i]->GetConnectedTo();
-		     platformConnection;
-		     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
-		     ++offsetDistance)
-		{
-			auto connectedPlatform = platformConnection->GetPlatformOwner();
-
-			if (collectSettings.GetTimeout() < time(NULL))
-			{
-				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
-
-				collectSettings.SetOverflow(true);
-				return;
-			}
-
-			if (seenPlatforms.Contains(connectedPlatform))
-			{
-				// Loop detected
-				break;
-			}
-
-			seenPlatforms.Add(connectedPlatform);
-
-			EC_LOG_Display_Condition(
-				/**getTimeStamp(),*/
-				*collectSettings.GetIndent(),
-				*connectedPlatform->GetName(),
-				TEXT(" direction = "),
-				i,
-				TEXT(" / orientation reversed = "),
-				connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
-				);
-
-			auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
-			if (station)
-			{
-				destinationStations.Add(station);
-
-				EC_LOG_Display_Condition(
-					/**getTimeStamp(),*/
-					*collectSettings.GetIndent(),
-					TEXT("    Station = "),
-					*station->GetStationIdentifier()->GetStationName().ToString()
-					);
-
-				if (platformConnection == station->GetStationOutputConnection())
-				{
-					stationOffsets.insert(offsetDistance);
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
-				}
-				else
-				{
-					stationOffsets.insert(-offsetDistance);
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), -offsetDistance);
-				}
-			}
-
-			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
-			{
-				auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
-				if (cargo)
-				{
-					EC_LOG_Display(
-						/**getTimeStamp(),*/
-						*collectSettings.GetIndent(),
-						TEXT("    Load mode = "),
-						cargo->GetIsInLoadMode() ? TEXT("true") : TEXT("false")
-						);
-				}
-			}
-		}
-	}
+	UMarcioCommonLibsUtils::getTrainPlatformIndexes(trainPlatformCargo, stationOffsets, destinationStations);
 
 	TArray<AFGTrain*> trains;
 	railroadSubsystem->GetTrains(trackId, trains);
@@ -2191,7 +2118,6 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 			if (!train->GetTrainName().IsEmpty())
 			{
 				EC_LOG_Display(
-					/**getTimeStamp(),*/
 					*collectSettings.GetIndent(),
 					TEXT("Train = "),
 					*train->GetTrainName().ToString()
@@ -2200,7 +2126,6 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 			else
 			{
 				EC_LOG_Display(
-					/**getTimeStamp(),*/
 					*collectSettings.GetIndent(),
 					TEXT("Anonymous Train")
 					);
@@ -2256,96 +2181,55 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoBelt
 			}
 
 			EC_LOG_Display_Condition(
-				/**getTimeStamp(),*/
 				*collectSettings.GetIndent(),
 				TEXT("    Stop = "),
 				*stop.Station->GetStationName().ToString()
 				);
 
-			for (auto i = 0; i <= 1; i++)
+			for (auto index : stationOffsets)
 			{
-				auto offsetDistance = 1;
+				auto platform = UMarcioCommonLibsUtils::getNthTrainPlatform(stop.Station->GetStation(), index);
 
-				TSet<AFGBuildableTrainPlatform*> seenPlatforms;
-
-				auto platformConnection = stop.Station->GetStation()->GetStationOutputConnection();
-				if (i)
+				auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(platform);
+				if (!stopCargo || stopCargo == trainPlatformCargo)
 				{
-					platformConnection = stop.Station->GetStation()->GetConnectionInOppositeDirection(platformConnection);
+					// Not a cargo or the same as the current one. Skip
+					continue;
 				}
 
-				for (platformConnection = platformConnection->GetConnectedTo();
-				     platformConnection;
-				     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
-				     ++offsetDistance)
+				collectSettings.GetConnected().Add(stopCargo);
+
+				if (collectForInput)
 				{
-					auto connectedPlatform = platformConnection->GetPlatformOwner();
+					collectSettings.GetSeenActors()[stopCargo];
+				}
+				else
+				{
+					addAllItemsToActor(collectSettings, stopCargo);
+				}
 
-					if (collectSettings.GetTimeout() < time(NULL))
+				getFactoryConnectionComponents(
+					stopCargo,
+					inputComponents,
+					outputComponents,
+					[stopCargo, collectForInput](UFGFactoryConnectionComponent* connection)
 					{
-						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platformst!"));
-
-						collectSettings.SetOverflow(true);
-						return;
-					}
-
-					if (seenPlatforms.Contains(connectedPlatform))
-					{
-						// Loop detected
-						break;
-					}
-
-					auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
-					if (!stopCargo || stopCargo == trainPlatformCargo)
-					{
-						// Not a cargo or the same as the current one. Skip
-						continue;
-					}
-
-					seenPlatforms.Add(stopCargo);
-
-					auto adjustedOffsetDistance = i ? -offsetDistance : offsetDistance;
-
-					if (stationOffsets.find(adjustedOffsetDistance) == stationOffsets.end())
-					{
-						// Not on a valid offset. Skip
-						continue;
-					}
-
-					collectSettings.GetConnected().Add(stopCargo);
-
-					if (collectForInput)
-					{
-						collectSettings.GetSeenActors()[stopCargo];
-					}
-					else
-					{
-						addAllItemsToActor(collectSettings, stopCargo);
-					}
-
-					getFactoryConnectionComponents(
-						stopCargo,
-						inputComponents,
-						outputComponents,
-						[stopCargo, collectForInput](UFGFactoryConnectionComponent* connection)
+						if (collectForInput)
 						{
-							if (collectForInput)
-							{
-								// It is for input collection
+							// It is for input collection
 
-								// When in loading mode, include all connections. Also include if it is a producer, regardless of loading mode
-								return stopCargo->GetIsInLoadMode() || connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT;
-							}
-							else
-							{
-								// It is for output collection
-
-								// When in unloading mode, include all connections. Also include if it is a consumer, regardless of loading mode
-								return !stopCargo->GetIsInLoadMode() || connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT;
-							}
+							// When in loading mode, include all connections. Also include if it is a producer, regardless of loading mode
+							return stopCargo->GetIsInLoadMode() || connection->GetDirection() == EFactoryConnectionDirection::FCD_OUTPUT;
 						}
-						);
-				}
+						else
+						{
+							// It is for output collection
+
+							// When in unloading mode, include all connections. Also include if it is a consumer, regardless of loading mode
+							return !stopCargo->GetIsInLoadMode() || connection->GetDirection() == EFactoryConnectionDirection::FCD_INPUT;
+						}
+					}
+					);
 			}
 		}
 	}
@@ -2386,88 +2270,10 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 	auto railroadSubsystem = AFGRailroadSubsystem::Get(trainPlatformCargo->GetWorld());
 
 	// Determine offsets from all the connected stations
-	std::set<int> stationOffsets;
+	TSet<int> stationOffsets;
 	TSet<AFGBuildableRailroadStation*> destinationStations;
 
-	for (auto i = 0; i <= 1; i++)
-	{
-		auto offsetDistance = 1;
-
-		TSet<AFGBuildableTrainPlatform*> seenPlatforms;
-
-		TInlineComponentArray<UFGTrainPlatformConnection*> railComponents;
-		trainPlatformCargo->GetComponents(railComponents);
-
-		for (auto platformConnection = railComponents[i]->GetConnectedTo();
-		     platformConnection;
-		     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
-		     ++offsetDistance)
-		{
-			auto connectedPlatform = platformConnection->GetPlatformOwner();
-
-			if (collectSettings.GetTimeout() < time(NULL))
-			{
-				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
-
-				collectSettings.SetOverflow(true);
-				return;
-			}
-
-			if (seenPlatforms.Contains(connectedPlatform))
-			{
-				// Loop detected
-				break;
-			}
-
-			EC_LOG_Display_Condition(
-				/**getTimeStamp(),*/
-				*collectSettings.GetIndent(),
-				*connectedPlatform->GetName(),
-				TEXT(" direction = "),
-				i,
-				TEXT(" / orientation reversed = "),
-				connectedPlatform->IsOrientationReversed() ? TEXT("true") : TEXT("false")
-				);
-
-			auto station = Cast<AFGBuildableRailroadStation>(connectedPlatform);
-			if (station)
-			{
-				destinationStations.Add(station);
-
-				EC_LOG_Display_Condition(
-					/**getTimeStamp(),*/
-					*collectSettings.GetIndent(),
-					TEXT("    Station = "),
-					*station->GetStationIdentifier()->GetStationName().ToString()
-					);
-
-				if (platformConnection == station->GetStationOutputConnection())
-				{
-					stationOffsets.insert(offsetDistance);
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), offsetDistance);
-				}
-				else
-				{
-					stationOffsets.insert(-offsetDistance);
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("        offset distance = "), -offsetDistance);
-				}
-			}
-
-			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
-			{
-				auto cargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
-				if (cargo)
-				{
-					EC_LOG_Display(
-						/**getTimeStamp(),*/
-						*collectSettings.GetIndent(),
-						TEXT("    Load mode = "),
-						cargo->GetIsInLoadMode() ? TEXT("true") : TEXT("false")
-						);
-				}
-			}
-		}
-	}
+	UMarcioCommonLibsUtils::getTrainPlatformIndexes(trainPlatformCargo, stationOffsets, destinationStations);
 
 	TArray<AFGTrain*> trains;
 	railroadSubsystem->GetTrains(trackId, trains);
@@ -2545,7 +2351,7 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 		{
 			if (collectSettings.GetTimeout() < time(NULL))
 			{
-				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating train stops!"));
+				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout iterating train stops!"));
 
 				collectSettings.SetOverflow(true);
 				return;
@@ -2557,72 +2363,34 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 			}
 
 			EC_LOG_Display_Condition(
-				/**getTimeStamp(),*/
 				*collectSettings.GetIndent(),
 				TEXT("    Stop = "),
 				*stop.Station->GetStationName().ToString()
 				);
 
-			for (auto i = 0; i <= 1; i++)
+			for (auto index : stationOffsets)
 			{
-				auto offsetDistance = 1;
+				auto platform = UMarcioCommonLibsUtils::getNthTrainPlatform(stop.Station->GetStation(), index);
 
-				TSet<AFGBuildableTrainPlatform*> seenPlatforms;
-
-				auto platformConnection = stop.Station->GetStation()->GetStationOutputConnection();
-				if (i)
+				auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(platform);
+				if (!stopCargo || stopCargo == trainPlatformCargo)
 				{
-					platformConnection = stop.Station->GetStation()->GetConnectionInOppositeDirection(platformConnection);
+					// Not a cargo or the same as the current one. Skip
+					continue;
 				}
 
-				for (platformConnection = platformConnection->GetConnectedTo();
-				     platformConnection;
-				     platformConnection = platformConnection->GetPlatformOwner()->GetConnectionInOppositeDirection(platformConnection)->GetConnectedTo(),
-				     ++offsetDistance)
+				collectSettings.GetConnected().Add(stopCargo);
+
+				if (collectForInput)
 				{
-					auto connectedPlatform = platformConnection->GetPlatformOwner();
+					collectSettings.GetSeenActors()[stopCargo];
+				}
+				else
+				{
+					addAllItemsToActor(collectSettings, stopCargo);
+				}
 
-					if (collectSettings.GetTimeout() < time(NULL))
-					{
-						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while traversing platforms!"));
-
-						collectSettings.SetOverflow(true);
-						return;
-					}
-
-					if (seenPlatforms.Contains(connectedPlatform))
-					{
-						// Loop detected
-						break;
-					}
-
-					auto stopCargo = Cast<AFGBuildableTrainPlatformCargo>(connectedPlatform);
-					if (!stopCargo || stopCargo == trainPlatformCargo)
-					{
-						// Not a cargo or the same as the current one. Skip
-						continue;
-					}
-
-					auto adjustedOffsetDistance = i ? -offsetDistance : offsetDistance;
-
-					if (stationOffsets.find(adjustedOffsetDistance) == stationOffsets.end())
-					{
-						// Not on a valid offset. Skip
-						continue;
-					}
-
-					collectSettings.GetConnected().Add(stopCargo);
-
-					if (collectForInput)
-					{
-						collectSettings.GetSeenActors()[stopCargo];
-					}
-					else
-					{
-						addAllItemsToActor(collectSettings, stopCargo);
-					}
-
-					getPipeConnectionComponents(
+				getPipeConnectionComponents(
 						stopCargo,
 						anyDirection,
 						inputComponents,
@@ -2645,7 +2413,6 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 							}
 						}
 						);
-				}
 			}
 		}
 	}

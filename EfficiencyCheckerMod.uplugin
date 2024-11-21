@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
 	"Version": 2,
-	"VersionName": "2.5.6",
-	"SemVersion": "2.5.6",
+	"VersionName": "2.5.7",
+	"SemVersion": "2.5.7",
 	"GameVersion": ">=379322",
 	"FriendlyName": "Efficiency Checker Mod",
 	"Description": "See if your production is under-flowing! Now with a hand tool, too!",
@@ -36,7 +36,7 @@
 		},
 		{
 			"Name": "MarcioCommonLibs",
-			"SemVersion": "^1.3.6",
+			"SemVersion": "^1.3.7",
 			"Enabled": true
 		}
 	]
