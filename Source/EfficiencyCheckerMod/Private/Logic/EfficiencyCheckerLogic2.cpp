@@ -36,8 +36,10 @@
 #include "ScreenPass.h"
 #include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildablePipelinePump.h"
+#include "Buildables/FGBuildablePortal.h"
 #include "Buildables/FGBuildableSplitterSmart.h"
 #include "Reflection/BlueprintReflectionLibrary.h"
+#include "Resources/FGItemDescriptorNuclearFuel.h"
 #include "Subsystems/CommonInfoSubsystem.h"
 #include "Util/MarcioCommonLibsUtils.h"
 
@@ -730,14 +732,25 @@ void AEfficiencyCheckerLogic2::collectInput(ACommonInfoSubsystem* commonInfoSubs
 				(nuclearGenerator->HasPower() || Has_EMachineStatusIncludeType(collectSettings. GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
 				(!nuclearGenerator->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
 			{
-				for (auto item : commonInfoSubsystem->nuclearWasteItemDescriptors)
+				auto nuclearFuel = TSubclassOf<UFGItemDescriptorNuclearFuel>(nuclearGenerator->GetCurrentFuelClass());
+
+				if (nuclearFuel)
 				{
-					// collectSettings.GetInjectedItems().Add(item);
+					auto waste = UFGItemDescriptorNuclearFuel::GetSpentFuelClass(nuclearFuel);
 
-					collectSettings.GetInjectedInput()[item] += 0.2;
+					if (waste)
+					{
+						float energy = UFGItemDescriptor::GetEnergyValue(nuclearFuel);
+
+						auto wasteAmount = UFGItemDescriptorNuclearFuel::GetAmountWasteCreated(nuclearFuel);
+
+						float itemsPerMinute = wasteAmount * 60 / (energy / nuclearGenerator->GetPowerProductionCapacity());
+
+						collectSettings.GetInjectedInput()[waste] += itemsPerMinute;
+
+						collectSettings.GetConnected().Add(nuclearGenerator);
+					}
 				}
-
-				collectSettings.GetConnected().Add(nuclearGenerator);
 
 				return;
 			}
@@ -1411,6 +1424,16 @@ void AEfficiencyCheckerLogic2::collectOutput(ACommonInfoSubsystem* commonInfoSub
 		}
 
 		{
+			const auto portal = Cast<AFGBuildablePortal>(owner);
+			if (portal)
+			{
+				handlePortal(portal, collectSettings);
+
+				return;
+			}
+		}
+
+		{
 			const auto generator = Cast<AFGBuildableGeneratorFuel>(owner);
 			if (generator)
 			{
@@ -1764,6 +1787,30 @@ void AEfficiencyCheckerLogic2::handleExtractor
 	}
 }
 
+void AEfficiencyCheckerLogic2::handlePortal(AFGBuildablePortal* portal, CollectSettings& collectSettings)
+{
+	if ((portal->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
+		(!portal->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
+	{
+		auto portalFuel = portal->mFuelItemClass;
+
+		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+		{
+			EC_LOG_Display(
+				/**getTimeStamp(),*/
+				*collectSettings.GetIndent(),
+				TEXT("Fuel item = "),
+				*UFGItemDescriptor::GetItemName(portalFuel).ToString()
+				);
+			EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Fuel cycle = "), portal->GetProductionCycleTime());
+		}
+
+		collectSettings.GetRequiredOutput()[portalFuel] += 60 / portal->GetProductionCycleTime();
+
+		collectSettings.GetSeenActors()[portal].Add(portalFuel);
+	}
+}
+
 void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* generatorFuel, CollectSettings& collectSettings)
 {
 	if ((generatorFuel->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
@@ -1793,62 +1840,71 @@ void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* ge
 		}
 		else
 		{
-			for (const auto& entry : collectSettings.GetInjectedInput())
+			TSubclassOf<UFGItemDescriptor> fuelType = generatorFuel->GetCurrentFuelClass();
+
+			if (!fuelType)
 			{
-				auto item = entry.first;
-
-				if (collectSettings.GetTimeout() < time(NULL))
+				for (const auto& entry : collectSettings.GetInjectedInput())
 				{
-					EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating injected items!"));
+					auto item = entry.first;
 
-					collectSettings.SetOverflow(true);
-					return;
-				}
-
-				if (generatorFuel->IsValidFuel(item) && !collectSettings.GetSeenActors()[generatorFuel].Contains(item))
-				{
-					EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(item).ToString());
-
-					float energy = UFGItemDescriptor::GetEnergyValue(item);
-
-					// if (UFGItemDescriptor::GetForm(out_injectedItem) == EResourceForm::RF_LIQUID)
-					// {
-					//     energy *= 1000;
-					// }
-
-					if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+					if (collectSettings.GetTimeout() < time(NULL))
 					{
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Energy = "), energy);
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Current potential = "), generatorFuel->GetCurrentPotential());
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Pending potential = "), generatorFuel->GetPendingPotential());
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Power production capacity = "), generatorFuel->GetPowerProductionCapacity());
-						EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Default power production capacity = "), generatorFuel->GetDefaultPowerProductionCapacity());
+						EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating injected items!"));
+
+						collectSettings.SetOverflow(true);
+						return;
 					}
 
-					float itemAmountPerMinute = 60 / (energy / generatorFuel->GetPowerProductionCapacity());
-
-					if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
+					if (generatorFuel->IsValidFuel(item) && !collectSettings.GetSeenActors()[generatorFuel].Contains(item))
 					{
-						itemAmountPerMinute /= 1000;
+						fuelType = item;
+						break;
 					}
-
-					EC_LOG_Display_Condition(
-						/**getTimeStamp(),*/
-						*collectSettings.GetIndent(),
-						*generatorFuel->GetName(),
-						TEXT(" consumes "),
-						itemAmountPerMinute,
-						TEXT(" "),
-						*UFGItemDescriptor::GetItemName(item).ToString(),
-						TEXT("/minute")
-						);
-
-					collectSettings.GetSeenActors()[generatorFuel].Add(item);
-
-					collectSettings.GetRequiredOutput()[item] += itemAmountPerMinute;
-
-					break;
 				}
+			}
+
+			if (fuelType)
+			{
+				EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(fuelType).ToString());
+
+				float energy = UFGItemDescriptor::GetEnergyValue(fuelType);
+
+				// if (UFGItemDescriptor::GetForm(out_injectedItem) == EResourceForm::RF_LIQUID)
+				// {
+				//     energy *= 1000;
+				// }
+
+				if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+				{
+					EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Energy = "), energy);
+					EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Current potential = "), generatorFuel->GetCurrentPotential());
+					EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Pending potential = "), generatorFuel->GetPendingPotential());
+					EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Power production capacity = "), generatorFuel->GetPowerProductionCapacity());
+					EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Default power production capacity = "), generatorFuel->GetDefaultPowerProductionCapacity());
+				}
+
+				float itemAmountPerMinute = 60 / (energy / generatorFuel->GetPowerProductionCapacity());
+
+				if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
+				{
+					itemAmountPerMinute /= 1000;
+				}
+
+				EC_LOG_Display_Condition(
+					/**getTimeStamp(),*/
+					*collectSettings.GetIndent(),
+					*generatorFuel->GetName(),
+					TEXT(" consumes "),
+					itemAmountPerMinute,
+					TEXT(" "),
+					*UFGItemDescriptor::GetItemName(fuelType).ToString(),
+					TEXT("/minute")
+					);
+
+				collectSettings.GetSeenActors()[generatorFuel].Add(fuelType);
+
+				collectSettings.GetRequiredOutput()[fuelType] += itemAmountPerMinute;
 			}
 		}
 
@@ -2391,28 +2447,28 @@ void AEfficiencyCheckerLogic2::handleTrainPlatformCargoPipe
 				}
 
 				getPipeConnectionComponents(
-						stopCargo,
-						anyDirection,
-						inputComponents,
-						outputComponents,
-						[stopCargo, collectForInput](UFGPipeConnectionComponent* connection)
+					stopCargo,
+					anyDirection,
+					inputComponents,
+					outputComponents,
+					[stopCargo, collectForInput](UFGPipeConnectionComponent* connection)
+					{
+						if (collectForInput)
 						{
-							if (collectForInput)
-							{
-								// It is for input collection
+							// It is for input collection
 
-								// When in loading mode, include all connections. Also include if it is a producer, regardless of loading mode
-								return stopCargo->GetIsInLoadMode() || connection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER;
-							}
-							else
-							{
-								// It is for output collection
-
-								// When in unloading mode, include all connections. Also include if it is a consumer, regardless of loading mode
-								return !stopCargo->GetIsInLoadMode() || connection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER;
-							}
+							// When in loading mode, include all connections. Also include if it is a producer, regardless of loading mode
+							return stopCargo->GetIsInLoadMode() || connection->GetPipeConnectionType() == EPipeConnectionType::PCT_PRODUCER;
 						}
-						);
+						else
+						{
+							// It is for output collection
+
+							// When in unloading mode, include all connections. Also include if it is a consumer, regardless of loading mode
+							return !stopCargo->GetIsInLoadMode() || connection->GetPipeConnectionType() == EPipeConnectionType::PCT_CONSUMER;
+						}
+					}
+					);
 			}
 		}
 	}

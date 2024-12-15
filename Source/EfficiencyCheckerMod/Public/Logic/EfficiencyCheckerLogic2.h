@@ -46,6 +46,12 @@ public:
 		class CollectSettings& collectSettings
 	);
 
+	static void handlePortal
+	(
+		class AFGBuildablePortal* portal,
+		CollectSettings& collectSettings
+	);
+
 	static void handleGeneratorFuel
 	(
 		class AFGBuildableGeneratorFuel* generatorFuel,
@@ -155,7 +161,7 @@ public:
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& inputComponents,
 		std::map<class UFGFactoryConnectionComponent*, FComponentFilter>& outputComponents,
 		bool collectForInput
-		);
+	);
 
 	static UFGPipeConnectionComponent*
 	getFirstItem(const TSet<UFGPipeConnectionComponent*>& connections)

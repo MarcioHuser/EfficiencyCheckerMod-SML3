@@ -86,6 +86,7 @@ public:
 
 	UFUNCTION()
 	virtual void handleBuildableConstructed(class AFGBuildable* buildable);
+
 	// UFUNCTION()
 	// virtual void removeEfficiencyBuilding(AActor* actor, EEndPlayReason::Type reason);
 	// UFUNCTION()

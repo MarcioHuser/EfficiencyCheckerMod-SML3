@@ -82,7 +82,7 @@ void AEfficiencyCheckerLogic::Initialize()
 
 	if (buildableSubsystem)
 	{
-		buildableSubsystem->BuildableConstructedGlobalDelegate.AddDynamic(this, &AEfficiencyCheckerLogic::handleBuildableConstructed);
+		buildableSubsystem->mBuildableAddedDelegate.AddDynamic(this, &AEfficiencyCheckerLogic::handleBuildableConstructed);
 
 		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
