@@ -227,7 +227,6 @@ if sidePanel then
 	listening = false
 
 	if updateButton then
-		print("test")
 		event.listen(updateButton)
 		listening = true
 	end
