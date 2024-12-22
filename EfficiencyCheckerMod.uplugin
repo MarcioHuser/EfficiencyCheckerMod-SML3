@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 2,
-	"VersionName": "2.5.9",
-	"SemVersion": "2.5.9",
-	"GameVersion": ">=382498",
+	"VersionName": "2.5.10",
+	"SemVersion": "2.5.10",
+	"GameVersion": ">=385279",
 	"FriendlyName": "Efficiency Checker Mod",
 	"Description": "See if your production is under-flowing! Now with a hand tool, too!",
 	"Category": "Modding",
@@ -31,7 +31,7 @@
 		},
 		{
 			"Name": "SML",
-			"SemVersion": "^3.8.0",
+			"SemVersion": "^3.9.0",
 			"Enabled": true
 		},
 		{

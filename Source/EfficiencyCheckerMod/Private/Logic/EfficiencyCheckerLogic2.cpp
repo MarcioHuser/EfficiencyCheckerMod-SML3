@@ -32,8 +32,10 @@
 
 #include <set>
 
+#include "FGBuildablePowerBooster.h"
 #include "FGTrainPlatformConnection.h"
 #include "ScreenPass.h"
+#include "UFGItemDescriptorPowerBoosterFuel.h"
 #include "Buildables/FGBuildableFactorySimpleProducer.h"
 #include "Buildables/FGBuildablePipelinePump.h"
 #include "Buildables/FGBuildablePortal.h"
@@ -512,7 +514,7 @@ void AEfficiencyCheckerLogic2::collectInput(ACommonInfoSubsystem* commonInfoSubs
 						tempCollectSettings.SetIndent(collectSettings.GetIndent() + TEXT("        "), true);
 						tempCollectSettings.SetLevel(collectSettings.GetLevel() + 1, true);
 						tempCollectSettings.SetCurrentFilter(FComponentFilter::combineFilters(collectSettings.GetCurrentFilter(), connectionEntry.second), true);
-						tempCollectSettings.SetInjectedInputPtr(nullptr);
+						tempCollectSettings.SetInjectedInput(collectSettings.GetInjectedInput());
 						tempCollectSettings.SetRequiredOutputPtr(nullptr);
 						tempCollectSettings.SetSeenActors(collectSettings.GetSeenActors(), true);
 						// tempCollectSettings.SetInjectedItems(tempCollectSettings.GetCurrentFilter().allowedItems, true);
@@ -1443,6 +1445,16 @@ void AEfficiencyCheckerLogic2::collectOutput(ACommonInfoSubsystem* commonInfoSub
 			}
 		}
 
+		{
+			const auto powerBooster = Cast<AFGBuildablePowerBooster>(owner);
+			if (powerBooster)
+			{
+				handlePowerBooster(powerBooster, collectSettings);
+
+				return;
+			}
+		}
+
 		addAllItemsToActor(collectSettings, owner);
 
 		if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
@@ -1909,6 +1921,81 @@ void AEfficiencyCheckerLogic2::handleGeneratorFuel(AFGBuildableGeneratorFuel* ge
 		}
 
 		collectSettings.GetConnected().Add(generatorFuel);
+	}
+}
+
+
+void AEfficiencyCheckerLogic2::handlePowerBooster
+(
+	AFGBuildablePowerBooster* powerBooster,
+	CollectSettings& collectSettings
+)
+{
+	if ((powerBooster->HasPower() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Unpowered)) &&
+		(!powerBooster->IsProductionPaused() || Has_EMachineStatusIncludeType(collectSettings.GetMachineStatusIncludeType(), EMachineStatusIncludeType::MSIT_Paused)))
+	{
+		TSubclassOf<UFGItemDescriptorPowerBoosterFuel> fuelType;
+
+		for (const auto& entry : collectSettings.GetInjectedInput())
+		{
+			auto item = entry.first;
+
+			if (collectSettings.GetTimeout() < time(NULL))
+			{
+				EC_LOG_Error_Condition(FUNCTIONSTR TEXT(": timeout while iterating injected items!"));
+
+				collectSettings.SetOverflow(true);
+				return;
+			}
+
+			if (powerBooster->IsValidFuel(item) && !collectSettings.GetSeenActors()[powerBooster].Contains(item))
+			{
+				fuelType = item;
+				break;
+			}
+		}
+
+		if (fuelType)
+		{
+			EC_LOG_Display_Condition(*collectSettings.GetIndent(), TEXT("Energy item = "), *UFGItemDescriptor::GetItemName(fuelType).ToString());
+
+			// if (UFGItemDescriptor::GetForm(out_injectedItem) == EResourceForm::RF_LIQUID)
+			// {
+			//     energy *= 1000;
+			// }
+
+			if (IS_EC_LOG_LEVEL(ELogVerbosity::Log))
+			{
+				EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Current potential = "), powerBooster->GetCurrentPotential());
+				EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Pending potential = "), powerBooster->GetPendingPotential());
+				EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Base power production = "), powerBooster->GetBasePowerProduction());
+				EC_LOG_Display(*collectSettings.GetIndent(), TEXT("Boost percentage = "), powerBooster->GetBoostPercentage());
+			}
+
+			float itemAmountPerMinute = 60 / UFGItemDescriptorPowerBoosterFuel::GetBoostDuration(fuelType);
+
+			if (collectSettings.GetResourceForm() == EResourceForm::RF_LIQUID || collectSettings.GetResourceForm() == EResourceForm::RF_GAS)
+			{
+				itemAmountPerMinute /= 1000;
+			}
+
+			EC_LOG_Display_Condition(
+				/**getTimeStamp(),*/
+				*collectSettings.GetIndent(),
+				*powerBooster->GetName(),
+				TEXT(" consumes "),
+				itemAmountPerMinute,
+				TEXT(" "),
+				*UFGItemDescriptor::GetItemName(fuelType).ToString(),
+				TEXT("/minute")
+				);
+
+			collectSettings.GetSeenActors()[powerBooster].Add(fuelType);
+
+			collectSettings.GetRequiredOutput()[fuelType] += itemAmountPerMinute;
+		}
+
+		collectSettings.GetConnected().Add(powerBooster);
 	}
 }
 

@@ -58,6 +58,12 @@ public:
 		CollectSettings& collectSettings
 	);
 
+	static void handlePowerBooster
+	(
+		class AFGBuildablePowerBooster* powerBooster,
+		CollectSettings& collectSettings
+	);
+
 	static void getFactoryConnectionComponents
 	(
 		class AFGBuildable* buildable,
