@@ -8,24 +8,34 @@
 --  - Name each one as "Checker (something)" (they must have the word "Checker", somewhere)
 -- If you need more functionality (like a button that you just press to refresh the screen), it is up to you to improve as you want
 
-w = 80
-h = 35
+-- Make your screen have the same number of columns, and ajust the lines accordingly to the size of the screen you made
+columns = 80
+lines = 35
+
+-- The prefix to use when searching for a checker
+prefix = "Checker"
+-- The name of the screen to display onto
+screenname = "MainScreen"
+
+-- The name of the sizePanel which has the refresh button - Optional
+sidepanelname = "SidePanel"
+-- The coordinates of the refresh button on the side panel - Optional
+buttoncoordinates = {0, 10}
 
 line = 0
 lineOffset = 0
 gpu = nil
-gpus = computer.getPCIDevices(findClass("FIN_GPU_T1"))
-screens = component.proxy(component.findComponent("MainScreen"))
+gpus = computer.getPCIDevices(classes.GPUT1)
+screens = component.proxy(component.findComponent(screenname))
+
 
 table.sort(screens, function(a,b) return a.nick < b.nick end)
-
 for i,screen in pairs(screens) do
 	print("Binding gpu " .. i)
 
 	gpus[i]:bindScreen(screen)
 	
-	-- columns = 80, lines = 35. Make your screen have the same number of columns, and ajust the lines accordingly to the size of the screen you made
-	gpus[i]:setSize(w, h)
+	gpus[i]:setSize(columns, lines)
 end
 
 function setScreenForLine(line)
@@ -33,13 +43,13 @@ function setScreenForLine(line)
 	gpu:flush()
 	
 	-- Use new gpu
-	gpu = gpus[math.floor(math.min(line, h * getTableLen(gpus) - 1) / h) + 1]
+	gpu = gpus[math.floor(math.min(line, lines * getTableLen(gpus) - 1) / lines) + 1]
 	
-	print("Using gpu " .. math.floor(line / h))
+	print("Using gpu " .. math.floor(line / lines))
 end
 
 function nextLine()
-    if (line + 1) % h == 0 then
+    if (line + 1) % lines == 0 then
 		-- Jump first line from each screen
         line = line + 1
     end
@@ -50,14 +60,14 @@ end
 function setLine(newLine)
 	line = newLine
 	
-	if newLine % h % 2 == 1 then
+	if newLine % lines % 2 == 1 then
 		setGrayBG()
 	else
 		resetBG()
 	end
 
-	if line >= 0 and line < h * getTableLen(gpus) and (line < lineOffset or line >= lineOffset + h) then
-		lineOffset = math.floor(line / h) * h
+	if line >= 0 and line < lines * getTableLen(gpus) and (line < lineOffset or line >= lineOffset + lines) then
+		lineOffset = math.floor(line / lines) * lines
 		
 		setScreenForLine(line)
 	end
@@ -107,17 +117,17 @@ function getTableLen(tbl)
 end
 
 function updateChecker()
-	colInput = w - 40
-	colLimit = w - 30
-	colOutput = w - 20
-	colSpare = w - 10
+	colInput = columns - 40
+	colLimit = columns - 30
+	colOutput = columns - 20
+	colSpare = columns - 10
 
 	for _,localGpu in pairs(gpus) do
 		gpu = localGpu
 
 		resetBG()
 
-		gpu:fill(0, 0, w, h, ' ')
+		gpu:fill(0, 0, columns, lines, ' ')
 
 		gpu:setText(0, 0, "Name")
 		gpu:setText(colInput + 4, 0, "Input")
@@ -127,8 +137,8 @@ function updateChecker()
 		
 		setGrayBG()
 		
-		for i=1,h,2 do
-			gpu:fill(0, i, w, 1, ' ')
+		for i=1,lines,2 do
+			gpu:fill(0, i, columns, 1, ' ')
 		end
 	end
 	
@@ -136,15 +146,14 @@ function updateChecker()
 	
 	setLine(1)
 
-    checkers = component.proxy(component.findComponent("Checker"))
+    checkers = component.proxy(component.findComponent(prefix))
     
     table.sort(checkers, function(a,b) return a.nick < b.nick end)
 
 	for i,checker in pairs(checkers) do
-		gpu:setText(0, getRelativeLine(), i .. " - " .. checker.nick:sub(9))
+		gpu:setText(0, getRelativeLine(), i .. " - " .. checker.nick:sub(prefix:len() + 1))
 
 		checker:updateBuilding()
-
 		if checker:isCustomInjectedInput() then
 		   setBlueBG()
 		elseif roungDigits(checker:injectedInput()) == roungDigits(checker:requiredOutput()) then
@@ -187,7 +196,7 @@ function updateChecker()
 			for _,item in pairs(checker:injectedItems()) do
 				itemName = item:getName()
 
-				if column + string.len(itemName) + 1 > w then
+				if column + string.len(itemName) + 1 > columns then
 					column = 5
 					nextLine()
 				end
@@ -210,10 +219,10 @@ end
 
 updateChecker()
 
-sidePanel = component.proxy(component.findComponent("SidePanel"))[1]
+sidePanel = component.proxy(component.findComponent(sidepanelname))[1]
 
 if sidePanel then
-	updateButton = sidePanel:getModule(0,10)
+	updateButton = sidePanel:getModule(buttoncoordinates[1],buttoncoordinates[2])
 	
 	listening = false
 
