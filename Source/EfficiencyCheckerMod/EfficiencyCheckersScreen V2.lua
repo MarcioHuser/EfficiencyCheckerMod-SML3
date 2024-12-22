@@ -14,9 +14,13 @@ lines = 35
 
 -- The prefix to use when searching for a checker
 prefix = "Checker"
-
 -- The name of the screen to display onto
 screenname = "MainScreen"
+
+-- The name of the sizePanel which has the refresh button - Optional
+sidepanelname = "SidePanel"
+-- The coordinates of the refresh button on the side panel - Optional
+buttoncoordinates = {0, 10}
 
 line = 0
 lineOffset = 0
@@ -215,14 +219,15 @@ end
 
 updateChecker()
 
-sidePanel = component.proxy(component.findComponent("SidePanel"))[1]
+sidePanel = component.proxy(component.findComponent(sidepanelname))[1]
 
 if sidePanel then
-	updateButton = sidePanel:getModule(0,10)
+	updateButton = sidePanel:getModule(buttoncoordinates[1],buttoncoordinates[2])
 	
 	listening = false
 
 	if updateButton then
+		print("test")
 		event.listen(updateButton)
 		listening = true
 	end
