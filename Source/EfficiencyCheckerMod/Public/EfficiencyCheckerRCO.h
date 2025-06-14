@@ -25,7 +25,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="EfficiencyCheckerRCO", DisplayName="UpdateBuilding")
-	virtual void UpdateBuildingRPC(class AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* newBuildable);
+	virtual void UpdateBuildingRPC(class AEfficiencyCheckerBuilding* efficiencyChecker, class AFGBuildable* newBuildable);
 
 	UFUNCTION(BlueprintCallable, Server, WithValidation, Reliable, Category="EfficiencyCheckerRCO", DisplayName="UpdateConnectedProduction")
 	virtual void UpdateConnectedProductionRPC
