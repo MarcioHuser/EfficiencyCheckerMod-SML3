@@ -10,19 +10,13 @@
 class CommaLog
 {
 public:
-	template <typename T>
-	inline CommaLog&
-	operator,(const T& value)
-	{
-		wos << value;
-
-		return *this;
-	}
-
 	inline CommaLog&
 	operator,(const FString& value)
 	{
-		wos << *value;
+		for (auto ch : value)
+		{
+			wos << static_cast<wchar_t>(ch);
+		}
 
 		return *this;
 	}
@@ -30,7 +24,30 @@ public:
 	inline CommaLog&
 	operator,(const FText& value)
 	{
-		wos << *value.ToString();
+		for (auto ch : value.ToString())
+		{
+			wos << static_cast<wchar_t>(ch);
+		}
+
+		return *this;
+	}
+
+	inline CommaLog&
+	operator,(const TCHAR* value)
+	{
+		for (size_t x = 0; value[x]; x++)
+		{
+			wos << static_cast<wchar_t>(value[x]);
+		}
+
+		return *this;
+	}
+
+	template <typename T>
+	inline CommaLog&
+	operator,(const T& value)
+	{
+		wos << value;
 
 		return *this;
 	}

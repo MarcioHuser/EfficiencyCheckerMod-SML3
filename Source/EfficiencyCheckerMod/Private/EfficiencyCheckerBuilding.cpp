@@ -1281,7 +1281,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 	{
 		AsyncTask(
 			ENamedThreads::GameThread,
-			[=]()
+			[=, this]()
 			{
 				Server_UpdateConnectedProduction(
 					keepCustomInput,

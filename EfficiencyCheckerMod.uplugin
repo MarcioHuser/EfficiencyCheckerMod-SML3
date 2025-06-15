@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 2,
-	"VersionName": "2.5.10",
-	"SemVersion": "2.5.10",
-	"GameVersion": ">=385279",
+	"VersionName": "2.5.11",
+	"SemVersion": "2.5.11",
+	"GameVersion": ">=416835",
 	"FriendlyName": "Efficiency Checker Mod",
 	"Description": "See if your production is under-flowing! Now with a hand tool, too!",
 	"Category": "Modding",
@@ -31,12 +31,12 @@
 		},
 		{
 			"Name": "SML",
-			"SemVersion": "^3.9.0",
+			"SemVersion": "^3.11.1",
 			"Enabled": true
 		},
 		{
 			"Name": "MarcioCommonLibs",
-			"SemVersion": "^1.3.8",
+			"SemVersion": "^1.3.9",
 			"Enabled": true
 		}
 	]
