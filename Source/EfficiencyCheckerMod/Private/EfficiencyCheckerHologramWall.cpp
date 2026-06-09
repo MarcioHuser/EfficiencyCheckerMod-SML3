@@ -8,6 +8,7 @@
 #include "EfficiencyCheckerBuilding.h"
 #include "FGConstructDisqualifier.h"
 #include "FGFactoryConnectionComponent.h"
+#include "Util/EfficiencyCheckerConfiguration.h"
 #include "Util/ECMOptimize.h"
 #include "Util/ECMLogging.h"
 

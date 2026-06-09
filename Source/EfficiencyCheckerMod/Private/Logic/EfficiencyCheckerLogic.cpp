@@ -2038,7 +2038,7 @@ void AEfficiencyCheckerLogic::collectOutput
 
 				if (recipeClass)
 				{
-					auto ingredients = UFGRecipe::GetIngredients(recipeClass);
+					auto ingredients = UFGRecipe::GetIngredients(commonInfoSubsystem->GetWorld(), recipeClass);
 
 					for (auto item : ingredients)
 					{

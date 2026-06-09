@@ -859,7 +859,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			for (auto item : allItems)
 			{
 				if (!item ||
-					!UFGBlueprintFunctionLibrary::CanBeOnConveyor(item) ||
+					// !UFGBlueprintFunctionLibrary::CanBeOnConveyor(item) ||
 					UFGItemDescriptor::GetForm(item) != EResourceForm::RF_SOLID ||
 					commonInfoSubsystem->wildCardItemDescriptors.Contains(item) ||
 					commonInfoSubsystem->overflowItemDescriptors.Contains(item) ||

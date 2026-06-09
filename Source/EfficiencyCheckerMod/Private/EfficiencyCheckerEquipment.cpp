@@ -120,7 +120,7 @@ void AEfficiencyCheckerEquipment::PrimaryFirePressed_Server(AFGBuildable* target
 			for (auto item : allItems)
 			{
 				if (!item ||
-					!UFGBlueprintFunctionLibrary::CanBeOnConveyor(item) ||
+					// !UFGBlueprintFunctionLibrary::CanBeOnConveyor(item) ||
 					UFGItemDescriptor::GetForm(item) != EResourceForm::RF_SOLID ||
 					commonInfoSubsystem->wildCardItemDescriptors.Contains(item) ||
 					commonInfoSubsystem->overflowItemDescriptors.Contains(item) ||

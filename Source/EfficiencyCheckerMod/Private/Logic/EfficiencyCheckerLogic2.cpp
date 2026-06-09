@@ -1606,7 +1606,7 @@ void AEfficiencyCheckerLogic2::handleManufacturer
 			}
 			else
 			{
-				auto ingredients = UFGRecipe::GetIngredients(recipeClass);
+				auto ingredients = UFGRecipe::GetIngredients(commonInfoSubsystem->GetWorld(), recipeClass);
 
 				for (auto item : ingredients)
 				{

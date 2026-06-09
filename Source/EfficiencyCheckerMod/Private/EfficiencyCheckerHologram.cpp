@@ -5,7 +5,7 @@
 
 #include "Buildables/FGBuildableConveyorBelt.h"
 #include "Buildables/FGBuildableFoundation.h"
-#include "Buildables/FGBuildableRoad.h"
+#include "Buildables/FGBuildablePipeline.h"
 #include "Components/WidgetComponent.h"
 #include "EfficiencyCheckerBuilding.h"
 #include "FGConstructDisqualifier.h"
@@ -13,6 +13,7 @@
 #include "Util/EfficiencyCheckerConfiguration.h"
 #include "Util/ECMOptimize.h"
 #include "Util/ECMLogging.h"
+#include "GameFramework/Character.h"
 
 #ifndef OPTIMIZE
 #pragma optimize("", off )
@@ -30,7 +31,6 @@ AEfficiencyCheckerHologram::AEfficiencyCheckerHologram()
 	: Super()
 {
 	this->mValidHitClasses.Add(AFGBuildableFoundation::StaticClass());
-	this->mValidHitClasses.Add(AFGBuildableRoad::StaticClass());
 	this->mValidHitClasses.Add(AEfficiencyCheckerBuilding::StaticClass());
 	this->mValidHitClasses.Add(AFGBuildableConveyorBelt::StaticClass());
 	this->mValidHitClasses.Add(AFGBuildablePipeline::StaticClass());
