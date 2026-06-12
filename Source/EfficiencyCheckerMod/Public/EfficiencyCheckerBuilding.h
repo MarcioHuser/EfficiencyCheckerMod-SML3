@@ -62,7 +62,7 @@ public:
 	bool mustUpdate_ = true;
 
 	UPROPERTY()
-	class AFGBuildablePipeline* pipelineToSplit = nullptr;
+	TObjectPtr<class AFGBuildablePipeline> pipelineToSplit = nullptr;
 	float pipelineSplitOffset = 0;
 
 	// ReSharper disable once CommentTypo
@@ -219,7 +219,7 @@ public:
 	TSet<AFGBuildable*> pendingBuildables;
 
 	UPROPERTY(BlueprintReadWrite, SaveGame, Replicated)
-	class AFGBuildablePipelineAttachment* innerPipelineAttachment = nullptr;
+	TObjectPtr<class AFGBuildablePipelineAttachment> innerPipelineAttachment = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	EResourceForm resourceForm = EResourceForm::RF_SOLID;

@@ -66,7 +66,7 @@ protected:
     int rotationDelta = 0;
 
     UPROPERTY()
-    AFGBuildableWall* wall = nullptr;
+    TObjectPtr<AFGBuildableWall> wall = nullptr;
 
     FHitResult lastHit_;
 };

@@ -74,13 +74,13 @@ protected:
 	int rotationDelta = 0;
 
 	UPROPERTY()
-	class AEfficiencyCheckerBuilding* efficiencyChecker = nullptr;
+	TObjectPtr<AEfficiencyCheckerBuilding> efficiencyChecker = nullptr;
 
 	UPROPERTY()
-	class AFGBuildableConveyorBelt* conveyor = nullptr;
+	TObjectPtr<class AFGBuildableConveyorBelt> conveyor = nullptr;
 
 	UPROPERTY()
-	class AFGBuildablePipeline* pipeline = nullptr;
+	TObjectPtr<class AFGBuildablePipeline> pipeline = nullptr;
 
     FHitResult lastHit_;
 };

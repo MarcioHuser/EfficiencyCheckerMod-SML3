@@ -471,7 +471,7 @@ void AEfficiencyCheckerHologram::CheckValidPlacement()
 void AEfficiencyCheckerHologram::dumpDisqualifiers() const
 {
 	// ReSharper disable once IdentifierTypo
-	for (const auto disqualifier : mConstructDisqualifiers)
+	for (const auto& disqualifier : mConstructDisqualifiers)
 	{
 		EC_LOG_Display_Condition(
 			*getTagName(),
