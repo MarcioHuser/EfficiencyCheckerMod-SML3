@@ -156,6 +156,10 @@ Get [FicsIt-Networks](https://ficsit.app/mod/8d8gk4imvFanRs)
 
 ## Changelog
 
+### Version 2.5.15
+- Added new EfficiencyChecker wall variant: WallBellow
+- Updated textures for wall variants
+
 ### Version 2.5.14
 - Fixed a crash when dismantling wall checkers
 - Fixed textures on wall checkers
