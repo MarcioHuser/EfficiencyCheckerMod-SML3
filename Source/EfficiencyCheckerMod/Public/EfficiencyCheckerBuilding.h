@@ -70,16 +70,16 @@ public:
 	//static UFGFactoryConnectionComponent* GetComponentConnection(UFGFactoryConnectionComponent* component);
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
-	virtual void SetCustomInjectedInput(bool enabled, float value);
-	virtual void Server_SetCustomInjectedInput(bool enabled, float value);
+	virtual void SetCustomInjectedInput(const bool enabled, const float value);
+	virtual void Server_SetCustomInjectedInput(const bool enabled, const float value);
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
-	virtual void SetCustomRequiredOutput(bool enabled, float value);
-	virtual void Server_SetCustomRequiredOutput(bool enabled, float value);
+	virtual void SetCustomRequiredOutput(const bool enabled, const float value);
+	virtual void Server_SetCustomRequiredOutput(const bool enabled, const float value);
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
-	virtual void SetAutoUpdateMode(EAutoUpdateType in_autoUpdateMode);
-	virtual void Server_SetAutoUpdateMode(EAutoUpdateType in_autoUpdateMode);
+	virtual void SetAutoUpdateMode(const EAutoUpdateType in_autoUpdateMode);
+	virtual void Server_SetAutoUpdateMode(const EAutoUpdateType in_autoUpdateMode);
 
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
 	virtual void SetMachineStatusIncludeType
@@ -230,6 +230,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	TEnumAsByte<ETraceTypeQuery> traceChannel;
 
+	TInlineComponentArray<UWidgetComponent*> widgets;
+	
 	FString _TAG_NAME = TEXT("EfficiencyCheckerBuilding: ");
 
 	// inline static FString
@@ -247,8 +249,8 @@ public:
 	}
 
 protected:
-	static void setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential);
-	static void setPendingProductionBoostCallback(class AFGBuildableFactory* buildable, float productionBoost);
+	static void setPendingPotentialCallback(const class AFGBuildableFactory* buildable, float potential);
+	static void setPendingProductionBoostCallback(const class AFGBuildableFactory* buildable, float productionBoost);
 
 	void addOnDestroyBindings(const TSet<AFGBuildable*>& buildings);
 	void removeOnDestroyBindings(const TSet<AFGBuildable*>& buildings);

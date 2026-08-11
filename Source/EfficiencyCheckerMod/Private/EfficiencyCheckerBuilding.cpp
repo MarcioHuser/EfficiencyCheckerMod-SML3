@@ -1,5 +1,6 @@
 // ReSharper disable CppUE4CodingStandardNamingViolationWarning
 // ReSharper disable CommentTypo
+// ReSharper disable CppUseElementsView
 
 #include "EfficiencyCheckerBuilding.h"
 
@@ -18,6 +19,7 @@
 #include "Util/ECMLogging.h"
 
 #include <map>
+#include <ranges>
 
 #include "Logic/CollectSettings.h"
 #include "Logic/EfficiencyCheckerLogic2.h"
@@ -57,32 +59,33 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 
 	Super::BeginPlay();
 
-	auto arrows = GetComponentsByTag(UStaticMeshComponent::StaticClass(), TEXT("DirectionArrow"));
-	for (auto arrow : arrows)
+	for (auto arrows = GetComponentsByTag(UStaticMeshComponent::StaticClass(), TEXT("DirectionArrow")); const auto arrow : arrows)
 	{
 		// Cast<UStaticMeshComponent>(arrow)->SetVisibilitySML(false);
 
 		arrow->DestroyComponent();
 	}
 
-	TInlineComponentArray<UWidgetComponent*> widgets(this, true);
-	for (auto widget : widgets)
+	widgets = TInlineComponentArray<UWidgetComponent*>(this, true);
+	for (const auto widget : widgets)
 	{
 		widget->SetVisibility(true);
+		//widget->SetComponentTickEnabled(false);
+		//widget->SetTickWhenOffscreen(false);
+		widget->SetCachedMaxDrawDistance(4000);
 	}
 
 	if (HasAuthority())
 	{
 		if (innerPipelineAttachment && pipelineToSplit)
 		{
-			auto fluidType = pipelineToSplit->GetFluidDescriptor();
+			const auto fluidType = pipelineToSplit->GetFluidDescriptor();
 
 			if (150 < pipelineSplitOffset && pipelineSplitOffset < pipelineToSplit->GetLength() - 150)
 			{
 				// Split into two pipes
-				auto newPipes = AFGBuildablePipeline::Split(pipelineToSplit, pipelineSplitOffset, false, innerPipelineAttachment);
 
-				if (newPipes.Num() > 1)
+				if (auto newPipes = AFGBuildablePipeline::Split(pipelineToSplit, pipelineSplitOffset, false, innerPipelineAttachment); newPipes.Num() > 1)
 				{
 					auto attachmentPipeConnections = innerPipelineAttachment->GetPipeConnections();
 
@@ -95,14 +98,14 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 						pipe0OutputCoincident
 							? attachmentPipeConnections[1]
 							: attachmentPipeConnections[0]
-						);
+					);
 
 					// Must connect to the one point the other way around
 					newPipes[1]->GetPipeConnection0()->SetConnection(
 						pipe0OutputCoincident
 							? attachmentPipeConnections[0]
 							: attachmentPipeConnections[1]
-						);
+					);
 				}
 			}
 			else
@@ -110,7 +113,7 @@ void AEfficiencyCheckerBuilding::BeginPlay()
 				// Attach to the nearest edge of the pipe
 				const auto closestPipeConnection = pipelineSplitOffset <= 150 ? pipelineToSplit->GetPipeConnection0() : pipelineToSplit->GetPipeConnection1();
 
-				for (auto attachmentConnection : innerPipelineAttachment->GetPipeConnections())
+				for (const auto attachmentConnection : innerPipelineAttachment->GetPipeConnections())
 				{
 					if (FVector::Dist(attachmentConnection->GetConnectorLocation(), closestPipeConnection->GetConnectorLocation()) < 1)
 					{
@@ -193,16 +196,14 @@ void AEfficiencyCheckerBuilding::EndPlay(const EEndPlayReason::Type endPlayReaso
 			}
 
 			// Remove the connections
-			for (auto connection : attachmentPipeConnections)
+			for (const auto connection : attachmentPipeConnections)
 			{
 				connection->ClearConnection();
 			}
 
 			if (pipeConnection1 && pipeConnection2)
 			{
-				auto dist = FVector::Dist(pipeConnection1->GetConnectorLocation(), pipeConnection2->GetConnectorLocation());
-
-				if (dist <= 1)
+				if (FVector::Dist(pipeConnection1->GetConnectorLocation(), pipeConnection2->GetConnectorLocation()) <= 1)
 				{
 					// Connect the pipes
 					pipeConnection1->SetConnection(pipeConnection2);
@@ -212,9 +213,9 @@ void AEfficiencyCheckerBuilding::EndPlay(const EEndPlayReason::Type endPlayReaso
 					pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection1->GetOwner()));
 					pipelines.Add(Cast<AFGBuildablePipeline>(pipeConnection2->GetOwner()));
 
-					auto newPipe = AFGBuildablePipeline::Merge(pipelines);
+					/*auto newPipe =*/ AFGBuildablePipeline::Merge(pipelines);
 
-					auto pipeSubsystem = AFGPipeSubsystem::Get(GetWorld());
+					const auto pipeSubsystem = AFGPipeSubsystem::Get(GetWorld());
 					pipeSubsystem->TrySetNetworkFluidDescriptor(pipeConnection1->GetPipeNetworkID(), fluidType);
 				}
 			}
@@ -245,6 +246,9 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Ticking"));
 		}
 
+		// auto playerIsClose = false;
+		// auto playerIsCloseDefined = false;
+
 		if (doUpdateItem)
 		{
 			UpdateItem(
@@ -255,23 +259,24 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 				TArray<FProductionDetail>(),
 				TArray<FProductionDetail>(),
 				overflow
-				);
+			);
 			SetActorTickEnabled(false);
 		}
 		else if (lastUpdated < updateRequested && updateRequested <= GetWorld()->GetTimeSeconds())
 		{
-			auto playerIt = GetWorld()->GetPlayerControllerIterator();
-			for (; playerIt; ++playerIt)
+			for (auto playerIt = GetWorld()->GetPlayerControllerIterator(); playerIt; ++playerIt)
 			{
 				if (checkTick_)
 				{
 					EC_LOG_Display_Condition(*getTagName(), TEXT("Player Controller"));
 				}
 
-				const auto pawn = (*playerIt)->GetPawn();
-				if (pawn)
+				if (const auto pawn = (*playerIt)->GetPawn())
 				{
 					auto playerTranslation = pawn->GetActorLocation();
+
+					// playerIsClose |= FVector::Dist(playerTranslation, GetActorLocation()) <= AEfficiencyCheckerConfiguration::configuration.autoUpdateDistance;
+					// playerIsCloseDefined = true;
 
 					if (!((AEfficiencyCheckerConfiguration::configuration.autoUpdate && autoUpdateMode == EAutoUpdateType::AUT_USE_DEFAULT) ||
 							autoUpdateMode == EAutoUpdateType::AUT_ENABLED) ||
@@ -281,7 +286,7 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 						// EC_LOG_Display_Condition(*getTagName(), TEXT("Player Pawn"));
 						// EC_LOG_Display_Condition(*getTagName(), TEXT("Translation X = "), playerTranslation.X, TEXT(" / Y = "), playerTranslation.Y,TEXT( " / Z = "), playerTranslation.Z);
 
-						// Check if has pending buildings
+						// Check if it has pending buildings
 						if (!mustUpdate_)
 						{
 							if (connectedBuildables.Num())
@@ -308,7 +313,7 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 												playerTranslation.X,
 												TEXT(" connected to known building "),
 												*GetPathNameSafe(connectionComponent->GetConnection()->GetOwner())
-												);
+											);
 
 											mustUpdate_ = true;
 											break;
@@ -346,6 +351,25 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 			}
 		}
 
+		// if (!playerIsCloseDefined)
+		// {
+		// 	for (auto playerIt = GetWorld()->GetPlayerControllerIterator(); playerIt; ++playerIt)
+		// 	{
+		// 		if (const auto pawn = (*playerIt)->GetPawn())
+		// 		{
+		// 			auto playerTranslation = pawn->GetActorLocation();
+		// 			
+		// 			playerIsClose |= FVector::Dist(playerTranslation, GetActorLocation()) <= AEfficiencyCheckerConfiguration::configuration.autoUpdateDistance;
+		// 		}
+		// 	}
+		// }
+
+		// for (auto widget : widgets)
+		// {
+		// 	widget->SetVisibility(playerIsClose);
+		// 	widget->SetComponentTickEnabled(playerIsClose);
+		// }
+
 		checkTick_ = false;
 	}
 }
@@ -375,7 +399,7 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 //     }
 // }
 
-void AEfficiencyCheckerBuilding::SetCustomInjectedInput(bool enabled, float value)
+void AEfficiencyCheckerBuilding::SetCustomInjectedInput(const bool enabled, const float value)
 {
 	if (HasAuthority())
 	{
@@ -383,8 +407,7 @@ void AEfficiencyCheckerBuilding::SetCustomInjectedInput(bool enabled, float valu
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
 
@@ -393,7 +416,7 @@ void AEfficiencyCheckerBuilding::SetCustomInjectedInput(bool enabled, float valu
 	}
 }
 
-void AEfficiencyCheckerBuilding::Server_SetCustomInjectedInput(bool enabled, float value)
+void AEfficiencyCheckerBuilding::Server_SetCustomInjectedInput(const bool enabled, const float value)
 {
 	if (HasAuthority())
 	{
@@ -402,7 +425,7 @@ void AEfficiencyCheckerBuilding::Server_SetCustomInjectedInput(bool enabled, flo
 	}
 }
 
-void AEfficiencyCheckerBuilding::SetCustomRequiredOutput(bool enabled, float value)
+void AEfficiencyCheckerBuilding::SetCustomRequiredOutput(const bool enabled, const float value)
 {
 	if (HasAuthority())
 	{
@@ -410,8 +433,7 @@ void AEfficiencyCheckerBuilding::SetCustomRequiredOutput(bool enabled, float val
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetCustomRequiredOutput at server"));
 
@@ -420,7 +442,7 @@ void AEfficiencyCheckerBuilding::SetCustomRequiredOutput(bool enabled, float val
 	}
 }
 
-void AEfficiencyCheckerBuilding::Server_SetCustomRequiredOutput(bool enabled, float value)
+void AEfficiencyCheckerBuilding::Server_SetCustomRequiredOutput(const bool enabled, const float value)
 {
 	if (HasAuthority())
 	{
@@ -429,7 +451,7 @@ void AEfficiencyCheckerBuilding::Server_SetCustomRequiredOutput(bool enabled, fl
 	}
 }
 
-void AEfficiencyCheckerBuilding::SetAutoUpdateMode(EAutoUpdateType in_autoUpdateMode)
+void AEfficiencyCheckerBuilding::SetAutoUpdateMode(const EAutoUpdateType in_autoUpdateMode)
 {
 	if (HasAuthority())
 	{
@@ -437,8 +459,7 @@ void AEfficiencyCheckerBuilding::SetAutoUpdateMode(EAutoUpdateType in_autoUpdate
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetAutoUpdateMode at server"));
 
@@ -447,7 +468,7 @@ void AEfficiencyCheckerBuilding::SetAutoUpdateMode(EAutoUpdateType in_autoUpdate
 	}
 }
 
-void AEfficiencyCheckerBuilding::Server_SetAutoUpdateMode(EAutoUpdateType in_autoUpdateMode)
+void AEfficiencyCheckerBuilding::Server_SetAutoUpdateMode(const EAutoUpdateType in_autoUpdateMode)
 {
 	if (HasAuthority())
 	{
@@ -463,8 +484,7 @@ void AEfficiencyCheckerBuilding::SetMachineStatusIncludeType(int32 in_machineSta
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetMachineStatusIncludeType at server"));
 
@@ -489,8 +509,7 @@ void AEfficiencyCheckerBuilding::UpdateBuilding(AFGBuildable* newBuildable)
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling UpdateBuilding at server"));
 
@@ -509,7 +528,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateBuilding(AFGBuildable* newBuildabl
 			{
 				Server_UpdateBuilding(newBuildable);
 			}
-			);
+		);
 
 		return;
 	}
@@ -591,7 +610,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	TSet<AFGBuildable*>& connected,
 	TArray<FProductionDetail>& producers,
 	TArray<FProductionDetail>& consumers,
-	bool& in_overflow,
+	bool& out_overflow,
 	bool includeProductionDetails
 )
 {
@@ -603,7 +622,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 	collectSettings.SetConnectedPtr(&connected);
 	collectSettings.SetMachineStatusIncludeType(machineStatusIncludeType);
 	collectSettings.SetResourceForm(resourceForm);
-	collectSettings.SetOverflowPtr(&in_overflow);
+	collectSettings.SetOverflowPtr(&out_overflow);
 
 	//const FString indent(TEXT("    "));
 	collectSettings.SetIndent(TEXT("    "));
@@ -616,7 +635,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 	// TSet<TSubclassOf<UFGItemDescriptor>> restrictedItems;
 
-	float initialThroughtputLimit = 0;
+	float initialThroughputLimit = 0;
 	// in_overflow = false;
 	collectSettings.SetOverflow(false);
 
@@ -642,19 +661,17 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 			outputConnector = inputConnector = otherPipeConnection;
 
-			auto pipe = Cast<AFGBuildablePipeline>(otherPipeConnection->GetOwner());
-
-			if (pipe)
+			if (auto pipe = Cast<AFGBuildablePipeline>(otherPipeConnection->GetOwner()))
 			{
 				if (firstConnector)
 				{
 					firstConnector = !firstConnector;
 
-					initialThroughtputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
+					initialThroughputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
 				}
 				else
 				{
-					initialThroughtputLimit = FMath::Min(AEfficiencyCheckerLogic::getPipeSpeed(pipe), initialThroughtputLimit);
+					initialThroughputLimit = FMath::Min(AEfficiencyCheckerLogic::getPipeSpeed(pipe), initialThroughputLimit);
 				}
 			}
 
@@ -687,7 +704,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			anchorPoint.Y,
 			TEXT(" / Z = "),
 			anchorPoint.Z
-			);
+		);
 
 		AFGBuildableConveyorBelt* currentConveyor = nullptr;
 		FVector currenNearestCoord;
@@ -718,7 +735,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			EDrawDebugTrace::None,
 			hits,
 			true
-			);
+		);
 
 		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
@@ -754,7 +771,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 						connection0Location.Y,
 						TEXT(" / Z = "),
 						connection0Location.Z
-						);
+					);
 					EC_LOG_Display(
 						*getTagName(),
 						TEXT("    connection 1: X = "),
@@ -763,7 +780,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 						connection1Location.Y,
 						TEXT(" / Z = "),
 						connection1Location.Z
-						);
+					);
 					EC_LOG_Display(
 						*getTagName(),
 						TEXT("    nearest location: X = "),
@@ -772,14 +789,14 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 						nearestCoord.Y,
 						TEXT(" / Z = "),
 						nearestCoord.Z
-						);
+					);
 				}
 
 				currentConveyor = conveyor;
 				inputConnector = conveyor->GetConnection0();
 				outputConnector = conveyor->GetConnection1();
 
-				initialThroughtputLimit = conveyor->GetSpeed() / 2;
+				initialThroughputLimit = conveyor->GetSpeed() / 2;
 			}
 		}
 
@@ -865,7 +882,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 					commonInfoSubsystem->overflowItemDescriptors.Contains(item) ||
 					commonInfoSubsystem->noneItemDescriptors.Contains(item) ||
 					commonInfoSubsystem->anyUndefinedItemDescriptors.Contains(item)
-					)
+				)
 				{
 					continue;;
 				}
@@ -901,7 +918,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 			EDrawDebugTrace::None,
 			hits,
 			true
-			);
+		);
 
 		FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
@@ -951,7 +968,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 						connection0Location.Y,
 						TEXT(" / Z = "),
 						connection0Location.Z
-						);
+					);
 					EC_LOG_Display(
 						*getTagName(),
 						TEXT("    connection 1: X = "),
@@ -960,7 +977,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 						connection1Location.Y,
 						TEXT(" / Z = "),
 						connection1Location.Z
-						);
+					);
 				}
 
 				currentPipe = pipe;
@@ -990,7 +1007,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 					collectSettings.SetResourceForm(UFGItemDescriptor::GetForm(fluidItem));
 				}
 
-				initialThroughtputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
+				initialThroughputLimit = AEfficiencyCheckerLogic::getPipeSpeed(pipe);
 
 				if (atConnection)
 				{
@@ -1082,12 +1099,12 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		// }
 	}
 
-	float limitedThroughputIn = customInjectedInput ? injectedInput : initialThroughtputLimit;
-	float limitedThroughputOut = customRequiredOutput ? requiredOutput : initialThroughtputLimit;
+	float limitedThroughputIn = customInjectedInput ? injectedInput : initialThroughputLimit;
+	float limitedThroughputOut = customRequiredOutput ? requiredOutput : initialThroughputLimit;
 
-	time_t t = time(NULL);
+	time_t t = time(nullptr);
 	// time_t timeout = t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout;
-	collectSettings.SetTimeout(t + (time_t)AEfficiencyCheckerConfiguration::configuration.updateTimeout);
+	collectSettings.SetTimeout(t + static_cast<time_t>(AEfficiencyCheckerConfiguration::configuration.updateTimeout));
 
 	EC_LOG_Warning_Condition(
 		FUNCTIONSTR TEXT(": time = "),
@@ -1096,7 +1113,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 		collectSettings.GetTimeout(),
 		TEXT(" / updateTimeout = "),
 		AEfficiencyCheckerConfiguration::configuration.updateTimeout
-		);
+	);
 
 	if (AEfficiencyCheckerConfiguration::configuration.logicVersion >= 2)
 	{
@@ -1125,17 +1142,17 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 
 			if (collectSettings.GetInjectedInput().empty())
 			{
-				for (auto entry : collectSettings.GetRequiredOutput())
+				for (const auto& [fst, _] : collectSettings.GetRequiredOutput() )
 				{
 					// collectSettings.GetInjectedItems().Add(entry.first);
-					collectSettings.GetInjectedInput()[entry.first];
+					collectSettings.GetInjectedInput()[fst];
 				}
 			}
 		}
 
-		for (const auto& entry : collectSettings.GetInjectedInput())
+		for (const auto& [fst, _] : collectSettings.GetInjectedInput())
 		{
-			out_injectedItems.Add(entry.first);
+			out_injectedItems.Add(fst);
 		}
 	}
 	else
@@ -1162,7 +1179,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				collectSettings.GetIndent(),
 				collectSettings.GetTimeout(),
 				collectSettings.GetMachineStatusIncludeType()
-				);
+			);
 
 			limitedThroughputIn = collectSettings.GetLimitedThroughput();
 
@@ -1194,7 +1211,7 @@ void AEfficiencyCheckerBuilding::GetConnectedProduction
 				collectSettings.GetIndent(),
 				collectSettings.GetTimeout(),
 				collectSettings.GetMachineStatusIncludeType()
-				);
+			);
 
 			limitedThroughputOut = collectSettings.GetLimitedThroughput();
 
@@ -1226,11 +1243,11 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 (
 	const bool keepCustomInput,
 	const bool hasCustomInjectedInput,
-	float in_customInjectedInput,
+	const float in_customInjectedInput,
 	const bool keepCustomOutput,
 	const bool hasCustomRequiredOutput,
-	float in_customRequiredOutput,
-	bool includeProductionDetails
+	const float in_customRequiredOutput,
+	const bool includeProductionDetails
 )
 {
 	if (HasAuthority())
@@ -1243,12 +1260,11 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 			hasCustomRequiredOutput,
 			in_customRequiredOutput,
 			includeProductionDetails
-			);
+		);
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling UpdateConnectedProduction at server"));
 
@@ -1261,7 +1277,7 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 				hasCustomRequiredOutput,
 				in_customRequiredOutput,
 				includeProductionDetails
-				);
+			);
 		}
 	}
 }
@@ -1291,9 +1307,9 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 					hasCustomRequiredOutput,
 					in_customRequiredOutput,
 					includeProductionDetails
-					);
+				);
 			}
-			);
+		);
 
 		return;
 	}
@@ -1318,7 +1334,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 			}
 		}
 
-		if (! customInjectedInput)
+		if (!customInjectedInput)
 		{
 			injectedInput = 0;
 		}
@@ -1358,7 +1374,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 			consumers,
 			overflow,
 			includeProductionDetails
-			);
+		);
 
 		if (!customInjectedInput)
 		{
@@ -1405,7 +1421,7 @@ void AEfficiencyCheckerBuilding::Server_UpdateConnectedProduction
 
 void AEfficiencyCheckerBuilding::addOnDestroyBindings(const TSet<AFGBuildable*>& buildings)
 {
-	for (auto building : buildings)
+	for (const auto building : buildings)
 	{
 		AddOnDestroyBinding(building);
 	}
@@ -1413,7 +1429,7 @@ void AEfficiencyCheckerBuilding::addOnDestroyBindings(const TSet<AFGBuildable*>&
 
 void AEfficiencyCheckerBuilding::removeOnDestroyBindings(const TSet<AFGBuildable*>& buildings)
 {
-	for (auto building : buildings)
+	for (const auto building : buildings)
 	{
 		RemoveOnDestroyBinding(building);
 	}
@@ -1421,10 +1437,9 @@ void AEfficiencyCheckerBuilding::removeOnDestroyBindings(const TSet<AFGBuildable
 
 void AEfficiencyCheckerBuilding::addOnSortRulesChangedDelegateBindings(const TSet<AFGBuildable*>& buildings)
 {
-	for (auto building : buildings)
+	for (const auto building : buildings)
 	{
-		const auto smart = Cast<AFGBuildableSplitterSmart>(building);
-		if (smart)
+		if (const auto smart = Cast<AFGBuildableSplitterSmart>(building))
 		{
 			AddOnSortRulesChangedDelegateBinding(smart);
 		}
@@ -1433,10 +1448,9 @@ void AEfficiencyCheckerBuilding::addOnSortRulesChangedDelegateBindings(const TSe
 
 void AEfficiencyCheckerBuilding::removeOnSortRulesChangedDelegateBindings(const TSet<AFGBuildable*>& buildings)
 {
-	for (auto building : buildings)
+	for (const auto building : buildings)
 	{
-		const auto smart = Cast<AFGBuildableSplitterSmart>(building);
-		if (smart)
+		if (const auto smart = Cast<AFGBuildableSplitterSmart>(building))
 		{
 			RemoveOnSortRulesChangedDelegateBinding(smart);
 		}
@@ -1445,10 +1459,9 @@ void AEfficiencyCheckerBuilding::removeOnSortRulesChangedDelegateBindings(const 
 
 void AEfficiencyCheckerBuilding::addOnRecipeChangedBindings(const TSet<AFGBuildable*>& buildings)
 {
-	for (auto building : buildings)
+	for (const auto building : buildings)
 	{
-		const auto manufacturer = Cast<AFGBuildableManufacturer>(building);
-		if (manufacturer)
+		if (const auto manufacturer = Cast<AFGBuildableManufacturer>(building))
 		{
 			AddOnRecipeChangedBinding(manufacturer);
 		}
@@ -1457,10 +1470,9 @@ void AEfficiencyCheckerBuilding::addOnRecipeChangedBindings(const TSet<AFGBuilda
 
 void AEfficiencyCheckerBuilding::removeOnRecipeChangedBindings(const TSet<AFGBuildable*>& buildings)
 {
-	for (auto building : buildings)
+	for (const auto building : buildings)
 	{
-		const auto manufacturer = Cast<AFGBuildableManufacturer>(building);
-		if (manufacturer)
+		if (const auto manufacturer = Cast<AFGBuildableManufacturer>(building))
 		{
 			RemoveOnRecipeChangedBinding(manufacturer);
 		}
@@ -1475,8 +1487,7 @@ void AEfficiencyCheckerBuilding::RemoveBuilding(AFGBuildable* buildable)
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling RemoveBuilding at server"));
 
@@ -1494,7 +1505,7 @@ void AEfficiencyCheckerBuilding::Server_RemoveBuilding(AFGBuildable* buildable)
 	}
 }
 
-void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableFactory* buildable, float potential)
+void AEfficiencyCheckerBuilding::setPendingPotentialCallback(const class AFGBuildableFactory* buildable, const float potential)
 {
 	if (!AEfficiencyCheckerLogic::singleton)
 	{
@@ -1506,12 +1517,12 @@ void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableF
 		*GetPathNameSafe(buildable),
 		TEXT(" to "),
 		potential
-		);
+	);
 
 	// Update all EfficiencyCheckerBuildings that connects to this building
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
-	for (auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
+	for (const auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
 	{
 		if (efficiencyBuilding->HasAuthority() && efficiencyBuilding->connectedBuildables.Contains(buildable))
 		{
@@ -1520,7 +1531,7 @@ void AEfficiencyCheckerBuilding::setPendingPotentialCallback(class AFGBuildableF
 	}
 }
 
-void AEfficiencyCheckerBuilding::setPendingProductionBoostCallback(class AFGBuildableFactory* buildable, float productionBoost)
+void AEfficiencyCheckerBuilding::setPendingProductionBoostCallback(const class AFGBuildableFactory* buildable, const float productionBoost)
 {
 	if (!AEfficiencyCheckerLogic::singleton)
 	{
@@ -1532,12 +1543,12 @@ void AEfficiencyCheckerBuilding::setPendingProductionBoostCallback(class AFGBuil
 		*GetPathNameSafe(buildable),
 		TEXT(" to "),
 		productionBoost
-		);
+	);
 
 	// Update all EfficiencyCheckerBuildings that connects to this building
 	FScopeLock ScopeLock(&ACommonInfoSubsystem::mclCritical);
 
-	for (auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
+	for (const auto efficiencyBuilding : AEfficiencyCheckerLogic::singleton->allEfficiencyBuildings)
 	{
 		if (efficiencyBuilding->HasAuthority() && efficiencyBuilding->connectedBuildables.Contains(buildable))
 		{
@@ -1581,8 +1592,7 @@ void AEfficiencyCheckerBuilding::AddPendingBuilding(AFGBuildable* buildable)
 	}
 	else
 	{
-		auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld());
-		if (rco)
+		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling AddPendingBuilding at server"));
 
@@ -1601,13 +1611,13 @@ void AEfficiencyCheckerBuilding::Server_AddPendingBuilding(AFGBuildable* buildab
 
 void AEfficiencyCheckerBuilding::UpdateItem_Implementation
 (
-	float in_injectedInput,
-	float in_limitedThroughput,
-	float in_requiredOutput,
+	const float in_injectedInput,
+	const float in_limitedThroughput,
+	const float in_requiredOutput,
 	const TArray<TSubclassOf<UFGItemDescriptor>>& in_injectedItems,
 	const TArray<FProductionDetail>& in_producers,
 	const TArray<FProductionDetail>& in_consumers,
-	bool in_overflow
+	const bool in_overflow
 )
 {
 	OnUpdateItem.Broadcast(
@@ -1618,7 +1628,7 @@ void AEfficiencyCheckerBuilding::UpdateItem_Implementation
 		in_producers,
 		in_consumers,
 		in_overflow
-		);
+	);
 }
 
 #ifndef OPTIMIZE
