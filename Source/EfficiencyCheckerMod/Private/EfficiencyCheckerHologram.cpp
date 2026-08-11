@@ -196,7 +196,7 @@ void AEfficiencyCheckerHologram::AdjustForGround(FVector& out_adjustedLocation, 
 			conveyor->GetLocationAndDirectionAtOffset(conveyor->FindOffsetClosestToLocation(lastHit_.Location), nearestCoord, direction);
 
 			out_adjustedRotation = direction.Rotation().Add(0, rotationDelta * 180, 0);
-			out_adjustedLocation = nearestCoord + out_adjustedRotation.RotateVector(FVector(0, 0, -100)); // 1m bellow the belt
+			out_adjustedLocation = nearestCoord + out_adjustedRotation.RotateVector(FVector(0, 0, -100)); // 1m below the belt
 
 			isSnapped = true;
 		}
