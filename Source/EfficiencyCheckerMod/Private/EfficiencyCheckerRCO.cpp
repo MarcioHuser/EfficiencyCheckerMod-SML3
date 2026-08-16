@@ -23,14 +23,14 @@ UEfficiencyCheckerRCO* UEfficiencyCheckerRCO::getRCO(UWorld* world)
 {
 	auto rco = Cast<UEfficiencyCheckerRCO>(
 		Cast<AFGPlayerController>(world->GetFirstPlayerController())->GetRemoteCallObjectOfClass(UEfficiencyCheckerRCO::StaticClass())
-		);
+	);
 
 	return rco;
 }
 
 void UEfficiencyCheckerRCO::UpdateBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* newBuildable)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->Server_UpdateBuilding(newBuildable);
 	}
@@ -38,7 +38,7 @@ void UEfficiencyCheckerRCO::UpdateBuildingRPC_Implementation(AEfficiencyCheckerB
 
 bool UEfficiencyCheckerRCO::UpdateBuildingRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* newBuildable)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Implementation
@@ -53,7 +53,7 @@ void UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Implementation
 	bool includeProductionDetails
 )
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->Server_UpdateConnectedProduction(
 			keepCustomInput,
@@ -63,7 +63,7 @@ void UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Implementation
 			hasCustomRequiredOutput,
 			in_customRequiredOutput,
 			includeProductionDetails
-			);
+		);
 	}
 }
 
@@ -79,12 +79,12 @@ bool UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Validate
 	bool includeProductionDetails
 )
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::RemoveBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->Server_RemoveBuilding(buildable);
 	}
@@ -92,12 +92,12 @@ void UEfficiencyCheckerRCO::RemoveBuildingRPC_Implementation(AEfficiencyCheckerB
 
 bool UEfficiencyCheckerRCO::RemoveBuildingRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::AddPendingBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->Server_AddPendingBuilding(buildable);
 	}
@@ -105,12 +105,12 @@ void UEfficiencyCheckerRCO::AddPendingBuildingRPC_Implementation(AEfficiencyChec
 
 bool UEfficiencyCheckerRCO::AddPendingBuildingRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::SetCustomInjectedInputRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->SetCustomInjectedInput(enabled, value);
 	}
@@ -118,12 +118,12 @@ void UEfficiencyCheckerRCO::SetCustomInjectedInputRPC_Implementation(AEfficiency
 
 bool UEfficiencyCheckerRCO::SetCustomInjectedInputRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::SetCustomRequiredOutputRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->SetCustomRequiredOutput(enabled, value);
 	}
@@ -131,12 +131,12 @@ void UEfficiencyCheckerRCO::SetCustomRequiredOutputRPC_Implementation(AEfficienc
 
 bool UEfficiencyCheckerRCO::SetCustomRequiredOutputRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Implementation(class AEfficiencyCheckerBuilding* efficiencyChecker, EAutoUpdateType autoUpdateMode)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->SetAutoUpdateMode(autoUpdateMode);
 	}
@@ -144,12 +144,12 @@ void UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Implementation(class AEfficienc
 
 bool UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Validate(class AEfficiencyCheckerBuilding* efficiencyChecker, EAutoUpdateType autoUpdateMode)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Implementation(class AEfficiencyCheckerBuilding* efficiencyChecker, int32 machineStatusIncludeType)
 {
-	if (efficiencyChecker && efficiencyChecker->HasAuthority())
+	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
 	{
 		efficiencyChecker->SetMachineStatusIncludeType(machineStatusIncludeType);
 	}
@@ -157,12 +157,12 @@ void UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Implementation(class 
 
 bool UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Validate(class AEfficiencyCheckerBuilding* efficiencyChecker, int32 machineStatusIncludeType)
 {
-	return !!efficiencyChecker;
+	return IsValid(efficiencyChecker);
 }
 
 void UEfficiencyCheckerRCO::PrimaryFirePressedPC_Implementation(class AEfficiencyCheckerEquipment* efficiencyCheckerEquip, AFGBuildable* targetBuildable)
 {
-	if (efficiencyCheckerEquip && efficiencyCheckerEquip->HasAuthority())
+	if (IsValid(efficiencyCheckerEquip) && efficiencyCheckerEquip->HasAuthority())
 	{
 		efficiencyCheckerEquip->PrimaryFirePressed_Server(targetBuildable);
 	}
@@ -170,7 +170,7 @@ void UEfficiencyCheckerRCO::PrimaryFirePressedPC_Implementation(class AEfficienc
 
 bool UEfficiencyCheckerRCO::PrimaryFirePressedPC_Validate(class AEfficiencyCheckerEquipment* efficiencyCheckerEquip, AFGBuildable* targetBuildable)
 {
-	return !!efficiencyCheckerEquip;
+	return IsValid(efficiencyCheckerEquip);
 }
 
 #ifndef OPTIMIZE

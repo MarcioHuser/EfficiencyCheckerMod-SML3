@@ -156,6 +156,9 @@ Get [FicsIt-Networks](https://ficsit.app/mod/8d8gk4imvFanRs)
 
 ## Changelog
 
+### Version 2.5.16
+- Game headers update
+
 ### Version 2.5.15
 - Added new EfficiencyChecker wall variant: WallBellow
 - Updated textures for wall variants
