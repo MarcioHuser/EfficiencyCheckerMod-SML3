@@ -21,13 +21,29 @@ void UEfficiencyCheckerRCO::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 UEfficiencyCheckerRCO* UEfficiencyCheckerRCO::getRCO(UWorld* world)
 {
-	auto rco = Cast<UEfficiencyCheckerRCO>(
-		Cast<AFGPlayerController>(world->GetFirstPlayerController())->GetRemoteCallObjectOfClass(UEfficiencyCheckerRCO::StaticClass())
-	);
+	if (!IsValid(world))
+	{
+		return nullptr;
+	}
 
-	return rco;
+	const auto playerController = Cast<AFGPlayerController>(world->GetFirstPlayerController());
+	if (!IsValid(playerController))
+	{
+		return nullptr;
+	}
+
+	return Cast<UEfficiencyCheckerRCO>(playerController->GetRemoteCallObjectOfClass(UEfficiencyCheckerRCO::StaticClass()));
 }
 
+// Every _Validate below returns true on purpose.
+//
+// A false here is not "ignore this call": UnrealEngine treats it as a cheating client and
+// closes the connection (LogRep: ReceivedRPC: RPC_GetLastFailedReason, then
+// ObjectReplicatorReceivedBunchFail). The actor arguments travel as net GUIDs and resolve to
+// null whenever the server destroyed the building before the client's call arrived - which is
+// what happens every time somebody dismantles. Validating IsValid() there kicked players for
+// an ordinary race. Each _Implementation already checks IsValid() and does nothing when the
+// reference is gone, which is the correct handling.
 void UEfficiencyCheckerRCO::UpdateBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* newBuildable)
 {
 	if (IsValid(efficiencyChecker) && efficiencyChecker->HasAuthority())
@@ -38,7 +54,7 @@ void UEfficiencyCheckerRCO::UpdateBuildingRPC_Implementation(AEfficiencyCheckerB
 
 bool UEfficiencyCheckerRCO::UpdateBuildingRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* newBuildable)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Implementation
@@ -79,7 +95,7 @@ bool UEfficiencyCheckerRCO::UpdateConnectedProductionRPC_Validate
 	bool includeProductionDetails
 )
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::RemoveBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
@@ -92,7 +108,7 @@ void UEfficiencyCheckerRCO::RemoveBuildingRPC_Implementation(AEfficiencyCheckerB
 
 bool UEfficiencyCheckerRCO::RemoveBuildingRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::AddPendingBuildingRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
@@ -105,7 +121,7 @@ void UEfficiencyCheckerRCO::AddPendingBuildingRPC_Implementation(AEfficiencyChec
 
 bool UEfficiencyCheckerRCO::AddPendingBuildingRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, AFGBuildable* buildable)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::SetCustomInjectedInputRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
@@ -118,7 +134,7 @@ void UEfficiencyCheckerRCO::SetCustomInjectedInputRPC_Implementation(AEfficiency
 
 bool UEfficiencyCheckerRCO::SetCustomInjectedInputRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::SetCustomRequiredOutputRPC_Implementation(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
@@ -131,7 +147,7 @@ void UEfficiencyCheckerRCO::SetCustomRequiredOutputRPC_Implementation(AEfficienc
 
 bool UEfficiencyCheckerRCO::SetCustomRequiredOutputRPC_Validate(AEfficiencyCheckerBuilding* efficiencyChecker, bool enabled, float value)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Implementation(class AEfficiencyCheckerBuilding* efficiencyChecker, EAutoUpdateType autoUpdateMode)
@@ -144,7 +160,7 @@ void UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Implementation(class AEfficienc
 
 bool UEfficiencyCheckerRCO::SetAutoUpdateModeRPC_Validate(class AEfficiencyCheckerBuilding* efficiencyChecker, EAutoUpdateType autoUpdateMode)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Implementation(class AEfficiencyCheckerBuilding* efficiencyChecker, int32 machineStatusIncludeType)
@@ -157,7 +173,7 @@ void UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Implementation(class 
 
 bool UEfficiencyCheckerRCO::SetMachineStatusIncludeTypeRPC_Validate(class AEfficiencyCheckerBuilding* efficiencyChecker, int32 machineStatusIncludeType)
 {
-	return IsValid(efficiencyChecker);
+	return true;
 }
 
 void UEfficiencyCheckerRCO::PrimaryFirePressedPC_Implementation(class AEfficiencyCheckerEquipment* efficiencyCheckerEquip, AFGBuildable* targetBuildable)
@@ -170,7 +186,7 @@ void UEfficiencyCheckerRCO::PrimaryFirePressedPC_Implementation(class AEfficienc
 
 bool UEfficiencyCheckerRCO::PrimaryFirePressedPC_Validate(class AEfficiencyCheckerEquipment* efficiencyCheckerEquip, AFGBuildable* targetBuildable)
 {
-	return IsValid(efficiencyCheckerEquip);
+	return true;
 }
 
 #ifndef OPTIMIZE
