@@ -98,7 +98,29 @@ void AEfficiencyCheckerLogic::Initialize()
 
 void AEfficiencyCheckerLogic::handleBuildableConstructed(AFGBuildable* buildable)
 {
-	if (IsValidBuildable(buildable) && AEfficiencyCheckerConfiguration::configuration.autoUpdate)
+	// IsValidBuildable also registers checkers into allEfficiencyBuildings, so it has to run on
+	// both sides.
+	const auto isValid = IsValidBuildable(buildable);
+
+	// Updating, however, is the server's job. This delegate fires on clients too, and not only
+	// when a player builds something: it fires again for every buildable that replicates in.
+	// UpdateBuildings then walks every checker in the world and sends one reliable RPC per
+	// checker, all of them duplicating work the server already did for itself in this same
+	// handler. A burst of those overflows the connection's reliable buffer and drops the
+	// player - upstream issue #34. The explicit update button in the widget still goes through
+	// the client, that path is untouched.
+	//
+	// The net mode is what has to be asked, not HasAuthority(): this actor is spawned locally on
+	// every machine from InitGameWorld and does not replicate, so its role is Authority on a
+	// client as well. A listen server host and a single player game are not clients and keep
+	// updating exactly as before.
+	const auto world = GetWorld();
+	if (!world || world->GetNetMode() == NM_Client)
+	{
+		return;
+	}
+
+	if (isValid && AEfficiencyCheckerConfiguration::configuration.autoUpdate)
 	{
 		AEfficiencyCheckerBuilding::UpdateBuildings(buildable);
 	}
