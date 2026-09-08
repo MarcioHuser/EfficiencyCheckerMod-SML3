@@ -399,6 +399,20 @@ void AEfficiencyCheckerBuilding::Tick(float dt)
 //     }
 // }
 
+// A checker that is going away must not name itself in a call to the server: by the time the
+// call arrives the server has destroyed it, the reference resolves to null and the server does
+// nothing with it. Dismantling is exactly that case, and on a busy server it happens often
+// enough to be worth not sending at all.
+UEfficiencyCheckerRCO* AEfficiencyCheckerBuilding::getServerCallRCO() const
+{
+	if (IsActorBeingDestroyed() || !IsValid(this))
+	{
+		return nullptr;
+	}
+
+	return UEfficiencyCheckerRCO::getRCO(GetWorld());
+}
+
 void AEfficiencyCheckerBuilding::SetCustomInjectedInput(const bool enabled, const float value)
 {
 	if (HasAuthority())
@@ -407,7 +421,7 @@ void AEfficiencyCheckerBuilding::SetCustomInjectedInput(const bool enabled, cons
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetCustomInjectedInput at server"));
 
@@ -433,7 +447,7 @@ void AEfficiencyCheckerBuilding::SetCustomRequiredOutput(const bool enabled, con
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetCustomRequiredOutput at server"));
 
@@ -459,7 +473,7 @@ void AEfficiencyCheckerBuilding::SetAutoUpdateMode(const EAutoUpdateType in_auto
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetAutoUpdateMode at server"));
 
@@ -484,7 +498,7 @@ void AEfficiencyCheckerBuilding::SetMachineStatusIncludeType(int32 in_machineSta
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling SetMachineStatusIncludeType at server"));
 
@@ -509,7 +523,7 @@ void AEfficiencyCheckerBuilding::UpdateBuilding(AFGBuildable* newBuildable)
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling UpdateBuilding at server"));
 
@@ -1264,7 +1278,7 @@ void AEfficiencyCheckerBuilding::UpdateConnectedProduction
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling UpdateConnectedProduction at server"));
 
@@ -1487,7 +1501,7 @@ void AEfficiencyCheckerBuilding::RemoveBuilding(AFGBuildable* buildable)
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling RemoveBuilding at server"));
 
@@ -1592,7 +1606,7 @@ void AEfficiencyCheckerBuilding::AddPendingBuilding(AFGBuildable* buildable)
 	}
 	else
 	{
-		if (const auto rco = UEfficiencyCheckerRCO::getRCO(GetWorld()))
+		if (const auto rco = getServerCallRCO())
 		{
 			EC_LOG_Display_Condition(*getTagName(), TEXT("Calling AddPendingBuilding at server"));
 

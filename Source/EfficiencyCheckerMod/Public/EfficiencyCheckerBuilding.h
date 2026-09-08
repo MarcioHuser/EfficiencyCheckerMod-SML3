@@ -69,6 +69,9 @@ public:
 	//UFUNCTION(BlueprintCallable, BlueprintPure = true, Category = "EfficiencyChecker")
 	//static UFGFactoryConnectionComponent* GetComponentConnection(UFGFactoryConnectionComponent* component);
 
+	/** The RCO to call the server through, or null when this checker is being destroyed. */
+	class UEfficiencyCheckerRCO* getServerCallRCO() const;
+
 	UFUNCTION(BlueprintCallable, Category="EfficiencyChecker")
 	virtual void SetCustomInjectedInput(const bool enabled, const float value);
 	virtual void Server_SetCustomInjectedInput(const bool enabled, const float value);
